@@ -44,12 +44,41 @@ import Testing
     let result = try PluginCatalog.installNativePlugin(from: source, into: fixture.userPluginDirectory)
 
     #expect(result.action == .updated)
-    #expect(result.destinationURL == destination.standardizedFileURL)
+    #expect(result.destinationURL.resolvingSymlinksInPath().path == destination.resolvingSymlinksInPath().path)
     #expect(!FileManager.default.fileExists(atPath: destination.appending(path: "stale.txt").path))
 
     let installedCatalog = PluginCatalog.scan(directories: [fixture.userPluginDirectory])
     let installedPlugin = try #require(installedCatalog.plugin(identifier: "org.notepad-plus-plus.macnative.native-tools"))
     #expect(installedPlugin.version == "2.0.0")
+}
+
+@Test func pluginCatalogUpdatesExistingNativePluginFolderWithDifferentName() throws {
+    let fixture = try PluginCatalogInstallationFixture()
+    defer { fixture.cleanup() }
+
+    let source = try fixture.makePluginFolder(
+        named: "Renamed NativeTools",
+        manifest: nativeToolsManifest(version: "2.0.0"),
+        files: ["native-tools": "#!/bin/sh\nexit 0\n"]
+    )
+
+    let existingDirectory = fixture.userPluginDirectory.appending(path: "Existing NativeTools")
+    try FileManager.default.createDirectory(at: existingDirectory, withIntermediateDirectories: true)
+    try nativeToolsManifest(version: "1.0.0")
+        .write(to: existingDirectory.appending(path: "notepad-mac-plugin.json"), atomically: true, encoding: .utf8)
+    try "stale".write(to: existingDirectory.appending(path: "stale.txt"), atomically: true, encoding: .utf8)
+
+    let result = try PluginCatalog.installNativePlugin(from: source, into: fixture.userPluginDirectory)
+
+    #expect(result.action == .updated)
+    #expect(result.destinationURL.resolvingSymlinksInPath().path == existingDirectory.resolvingSymlinksInPath().path)
+    #expect(!FileManager.default.fileExists(atPath: existingDirectory.appending(path: "stale.txt").path))
+    #expect(!FileManager.default.fileExists(atPath: fixture.userPluginDirectory.appending(path: "Renamed NativeTools").path))
+
+    let installedCatalog = PluginCatalog.scan(directories: [fixture.userPluginDirectory])
+    let installedPlugin = try #require(installedCatalog.plugin(identifier: "org.notepad-plus-plus.macnative.native-tools"))
+    #expect(installedPlugin.version == "2.0.0")
+    #expect(installedPlugin.directoryURL.resolvingSymlinksInPath().path == existingDirectory.resolvingSymlinksInPath().path)
 }
 
 @Test func pluginCatalogRejectsUpdateCollisionWithDifferentManifestIdentifier() throws {

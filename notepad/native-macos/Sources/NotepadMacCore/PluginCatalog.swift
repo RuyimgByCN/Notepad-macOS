@@ -78,7 +78,7 @@ public struct PluginInstallationResult: Equatable, Sendable {
 
     public init(plugin: PluginDescriptor, destinationURL: URL, action: PluginInstallationAction) {
         self.plugin = plugin
-        self.destinationURL = destinationURL.standardizedFileURL
+        self.destinationURL = destinationURL
         self.action = action
     }
 }
@@ -230,7 +230,15 @@ public struct PluginCatalog: Equatable, Sendable {
         try rejectWindowsDLLOnlyPlugin(sourceDirectoryURL, manifest: manifest, fileManager: fileManager)
 
         let destinationName = try destinationDirectoryName(sourceDirectoryURL: sourceDirectoryURL, manifest: manifest)
-        let destinationURL = destinationRootURL.appending(path: destinationName).standardizedFileURL
+        let preferredDestinationURL = destinationRootURL
+            .appending(path: destinationName)
+            .standardizedFileURL
+        let destinationURL = try resolveExistingPluginDirectory(
+            manifest: manifest,
+            destinationRootURL: destinationRootURL,
+            preferredDestinationURL: preferredDestinationURL,
+            fileManager: fileManager
+        )
         let destinationManifestURL = destinationURL.appending(path: "notepad-mac-plugin.json").standardizedFileURL
 
         if sourceDirectoryURL.resolvingSymlinksInPath() == destinationURL.resolvingSymlinksInPath() {
@@ -417,6 +425,49 @@ public struct PluginCatalog: Equatable, Sendable {
            nonMetadataPayload.allSatisfy({ $0.pathExtension.lowercased() == "dll" }) {
             throw PluginInstallationError.windowsDLLOnly(sourceDirectoryURL)
         }
+    }
+
+    private static func resolveExistingPluginDirectory(
+        manifest: PluginManifest,
+        destinationRootURL: URL,
+        preferredDestinationURL: URL,
+        fileManager: FileManager
+    ) throws -> URL {
+        let preferred = preferredDestinationURL.standardizedFileURL
+        guard let destinationItems = try? fileManager.contentsOfDirectory(
+            at: destinationRootURL,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else {
+            return preferred
+        }
+
+        let byIdentifier = destinationItems
+            .filter {
+                (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+            }
+            .first(where: { directory in
+                let manifestURL = directory.appending(path: "notepad-mac-plugin.json")
+                guard fileManager.fileExists(atPath: manifestURL.path) else {
+                    return false
+                }
+                guard let contents = try? String(contentsOf: manifestURL) else {
+                    return false
+                }
+                guard let parsed = try? JSONDecoder().decode(
+                    PluginManifest.self,
+                    from: Data(contents.utf8)
+                ) else {
+                    return false
+                }
+                return parsed.identifier == manifest.identifier
+            })
+
+        if let matchedByIdentifier = byIdentifier {
+            return matchedByIdentifier
+        }
+
+        return preferred
     }
 
     private static func destinationDirectoryName(sourceDirectoryURL: URL, manifest: PluginManifest) throws -> String {
