@@ -1,0 +1,5 @@
+.DS_Store
+*.zip
+
+notepad/native-macos/.build/
+notepad/native-macos/dist/
