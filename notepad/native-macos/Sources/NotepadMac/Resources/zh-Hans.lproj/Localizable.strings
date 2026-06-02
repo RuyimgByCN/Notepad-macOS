@@ -48,6 +48,9 @@
 "callTip.activeParameter" = "当前参数：%d";
 "callTip.accessibility.summary" = "调用提示摘要";
 "callTip.accessibility.detail" = "调用提示详情";
+"editor.untitledDocumentName" = "未命名";
+"editor.untitledFileName" = "未命名.txt";
+"editor.windowTitleFormat" = "%@ - Notepad++ Mac";
 "editor.resourceNotAvailable" = "资源不可用";
 "editor.missing.autoCompletionAPI" = "没有 %@ 可用的自动补全 API 文件。";
 "editor.missing.activeCall" = "插入点处没有带 API 元数据的函数调用。";
@@ -242,6 +245,8 @@
 "plugins.status.removedNativePlugin" = "已将原生插件 %@ 从 %@ 移除";
 "plugins.status.removeFailed" = "移除失败：%@";
 "plugins.status.running" = "正在运行 %@";
+"plugins.output.standardOutput" = "[标准输出]";
+"plugins.output.standardError" = "[标准错误]";
 "plugins.status.executable" = "可执行文件：%@";
 "plugins.status.arguments" = "参数：%@";
 "plugins.status.arguments.none" = "（无）";

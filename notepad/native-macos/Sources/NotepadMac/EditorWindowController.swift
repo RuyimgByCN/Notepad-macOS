@@ -15,6 +15,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let highlighter = SyntaxHighlighter()
     private var languageCatalog: LanguageCatalog
     private var styleCatalog: StyleCatalog
+    private let displayStrings: EditorDisplayStrings
     private let stylePreferencesStore: StylePreferencesStore
     private let preferencesStore: PreferencesStore
     private let macroStore = MacroStore()
@@ -44,7 +45,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var snapshotID: String?
     private var bookmarks = BookmarkSet()
     private let untitledID = UUID().uuidString
-    private var untitledDisplayName = "Untitled"
+    private var untitledDisplayName: String
 
     var sessionFileURL: URL? {
         fileURL?.standardizedFileURL
@@ -129,6 +130,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     ) {
         self.languageCatalog = languageCatalog
         self.styleCatalog = styleCatalog
+        let displayStrings = EditorDisplayStrings.localized()
+        self.displayStrings = displayStrings
+        self.untitledDisplayName = displayStrings.untitledDocumentName
         self.preferencesStore = preferencesStore
         self.stylePreferencesStore = stylePreferencesStore
         self.language = languageCatalog.defaultLanguage
@@ -147,7 +151,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         )
         super.init(window: window)
 
-        window.title = "Untitled - Notepad++ Mac"
+        window.title = displayStrings.windowTitle(displayName: untitledDisplayName, isDirty: false)
         window.delegate = self
         window.nextResponder = self
         window.tabbingMode = .preferred
@@ -200,7 +204,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func saveDocumentAs(_ sender: Any?) {
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = fileURL?.lastPathComponent ?? "Untitled.txt"
+        panel.nameFieldStringValue = displayStrings.saveAsName(fileURL: fileURL)
         panel.beginSheetModal(for: window!) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             self?.save(to: url)
@@ -629,7 +633,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     @objc func startMacroRecording(_ sender: Any?) {
-        activeMacroRecording = MacroRecording(name: "Last Macro")
+        activeMacroRecording = MacroRecording(name: MacroDisplayNames.placeholderRecordingName)
         macroBaselineText = editorSurface.text
         updateStatus()
     }
@@ -671,7 +675,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         let nameField = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
         nameField.placeholderString = Localization.string(.macroSavePanelPlaceholder, default: "Macro name")
-        nameField.stringValue = recording.name == "Last Macro" ? "" : recording.name
+        nameField.stringValue = MacroDisplayNames.editableName(for: recording.name)
         alert.accessoryView = nameField
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -1171,7 +1175,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func updateTitle() {
-        window?.title = "\(isDirty ? "*" : "")\(displayName) - Notepad++ Mac"
+        window?.title = displayStrings.windowTitle(displayName: displayName, isDirty: isDirty)
         window?.representedURL = fileURL
     }
 
@@ -1492,7 +1496,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private var displayName: String {
-        fileURL?.lastPathComponent ?? untitledDisplayName
+        displayStrings.displayName(fileURL: fileURL, fallbackDisplayName: untitledDisplayName)
     }
 }
 

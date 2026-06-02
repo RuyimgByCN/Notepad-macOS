@@ -520,7 +520,9 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
     }
 
     private func appendOutput(_ event: PluginCommandOutputEvent) {
-        let prefix = event.stream == .standardOutput ? "[stdout]" : "[stderr]"
+        let prefix = event.stream == .standardOutput
+            ? Localization.string(.pluginsOutputStandardOutput, default: "[stdout]")
+            : Localization.string(.pluginsOutputStandardError, default: "[stderr]")
         let text = event.text
             .replacingOccurrences(of: "\r\n", with: "\n")
             .trimmingCharacters(in: .newlines)
@@ -903,9 +905,15 @@ private extension Swift.Error {
         if let parseError = self as? PluginCommandArgumentParser.Error {
             switch parseError {
             case .danglingEscape:
-                return "Arguments end with a dangling escape. Finish the escaped character or remove the trailing backslash."
+                return Localization.string(
+                    .pluginsErrorArgumentsDanglingEscape,
+                    default: "Arguments end with a dangling escape. Finish the escaped character or remove the trailing backslash."
+                )
             case .unterminatedQuote:
-                return "Arguments contain an unterminated quote. Close the quote before running the command."
+                return Localization.string(
+                    .pluginsErrorArgumentsUnterminatedQuote,
+                    default: "Arguments contain an unterminated quote. Close the quote before running the command."
+                )
             }
         }
 
@@ -1018,19 +1026,64 @@ private extension Swift.Error {
 
         switch runtimeError {
         case let .pluginNotFound(identifier):
-            return "Plugin not found: \(identifier)"
+            return String(
+                format: Localization.string(
+                    .pluginsErrorPluginNotFound,
+                    default: "Plugin not found: %@"
+                ),
+                identifier
+            )
         case let .incompatiblePlugin(pluginIdentifier, reason):
-            return "Plugin \(pluginIdentifier) is not runnable: \(reason)"
+            return String(
+                format: Localization.string(
+                    .pluginsErrorPluginNotRunnable,
+                    default: "Plugin %@ is not runnable: %@"
+                ),
+                pluginIdentifier,
+                reason
+            )
         case let .commandNotFound(pluginIdentifier, commandIdentifier):
-            return "Command \(commandIdentifier) was not found in plugin \(pluginIdentifier)"
+            return String(
+                format: Localization.string(
+                    .pluginsErrorCommandNotFound,
+                    default: "Command %@ was not found in plugin %@"
+                ),
+                commandIdentifier,
+                pluginIdentifier
+            )
         case let .missingEntryPoint(pluginIdentifier):
-            return "Plugin \(pluginIdentifier) does not declare an entry point"
+            return String(
+                format: Localization.string(
+                    .pluginsErrorMissingEntryPoint,
+                    default: "Plugin %@ does not declare an entry point"
+                ),
+                pluginIdentifier
+            )
         case let .entryPointMissing(url):
-            return "Entry point does not exist: \(url.path)"
+            return String(
+                format: Localization.string(
+                    .pluginsErrorEntryPointMissing,
+                    default: "Entry point does not exist: %@"
+                ),
+                url.path
+            )
         case let .entryPointOutsidePluginDirectory(entryURL, pluginDirectoryURL):
-            return "Entry point \(entryURL.path) is outside plugin directory \(pluginDirectoryURL.path)"
+            return String(
+                format: Localization.string(
+                    .pluginsErrorEntryPointOutsideDirectory,
+                    default: "Entry point %@ is outside plugin directory %@"
+                ),
+                entryURL.path,
+                pluginDirectoryURL.path
+            )
         case let .entryPointNotExecutable(url):
-            return "Entry point is not executable: \(url.path)"
+            return String(
+                format: Localization.string(
+                    .pluginsErrorEntryPointNotExecutable,
+                    default: "Entry point is not executable: %@"
+                ),
+                url.path
+            )
         }
     }
 }
@@ -1039,13 +1092,13 @@ private extension PluginKind {
     var displayName: String {
         switch self {
         case .nativeManifest:
-            "Native manifest"
+            Localization.string(.pluginsKindNativeManifest, default: "Native manifest")
         case .windowsDLL:
-            "Windows DLL"
+            Localization.string(.pluginsKindWindowsDLL, default: "Windows DLL")
         case .macOSBundle:
-            "macOS bundle"
+            Localization.string(.pluginsKindMacOSBundle, default: "macOS bundle")
         case .unsupported:
-            "Unsupported"
+            Localization.string(.pluginsKindUnsupported, default: "Unsupported")
         }
     }
 }
@@ -1054,13 +1107,31 @@ private extension PluginCompatibility {
     var displayText: String {
         switch self {
         case .nativeCompatible:
-            "Native compatible"
+            Localization.string(.pluginsCompatibilityNativeCompatible, default: "Native compatible")
         case let .windowsOnly(reason):
-            "Windows only: \(reason)"
+            String(
+                format: Localization.string(
+                    .pluginsCompatibilityWindowsOnly,
+                    default: "Windows only: %@"
+                ),
+                reason
+            )
         case let .unsupported(reason):
-            "Unsupported: \(reason)"
+            String(
+                format: Localization.string(
+                    .pluginsCompatibilityUnsupported,
+                    default: "Unsupported: %@"
+                ),
+                reason
+            )
         case let .invalidManifest(reason):
-            "Invalid manifest: \(reason)"
+            String(
+                format: Localization.string(
+                    .pluginsCompatibilityInvalidManifest,
+                    default: "Invalid manifest: %@"
+                ),
+                reason
+            )
         }
     }
 }

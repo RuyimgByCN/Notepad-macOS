@@ -48,6 +48,9 @@
 "callTip.activeParameter" = "Active parameter: %d";
 "callTip.accessibility.summary" = "Call-tip summary";
 "callTip.accessibility.detail" = "Call-tip details";
+"editor.untitledDocumentName" = "Untitled";
+"editor.untitledFileName" = "Untitled.txt";
+"editor.windowTitleFormat" = "%@ - Notepad++ Mac";
 "editor.resourceNotAvailable" = "Resource not available";
 "editor.missing.autoCompletionAPI" = "No auto-completion API file is available for %@.";
 "editor.missing.activeCall" = "No function call with API metadata is active at the insertion point.";
@@ -242,6 +245,8 @@
 "plugins.status.removedNativePlugin" = "Removed native plugin %@ from %@";
 "plugins.status.removeFailed" = "Remove failed: %@";
 "plugins.status.running" = "Running %@";
+"plugins.output.standardOutput" = "[stdout]";
+"plugins.output.standardError" = "[stderr]";
 "plugins.status.executable" = "Executable: %@";
 "plugins.status.arguments" = "Arguments: %@";
 "plugins.status.arguments.none" = "(none)";

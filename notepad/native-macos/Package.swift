@@ -24,6 +24,10 @@ let package = Package(
         .testTarget(
             name: "NotepadMacCoreTests",
             dependencies: ["NotepadMacCore"]
+        ),
+        .testTarget(
+            name: "NotepadMacTests",
+            dependencies: ["NotepadMac"]
         )
     ]
 )
