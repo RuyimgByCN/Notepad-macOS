@@ -586,6 +586,67 @@ import Testing
     #expect(plugin.entryURL?.resolvingSymlinksInPath().path == pluginDirectory.appending(path: "NativeTools.bundle").resolvingSymlinksInPath().path)
 }
 
+@Test func pluginCatalogDeduplicatesPluginsWithSharedIdentifierAcrossDirectories() throws {
+    let directory = URL(filePath: NSTemporaryDirectory()).appending(path: UUID().uuidString)
+    let userDirectory = directory.appending(path: "UserPlugins")
+    let resourceDirectory = directory.appending(path: "ResourcePlugins")
+    try FileManager.default.createDirectory(at: userDirectory, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: resourceDirectory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let resourcePluginDirectory = resourceDirectory.appending(path: "SharedPlugin")
+    try FileManager.default.createDirectory(at: resourcePluginDirectory, withIntermediateDirectories: true)
+    try """
+    {
+      "identifier": "org.notepad-plus-plus.macnative.shared-plugin",
+      "name": "Resource Plugin",
+      "version": "1.0.0",
+      "entryPoint": "resource-tool",
+      "commands": [
+        { "identifier": "run", "title": "Run Resource Tool" }
+      ]
+    }
+    """.write(to: resourcePluginDirectory.appending(path: "notepad-mac-plugin.json"), atomically: true, encoding: .utf8)
+    try "#!/bin/sh\nexit 0\n".write(
+        to: resourcePluginDirectory.appending(path: "resource-tool"),
+        atomically: true,
+        encoding: .utf8
+    )
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: resourcePluginDirectory.appending(path: "resource-tool").path)
+
+    let userPluginDirectory = userDirectory.appending(path: "SharedPlugin")
+    try FileManager.default.createDirectory(at: userPluginDirectory, withIntermediateDirectories: true)
+    try """
+    {
+      "identifier": "org.notepad-plus-plus.macnative.shared-plugin",
+      "name": "User Plugin",
+      "version": "2.0.0",
+      "entryPoint": "user-tool",
+      "commands": [
+        { "identifier": "run", "title": "Run User Tool" }
+      ]
+    }
+    """.write(to: userPluginDirectory.appending(path: "notepad-mac-plugin.json"), atomically: true, encoding: .utf8)
+    try "#!/bin/sh\nexit 0\n".write(to: userPluginDirectory.appending(path: "user-tool"), atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: userPluginDirectory.appending(path: "user-tool").path)
+
+    let firstCatalog = PluginCatalog.scan(directories: [userDirectory, resourceDirectory])
+    let firstPlugin = try #require(firstCatalog.plugin(identifier: "org.notepad-plus-plus.macnative.shared-plugin"))
+
+    #expect(firstCatalog.plugins.count == 1)
+    #expect(firstPlugin.displayName == "User Plugin")
+    #expect(firstPlugin.version == "2.0.0")
+    #expect(firstPlugin.commands == [PluginCommandDescriptor(identifier: "run", title: "Run User Tool")])
+
+    let secondCatalog = PluginCatalog.scan(directories: [resourceDirectory, userDirectory])
+    let secondPlugin = try #require(secondCatalog.plugin(identifier: "org.notepad-plus-plus.macnative.shared-plugin"))
+
+    #expect(secondCatalog.plugins.count == 1)
+    #expect(secondPlugin.displayName == "Resource Plugin")
+    #expect(secondPlugin.version == "1.0.0")
+    #expect(secondPlugin.commands == [PluginCommandDescriptor(identifier: "run", title: "Run Resource Tool")])
+}
+
 @Test func pluginCatalogClassifiesWindowsDllPluginsAsIncompatible() throws {
     let directory = URL(filePath: NSTemporaryDirectory()).appending(path: UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

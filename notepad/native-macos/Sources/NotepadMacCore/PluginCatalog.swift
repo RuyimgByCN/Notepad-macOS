@@ -166,8 +166,17 @@ public struct PluginCatalog: Equatable, Sendable {
     }
 
     public static func scan(directories: [URL]) -> PluginCatalog {
-        let plugins = directories.flatMap(scanDirectory)
-        return PluginCatalog(plugins: plugins)
+        var selectedPlugins: [PluginDescriptor] = []
+        var seenIdentifiers: Set<String> = []
+
+        for directory in directories {
+            for plugin in scanDirectory(directory) where !seenIdentifiers.contains(plugin.identifier) {
+                selectedPlugins.append(plugin)
+                seenIdentifiers.insert(plugin.identifier)
+            }
+        }
+
+        return PluginCatalog(plugins: selectedPlugins)
     }
 
     public static func defaultPluginDirectories() -> [URL] {
