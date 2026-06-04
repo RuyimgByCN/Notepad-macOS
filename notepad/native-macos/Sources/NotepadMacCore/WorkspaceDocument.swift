@@ -121,6 +121,55 @@ public struct WorkspaceDocument: Codable, Equatable, Sendable {
         return WorkspaceDocument(name: name, projects: newProjects)
     }
 
+    /// Returns a new document with the target node renamed.
+    public func renamingNode(_ target: WorkspaceNode, to newName: String) -> WorkspaceDocument {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != target.name else { return self }
+        func rename(_ nodes: [WorkspaceNode]) -> [WorkspaceNode] {
+            nodes.map { node in
+                if node == target {
+                    return WorkspaceNode(name: trimmed, kind: node.kind, url: node.url,
+                                        children: node.children)
+                }
+                return WorkspaceNode(name: node.name, kind: node.kind, url: node.url,
+                                    children: rename(node.children))
+            }
+        }
+        return WorkspaceDocument(name: name, projects: rename(projects))
+    }
+
+    /// Returns a new document with the target node moved one position up within its siblings.
+    public func movingNodeUp(_ target: WorkspaceNode) -> WorkspaceDocument {
+        func moveUp(_ nodes: [WorkspaceNode]) -> [WorkspaceNode] {
+            var result = nodes
+            if let idx = result.firstIndex(of: target), idx > 0 {
+                result.swapAt(idx, idx - 1)
+                return result
+            }
+            return result.map { node in
+                WorkspaceNode(name: node.name, kind: node.kind, url: node.url,
+                              children: moveUp(node.children))
+            }
+        }
+        return WorkspaceDocument(name: name, projects: moveUp(projects))
+    }
+
+    /// Returns a new document with the target node moved one position down within its siblings.
+    public func movingNodeDown(_ target: WorkspaceNode) -> WorkspaceDocument {
+        func moveDown(_ nodes: [WorkspaceNode]) -> [WorkspaceNode] {
+            var result = nodes
+            if let idx = result.firstIndex(of: target), idx < result.count - 1 {
+                result.swapAt(idx, idx + 1)
+                return result
+            }
+            return result.map { node in
+                WorkspaceNode(name: node.name, kind: node.kind, url: node.url,
+                              children: moveDown(node.children))
+            }
+        }
+        return WorkspaceDocument(name: name, projects: moveDown(projects))
+    }
+
     /// Returns a new document with the matching node removed (deep, equality-based).
     public func removingNode(_ target: WorkspaceNode) -> WorkspaceDocument {
         func remove(_ nodes: [WorkspaceNode]) -> [WorkspaceNode] {

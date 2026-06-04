@@ -435,6 +435,37 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         outlineView.reloadData()
     }
 
+    @objc private func renameNode(_ sender: Any?) {
+        guard let node = contextMenuNode() else { return }
+        let alert = NSAlert()
+        alert.messageText = "Rename"
+        alert.informativeText = "Enter new name for \"\(node.name)\":"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+        let field = NSTextField(string: node.name)
+        field.frame = NSRect(x: 0, y: 0, width: 260, height: 22)
+        alert.accessoryView = field
+        guard let window else { return }
+        alert.beginSheetModal(for: window) { response in
+            guard response == .alertFirstButtonReturn else { return }
+            self.workspace = self.workspace?.renamingNode(node, to: field.stringValue)
+            self.outlineView.reloadData()
+        }
+    }
+
+    @objc private func moveNodeUp(_ sender: Any?) {
+        guard let node = contextMenuNode() else { return }
+        workspace = workspace?.movingNodeUp(node)
+        outlineView.reloadData()
+    }
+
+    @objc private func moveNodeDown(_ sender: Any?) {
+        guard let node = contextMenuNode() else { return }
+        workspace = workspace?.movingNodeDown(node)
+        outlineView.reloadData()
+    }
+
     private func refreshLocalizedStrings() {
         if workspace == nil {
             window?.title = Localization.string(.workspacePanelTitle)
@@ -484,7 +515,10 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         // Edit operations
         menu.addItem(withTitle: "Add Files...", action: #selector(addFilesHere(_:)), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Add Folder...", action: #selector(addFolderHere(_:)), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Rename...", action: #selector(renameNode(_:)), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Remove from Workspace", action: #selector(removeNode(_:)), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Move Up", action: #selector(moveNodeUp(_:)), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Move Down", action: #selector(moveNodeDown(_:)), keyEquivalent: "").target = self
         menu.addItem(NSMenuItem.separator())
 
         menu.addItem(withTitle: Localization.string(.workspaceContextRevealInFinder, default: "Reveal in Finder"),
