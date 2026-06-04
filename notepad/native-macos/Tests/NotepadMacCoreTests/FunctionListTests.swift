@@ -215,3 +215,135 @@ private func upstreamFunctionListURL(_ fileName: String) -> URL {
         .deletingLastPathComponent()
         .appending(path: "notepad-plus-plus/PowerEditor/installer/functionList/\(fileName)")
 }
+
+@Test func extractsGoFunctions() {
+    let goCode = """
+    package main
+
+    import "fmt"
+
+    type Server struct { port int }
+    type Handler interface { Handle(r *Request) }
+
+    func NewServer(port int) *Server {
+        return &Server{port: port}
+    }
+
+    func (s *Server) Start() error {
+        fmt.Println("starting")
+        return nil
+    }
+
+    func helper() {}
+    """
+    let symbols = FunctionListExtractor.extract(from: goCode, languageName: "go", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Server"))
+    #expect(names.contains("Handler"))
+    #expect(names.contains("NewServer"))
+    #expect(names.contains("Start"))
+    #expect(names.contains("helper"))
+}
+
+@Test func extractsKotlinFunctions() {
+    let kotlinCode = """
+    class UserService {
+        fun createUser(name: String): User {
+            return User(name)
+        }
+    }
+
+    data class User(val name: String)
+
+    suspend fun fetchData(): List<String> = emptyList()
+
+    object Config {
+        fun load() {}
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: kotlinCode, languageName: "kotlin", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("UserService"))
+    #expect(names.contains("createUser"))
+    #expect(names.contains("User"))
+    #expect(names.contains("fetchData"))
+    #expect(names.contains("Config"))
+}
+
+@Test func extractsLuaFunctions() {
+    let luaCode = """
+    function greet(name)
+        print("Hello " .. name)
+    end
+
+    local function helper()
+        return 42
+    end
+
+    local myModule = {}
+    myModule.process = function(x)
+        return x * 2
+    end
+    """
+    let symbols = FunctionListExtractor.extract(from: luaCode, languageName: "lua", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("greet"))
+    #expect(names.contains("helper"))
+}
+
+@Test func extractsSQLObjects() {
+    let sqlCode = """
+    CREATE FUNCTION calculate_tax(amount DECIMAL)
+    RETURNS DECIMAL AS $$
+    BEGIN
+        RETURN amount * 0.1;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE OR REPLACE PROCEDURE update_user(user_id INT)
+    LANGUAGE plpgsql AS $$
+    BEGIN
+        UPDATE users SET updated_at = NOW() WHERE id = user_id;
+    END;
+    $$;
+
+    CREATE VIEW active_users AS
+    SELECT * FROM users WHERE active = true;
+
+    CREATE TABLE orders (id SERIAL PRIMARY KEY);
+    """
+    let symbols = FunctionListExtractor.extract(from: sqlCode, languageName: "sql", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("calculate_tax"))
+    #expect(names.contains("update_user"))
+    #expect(names.contains("active_users"))
+    #expect(names.contains("orders"))
+}
+
+@Test func extractsTypeScriptSymbols() {
+    let tsCode = """
+    export interface ApiResponse<T> {
+        data: T;
+        status: number;
+    }
+
+    export class UserController {
+        async getUser(id: string): Promise<User> {
+            return fetch(`/users/${id}`).then(r => r.json());
+        }
+
+        private validateId(id: string): boolean {
+            return id.length > 0;
+        }
+    }
+
+    export async function fetchAll(): Promise<void> {}
+
+    const transform = (input: string): string => input.toUpperCase();
+    """
+    let symbols = FunctionListExtractor.extract(from: tsCode, languageName: "typescript", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("ApiResponse"))
+    #expect(names.contains("UserController"))
+    #expect(names.contains("fetchAll"))
+}

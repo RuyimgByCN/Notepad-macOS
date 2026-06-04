@@ -601,7 +601,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             languageDisplayName: language.displayName,
             encodingDisplayName: encoding.displayName
         )
-        let printView = PrintTextView(document: document, fontSize: fontSize)
+        let printLineNumbers = preferencesStore.load().printLineNumbers
+        let printView = PrintTextView(document: document, fontSize: fontSize, includeLineNumbers: printLineNumbers)
         let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo()
         printInfo.horizontalPagination = .fit
         printInfo.verticalPagination = .automatic
@@ -637,7 +638,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             languageDisplayName: language.displayName,
             encodingDisplayName: encoding.displayName
         )
-        let printView = PrintTextView(document: document, fontSize: fontSize)
+        let printLineNumbers2 = preferencesStore.load().printLineNumbers
+        let printView = PrintTextView(document: document, fontSize: fontSize, includeLineNumbers: printLineNumbers2)
         let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo()
         printInfo.horizontalPagination = .fit
         printInfo.verticalPagination = .automatic
@@ -664,7 +666,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             languageDisplayName: language.displayName,
             encodingDisplayName: encoding.displayName
         )
-        let printView = PrintTextView(document: document, fontSize: fontSize)
+        let printLineNumbers3 = preferencesStore.load().printLineNumbers
+        let printView = PrintTextView(document: document, fontSize: fontSize, includeLineNumbers: printLineNumbers3)
         let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo()
         printInfo.horizontalPagination = .fit
         printInfo.verticalPagination = .automatic

@@ -125,6 +125,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let newDocumentOnLaunch: Bool
     /// Opacity for Post-It mode window (0.0=transparent, 1.0=opaque)
     public let postItAlpha: Double
+    /// Print line numbers alongside document content
+    public let printLineNumbers: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -184,7 +186,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         folderDropOpensAsWorkspace: Bool = false,
         extraURLSchemes: String = "",
         newDocumentOnLaunch: Bool = true,
-        postItAlpha: Double = 0.75
+        postItAlpha: Double = 0.75,
+        printLineNumbers: Bool = true
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -244,6 +247,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.extraURLSchemes = extraURLSchemes
         self.newDocumentOnLaunch = newDocumentOnLaunch
         self.postItAlpha = max(0.2, min(1.0, postItAlpha))
+        self.printLineNumbers = printLineNumbers
     }
 
     /// Combined URL schemes: defaults + user-configured extras
@@ -352,7 +356,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             folderDropOpensAsWorkspace: folderDropOpensAsWorkspace,
             extraURLSchemes: extraURLSchemes,
             newDocumentOnLaunch: newDocumentOnLaunch,
-            postItAlpha: postItAlpha
+            postItAlpha: postItAlpha,
+            printLineNumbers: printLineNumbers
         )
     }
 
@@ -426,7 +431,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             folderDropOpensAsWorkspace: folderDropOpensAsWorkspace,
             extraURLSchemes: extraURLSchemes,
             newDocumentOnLaunch: newDocumentOnLaunch,
-            postItAlpha: postItAlpha
+            postItAlpha: postItAlpha,
+            printLineNumbers: printLineNumbers
         )
     }
 

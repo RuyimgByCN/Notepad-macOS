@@ -26,6 +26,7 @@ final class PreferencesPanelController: NSWindowController {
     private let keepAbsentFilesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoReloadButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let backupOnSaveButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let printLineNumbersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let openDirFollowsDocButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let folderDropAsWorkspaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let defaultLangLabel = NSTextField(labelWithString: "")
@@ -196,6 +197,7 @@ final class PreferencesPanelController: NSWindowController {
         keepAbsentFilesButton.title = "Keep absent files in session"
         autoReloadButton.title = "Auto-reload file when changed externally"
         backupOnSaveButton.title = "Create .bak backup file when saving"
+        printLineNumbersButton.title = "Print line numbers"
         openDirFollowsDocButton.title = Localization.string(.preferencesOpenDirFollowsDoc, default: "Open dialog starts in the current document's directory")
         folderDropAsWorkspaceButton.title = Localization.string(.preferencesFolderDropAsWorkspace, default: "Open dropped folder as workspace")
         defaultLangLabel.stringValue = Localization.string(.preferencesDefaultLanguage, default: "Default language for new documents:")
@@ -280,7 +282,7 @@ final class PreferencesPanelController: NSWindowController {
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, backupOnSaveButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField].forEach {
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, backupOnSaveButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -346,7 +348,7 @@ final class PreferencesPanelController: NSWindowController {
          rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton,
          recentFilesMaxLabel, recentFilesMaxField, recentFilesMaxStepper,
          recentFilesShowFullPathButton, noCheckRecentAtLaunchButton,
-         keepAbsentFilesButton, autoReloadButton, backupOnSaveButton,
+         keepAbsentFilesButton, autoReloadButton, backupOnSaveButton, printLineNumbersButton,
          openDirFollowsDocButton, folderDropAsWorkspaceButton,
          defaultLangLabel, defaultLangPopup
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; sessionCV.addSubview($0) }
@@ -559,8 +561,11 @@ final class PreferencesPanelController: NSWindowController {
             backupOnSaveButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             backupOnSaveButton.topAnchor.constraint(equalTo: autoReloadButton.bottomAnchor, constant: 10),
 
+            printLineNumbersButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printLineNumbersButton.topAnchor.constraint(equalTo: backupOnSaveButton.bottomAnchor, constant: 10),
+
             openDirFollowsDocButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
-            openDirFollowsDocButton.topAnchor.constraint(equalTo: backupOnSaveButton.bottomAnchor, constant: 10),
+            openDirFollowsDocButton.topAnchor.constraint(equalTo: printLineNumbersButton.bottomAnchor, constant: 10),
 
             folderDropAsWorkspaceButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             folderDropAsWorkspaceButton.topAnchor.constraint(equalTo: openDirFollowsDocButton.bottomAnchor, constant: 10),
@@ -665,6 +670,7 @@ final class PreferencesPanelController: NSWindowController {
         keepAbsentFilesButton.state = preferences.keepAbsentFilesInSession ? .on : .off
         autoReloadButton.state = preferences.autoReloadOnExternalChange ? .on : .off
         backupOnSaveButton.state = preferences.backupOnSave ? .on : .off
+        printLineNumbersButton.state = preferences.printLineNumbers ? .on : .off
         openDirFollowsDocButton.state = preferences.openDirectoryFollowsDocument ? .on : .off
         folderDropAsWorkspaceButton.state = preferences.folderDropOpensAsWorkspace ? .on : .off
         populateDefaultLangPopup(selected: preferences.defaultNewDocumentLanguageName)
@@ -780,7 +786,8 @@ final class PreferencesPanelController: NSWindowController {
             defaultNewDocumentLanguageName: selectedDefaultLangName,
             folderDropOpensAsWorkspace: folderDropAsWorkspaceButton.state == .on,
             extraURLSchemes: extraURLSchemesField.stringValue,
-            newDocumentOnLaunch: newDocumentOnLaunchButton.state == .on
+            newDocumentOnLaunch: newDocumentOnLaunchButton.state == .on,
+            printLineNumbers: printLineNumbersButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()

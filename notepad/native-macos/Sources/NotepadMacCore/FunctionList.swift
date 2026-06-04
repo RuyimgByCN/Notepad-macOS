@@ -73,6 +73,14 @@ public struct FunctionListDefinition: Equatable, Sendable {
             "objc.xml"
         case "bash", "shell", "sh":
             "bash.xml"
+        case "typescript", "ts", "tsx":
+            "typescript.xml"
+        case "go", "golang":
+            "go.xml"
+        case "kotlin", "kt", "kts":
+            "kotlin.xml"
+        case "sql", "mysql", "plsql", "mssql":
+            "sql.xml"
         default:
             "\(languageName.lowercased()).xml"
         }
@@ -126,8 +134,22 @@ public enum FunctionListExtractor {
             extractPHP(from: text)
         case "ruby", "rb":
             extractRuby(from: text)
-        case "cpp", "c", "cs", "java", "typescript":
+        case "cpp", "c", "cs", "java":
             extractCStyle(from: text)
+        case "typescript", "ts", "tsx":
+            extractTypeScript(from: text)
+        case "go", "golang":
+            extractGo(from: text)
+        case "kotlin", "kt", "kts":
+            extractKotlin(from: text)
+        case "lua":
+            extractLua(from: text)
+        case "sql", "mysql", "plsql", "mssql":
+            extractSQL(from: text)
+        case "r":
+            extractR(from: text)
+        case "scala":
+            extractScala(from: text)
         default:
             definition == nil ? [] : extractCStyle(from: text)
         }
@@ -239,6 +261,97 @@ public enum FunctionListExtractor {
             pattern: #"(?m)^[ \t]*def[ \t]+(?:self\.)?([A-Za-z_][A-Za-z0-9_!?=]*)\b"#,
             in: text,
             kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractTypeScript(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?m)^\s*(?:export\s+)?(?:abstract\s+)?(?:class|interface|type|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)"#,
+            in: text, kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^\s*(?:export\s+)?(?:async\s+)?function\s*\*?\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*[<(]"#,
+            in: text, kind: .function
+        )
+        let methodSymbols = matches(
+            pattern: #"(?m)^\s*(?:(?:public|private|protected|static|abstract|async|override)\s+)*([A-Za-z_$][A-Za-z0-9_$]*)\s*\([^;{}=]*\)\s*(?::\s*[^{;]+)?\s*\{"#,
+            in: text, kind: .function
+        )
+        let arrowSymbols = matches(
+            pattern: #"(?m)^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*(?::[^=]+)?\s*=\s*(?:async\s+)?\([^)]*\)\s*=>"#,
+            in: text, kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols + methodSymbols + arrowSymbols)
+    }
+
+    private static func extractGo(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?m)^type\s+([A-Za-z_][A-Za-z0-9_]*)\s+(?:struct|interface)\b"#,
+            in: text, kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^func\s+(?:\([^)]*\)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\("#,
+            in: text, kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractKotlin(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?m)^\s*(?:(?:public|private|internal|protected|abstract|open|sealed|data|inner|companion)\s+)*(?:class|interface|object|enum\s+class)\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text, kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^\s*(?:(?:public|private|internal|protected|override|suspend|inline|infix|operator|open|abstract|final|tailrec)\s+)*fun\s+(?:<[^>]*>\s+)?(?:[A-Za-z_][A-Za-z0-9_.]*\.)?([A-Za-z_][A-Za-z0-9_]*)\s*[<(]"#,
+            in: text, kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractLua(from text: String) -> [FunctionListSymbol] {
+        let functionKeywordSymbols = matches(
+            pattern: #"(?m)^\s*(?:local\s+)?function\s+([A-Za-z_][A-Za-z0-9_.]*)\s*\("#,
+            in: text, kind: .function
+        )
+        let assignedFunctionSymbols = matches(
+            pattern: #"(?m)^\s*(?:local\s+)?([A-Za-z_][A-Za-z0-9_.]*)\s*=\s*function\s*\("#,
+            in: text, kind: .function
+        )
+        return sortedUnique(functionKeywordSymbols + assignedFunctionSymbols)
+    }
+
+    private static func extractSQL(from text: String) -> [FunctionListSymbol] {
+        let functionSymbols = matches(
+            pattern: #"(?mi)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+([A-Za-z_][A-Za-z0-9_.]*)"#,
+            in: text, kind: .function
+        )
+        let viewSymbols = matches(
+            pattern: #"(?mi)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([A-Za-z_][A-Za-z0-9_.]*)"#,
+            in: text, kind: .type
+        )
+        let tableSymbols = matches(
+            pattern: #"(?mi)^\s*CREATE\s+(?:TEMP\s+|TEMPORARY\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z_][A-Za-z0-9_.]*)"#,
+            in: text, kind: .type
+        )
+        return sortedUnique(functionSymbols + viewSymbols + tableSymbols)
+    }
+
+    private static func extractR(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?m)^([A-Za-z_.][A-Za-z0-9_.]*)\s*<-\s*function\s*\("#,
+            in: text, kind: .function
+        )
+    }
+
+    private static func extractScala(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?m)^\s*(?:(?:abstract|sealed|final|case|implicit|private|protected)\s+)*(?:class|trait|object|type)\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text, kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^\s*(?:(?:override|private|protected|abstract|implicit|lazy|final)\s+)*def\s+([A-Za-z_][A-Za-z0-9_]*)\b"#,
+            in: text, kind: .function
         )
         return sortedUnique(typeSymbols + functionSymbols)
     }

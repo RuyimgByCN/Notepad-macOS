@@ -6,8 +6,8 @@ final class PrintTextView: NSTextView {
     private static let printableWidth: CGFloat = 540
     private static let minimumPrintableHeight: CGFloat = 720
 
-    init(document: PrintDocument, fontSize: CGFloat) {
-        let storage = NSTextStorage(attributedString: Self.attributedString(for: document, fontSize: fontSize))
+    init(document: PrintDocument, fontSize: CGFloat, includeLineNumbers: Bool = true) {
+        let storage = NSTextStorage(attributedString: Self.attributedString(for: document, fontSize: fontSize, includeLineNumbers: includeLineNumbers))
         let layoutManager = NSLayoutManager()
         let textContainer = NSTextContainer(
             containerSize: NSSize(width: Self.printableWidth, height: CGFloat.greatestFiniteMagnitude)
@@ -41,8 +41,8 @@ final class PrintTextView: NSTextView {
         fatalError("init(coder:) is not supported")
     }
 
-    private static func attributedString(for document: PrintDocument, fontSize: CGFloat) -> NSAttributedString {
-        let text = document.renderedPlainText()
+    private static func attributedString(for document: PrintDocument, fontSize: CGFloat, includeLineNumbers: Bool = true) -> NSAttributedString {
+        let text = document.renderedPlainText(includeLineNumbers: includeLineNumbers)
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byWordWrapping
         paragraph.lineSpacing = 2
