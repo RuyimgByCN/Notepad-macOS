@@ -208,7 +208,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        .terminateNow
+        let dirtyWindows = windows.filter { $0.hasUnsavedChanges }
+        guard !dirtyWindows.isEmpty else { return .terminateNow }
+
+        // Ask user to save each dirty document
+        for controller in dirtyWindows {
+            let title = controller.tabItem.title
+            let alert = NSAlert()
+            alert.messageText = String(
+                format: Localization.string(.fileCloseUnsavedChangesTitle, default: "Save \"%@\"?"),
+                title
+            )
+            alert.informativeText = Localization.string(
+                .fileCloseUnsavedChangesMessage,
+                default: "Your changes will be lost if you don't save them."
+            )
+            alert.addButton(withTitle: "Save")
+            alert.addButton(withTitle: "Don't Save")
+            alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
+
+            switch alert.runModal() {
+            case .alertFirstButtonReturn:
+                // Save
+                controller.saveDocument(nil)
+            case .alertSecondButtonReturn:
+                // Don't Save — continue
+                break
+            default:
+                // Cancel
+                return .terminateCancel
+            }
+        }
+        return .terminateNow
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
