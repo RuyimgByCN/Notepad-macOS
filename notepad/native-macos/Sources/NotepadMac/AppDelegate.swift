@@ -297,8 +297,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         panel.begin { [weak self] response in
             guard response == .OK else { return }
-            panel.urls.forEach { self?.openFile($0) }
+            self?.openURLs(panel.urls)
         }
+    }
+
+    /// Open a list of URLs, prompting the user first if there are more than the batch threshold.
+    func openURLs(_ urls: [URL], batchThreshold: Int = 200) {
+        guard !urls.isEmpty else { return }
+        if urls.count > batchThreshold {
+            let alert = NSAlert()
+            alert.messageText = "Open \(urls.count) Files?"
+            alert.informativeText = "You are about to open \(urls.count) files. This may take a while and use significant memory."
+            alert.addButton(withTitle: "Open All")
+            alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+        urls.forEach { openFile($0) }
     }
 
     @objc func saveAllDocuments(_ sender: Any?) {

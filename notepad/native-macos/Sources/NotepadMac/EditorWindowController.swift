@@ -3866,18 +3866,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         else { return false }
 
         let appDelegate = NSApp.delegate as? AppDelegate
-        // Open each dropped file; we can only open in existing tabs or new tabs
-        for url in items {
-            if items.count == 1 && fileURL == nil && !isDirty {
-                // Empty untitled window: load directly
-                do {
-                    try load(url)
-                } catch {
-                    appDelegate?.openFile(at: url)
-                }
-            } else {
-                appDelegate?.openFile(at: url)
+        if items.count == 1 && fileURL == nil && !isDirty {
+            // Single drop on empty untitled window: load directly
+            do {
+                try load(items[0])
+            } catch {
+                appDelegate?.openFile(at: items[0])
             }
+        } else {
+            // Multiple files: use batch-confirmation path
+            appDelegate?.openURLs(items)
         }
         return true
     }
