@@ -1574,9 +1574,39 @@ private func upstreamThemesDirectoryURL() -> URL {
     #expect(modified.largeFileSizeMB == original.largeFileSizeMB)
     #expect(modified.postItAlpha == original.postItAlpha)
     #expect(modified.newDocumentOnLaunch == original.newDocumentOnLaunch)
+    // New fields from P9/P10 should be preserved by copy
+    #expect(modified.autoCompleteMode == original.autoCompleteMode)
+    #expect(modified.autoCompleteChooseSingle == original.autoCompleteChooseSingle)
+    #expect(modified.inSelectionThreshold == original.inSelectionThreshold)
+    #expect(modified.keepFindDialogOpen == original.keepFindDialogOpen)
+    #expect(modified.findDialogTransparency == original.findDialogTransparency)
+    #expect(modified.statusBarVisible == original.statusBarVisible)
+    #expect(modified.shortTitle == original.shortTitle)
+    #expect(modified.saveAllConfirm == original.saveAllConfirm)
+    #expect(modified.autoCompleteIgnoreNumbers == original.autoCompleteIgnoreNumbers)
+    #expect(modified.delimiterLeft == original.delimiterLeft)
+    #expect(modified.delimiterRight == original.delimiterRight)
+    #expect(modified.tabbarDoubleClickClose == original.tabbarDoubleClickClose)
+    #expect(modified.tabbarMaxLabelLength == original.tabbarMaxLabelLength)
     // Only search fields should change
     #expect(modified.searchMatchCase == true)
     #expect(modified.searchWholeWord == true)
+}
+
+@Test func appPreferencesDefaults() {
+    let prefs = AppPreferences.defaultValue
+    #expect(prefs.statusBarVisible == true)
+    #expect(prefs.shortTitle == false)
+    #expect(prefs.saveAllConfirm == false)
+    #expect(prefs.autoCompleteIgnoreNumbers == true)
+    #expect(prefs.findDialogTransparency == 0)
+    #expect(prefs.keepFindDialogOpen == true)
+    #expect(prefs.inSelectionThreshold == 1024)
+    #expect(prefs.autoCompleteMode == 3)
+    #expect(prefs.tabbarDoubleClickClose == false)
+    #expect(prefs.tabbarMaxLabelLength == 0)
+    #expect(prefs.printSettings.header.center == "$(FILE_NAME)")
+    #expect(prefs.printSettings.footer.right == "$(PAGE) / $(PAGES)")
 }
 
 @Test func appPreferencesWithTabSizePreservesOtherFields() {
