@@ -38,6 +38,7 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
     private let assignButton = NSButton(title: "", target: nil, action: nil)
     private let clearButton = NSButton(title: "", target: nil, action: nil)
     private let statusLabel = NSTextField(labelWithString: "")
+    private let exportImportButton = NSPopUpButton()
 
     private var allEntries: [Entry] = []
     private var filteredEntries: [Entry] = []
@@ -245,6 +246,52 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
         buildEntries()
         applyFilter()
         statusLabel.stringValue = Localization.string(.shortcutMapperCleared, default: "Shortcut cleared.")
+    }
+
+    // MARK: - Export / Import
+
+    @objc private func exportShortcuts(_ sender: Any?) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let shortcuts = shortcutStore.load()
+        guard !shortcuts.isEmpty else {
+            statusLabel.stringValue = "No custom shortcuts to export."
+            return
+        }
+        guard let data = try? encoder.encode(shortcuts) else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "NotepadMac-Shortcuts.json"
+        panel.title = "Export Shortcuts"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try data.write(to: url, options: .atomic)
+            statusLabel.stringValue = "Shortcuts exported to \(url.lastPathComponent)."
+        } catch {
+            statusLabel.stringValue = "Export failed: \(error.localizedDescription)"
+        }
+    }
+
+    @objc private func importShortcuts(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.title = "Import Shortcuts"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            let shortcuts = try decoder.decode([CustomShortcut].self, from: data)
+            shortcutStore.save(shortcuts)
+            buildEntries()
+            applyFilter()
+            onShortcutsChanged?()
+            statusLabel.stringValue = "Imported \(shortcuts.count) shortcuts from \(url.lastPathComponent)."
+        } catch {
+            statusLabel.stringValue = "Import failed: \(error.localizedDescription)"
+        }
     }
 
     private func promptForShortcut(entry: Entry) {
@@ -455,7 +502,18 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.lineBreakMode = .byTruncatingTail
 
-        for v in [categoryControl, searchField, scrollView, assignButton, clearButton, statusLabel] {
+        exportImportButton.pullsDown = true
+        exportImportButton.bezelStyle = .rounded
+        exportImportButton.addItem(withTitle: "⚙")
+        exportImportButton.addItem(withTitle: "Export Shortcuts...")
+        exportImportButton.addItem(withTitle: "Import Shortcuts...")
+        exportImportButton.item(at: 0)?.title = "⚙"
+        exportImportButton.item(withTitle: "Export Shortcuts...")?.target = self
+        exportImportButton.item(withTitle: "Export Shortcuts...")?.action = #selector(exportShortcuts(_:))
+        exportImportButton.item(withTitle: "Import Shortcuts...")?.target = self
+        exportImportButton.item(withTitle: "Import Shortcuts...")?.action = #selector(importShortcuts(_:))
+
+        for v in [categoryControl, searchField, scrollView, assignButton, clearButton, statusLabel, exportImportButton] {
             v.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(v)
         }
@@ -482,8 +540,12 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
             clearButton.widthAnchor.constraint(equalToConstant: 80),
 
             statusLabel.leadingAnchor.constraint(equalTo: clearButton.trailingAnchor, constant: 12),
-            statusLabel.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            statusLabel.trailingAnchor.constraint(equalTo: exportImportButton.leadingAnchor, constant: -8),
             statusLabel.centerYAnchor.constraint(equalTo: assignButton.centerYAnchor),
+
+            exportImportButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            exportImportButton.centerYAnchor.constraint(equalTo: assignButton.centerYAnchor),
+            exportImportButton.widthAnchor.constraint(equalToConstant: 44),
         ])
     }
 }
