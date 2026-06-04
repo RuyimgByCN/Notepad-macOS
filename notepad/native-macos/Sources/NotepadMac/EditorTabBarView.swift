@@ -42,6 +42,8 @@ final class EditorTabBarView: NSView {
     var doubleClickClosesTab = false
     /// Max characters to show in a tab label (0 = no limit)
     var tabMaxLabelLength = 0
+    /// When true, drag-drop tab reordering is disabled
+    var lockDragDrop = false
 
     private var state = EditorTabState()
     private let scrollView = NSScrollView()
@@ -169,7 +171,7 @@ final class EditorTabBarView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let btn = draggedButton else { return }
+        guard let btn = draggedButton, !lockDragDrop else { return }
         let docLoc = documentView.convert(event.locationInWindow, from: nil)
         let delta = docLoc.x - dragStartX
         var newFrame = dragButtonOriginalFrame
@@ -182,7 +184,12 @@ final class EditorTabBarView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         if mouseDownInEmptyArea { mouseDownInEmptyArea = false; return }
-        guard let btn = draggedButton else { super.mouseUp(with: event); return }
+        guard let btn = draggedButton, !lockDragDrop else {
+            draggedButton?.alphaValue = 1.0
+            draggedButton = nil
+            super.mouseUp(with: event)
+            return
+        }
         btn.alphaValue = 1.0
         let centerX = btn.frame.midX
 

@@ -3405,6 +3405,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyAutoCompleteTABFillup(autoCompleteTABFillup)
         editorSurface.applyCopyLineWithoutSelection(preferences.copyLineWithoutSelection)
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
+        tabBarView.lockDragDrop = preferences.tabbarLockDragDrop
         tabBarView.tabMaxLabelLength = preferences.tabbarMaxLabelLength
         configureAutoPair()
         configureUrlHighlight()

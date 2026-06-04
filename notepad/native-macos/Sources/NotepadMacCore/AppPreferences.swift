@@ -176,6 +176,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     /// Per-language tab overrides, comma-separated, e.g. "python:4s,html:2s,c:8t"
     /// Format: langname:sizeX where X is 's' (spaces) or 't' (tabs)
     public let languageTabOverrides: String
+    /// When true, prevent tab reordering by drag-and-drop
+    public let tabbarLockDragDrop: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -262,7 +264,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         copyLineWithoutSelection: Bool = true,
         smartHighlightUseFindSettings: Bool = false,
         urlIndicatorStyle: Int = 0,
-        languageTabOverrides: String = ""
+        languageTabOverrides: String = "",
+        tabbarLockDragDrop: Bool = false
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -349,6 +352,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.smartHighlightUseFindSettings = smartHighlightUseFindSettings
         self.urlIndicatorStyle = max(0, min(2, urlIndicatorStyle))
         self.languageTabOverrides = languageTabOverrides
+        self.tabbarLockDragDrop = tabbarLockDragDrop
     }
 
     /// Parse languageTabOverrides string into a dictionary.
@@ -504,7 +508,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             copyLineWithoutSelection: copyLineWithoutSelection,
             smartHighlightUseFindSettings: smartHighlightUseFindSettings,
             urlIndicatorStyle: urlIndicatorStyle,
-            languageTabOverrides: languageTabOverrides
+            languageTabOverrides: languageTabOverrides,
+            tabbarLockDragDrop: tabbarLockDragDrop
         )
     }
 
