@@ -22,6 +22,9 @@ final class FindInFilesPanelController: NSWindowController {
     private let matchCaseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let wholeWordButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let purgeBeforeSearchButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let ignoreUnsavedButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    /// Called to collect dirty (unsaved) file paths from open editors for filtering
+    var getDirtyFilePaths: (() -> Set<String>)?
     private let searchModeControl = NSSegmentedControl()
     private let replaceField = NSTextField(string: "")
     private let replaceLabel = NSTextField(labelWithString: "")
@@ -144,6 +147,7 @@ final class FindInFilesPanelController: NSWindowController {
         matchCaseButton.title = Localization.string(.findMatchCase, default: "Match Case")
         wholeWordButton.title = Localization.string(.findWholeWord, default: "Whole Word")
         purgeBeforeSearchButton.title = Localization.string(.findInFilesPurgeBeforeSearch, default: "Purge before each search")
+        ignoreUnsavedButton.title = "Skip files with unsaved changes"
         searchModeControl.setLabel(Localization.string(.findModeNormal, default: "Normal"), forSegment: 0)
         searchModeControl.setLabel(Localization.string(.findModeExtended, default: "Extended"), forSegment: 1)
         searchModeControl.setLabel(Localization.string(.findModeRegex, default: "Regex"), forSegment: 2)
@@ -205,7 +209,7 @@ final class FindInFilesPanelController: NSWindowController {
             replaceLabel, replaceField,
             directoryLabel, directoryField, browseButton,
             filterLabel, filterField,
-            matchCaseButton, wholeWordButton, purgeBeforeSearchButton, searchModeControl,
+            matchCaseButton, wholeWordButton, purgeBeforeSearchButton, ignoreUnsavedButton, searchModeControl,
             findButton, replaceAllButton, cancelButton,
             statusField,
             resultsScrollView
@@ -265,6 +269,9 @@ final class FindInFilesPanelController: NSWindowController {
 
             purgeBeforeSearchButton.leadingAnchor.constraint(equalTo: findField.leadingAnchor),
             purgeBeforeSearchButton.topAnchor.constraint(equalTo: matchCaseButton.bottomAnchor, constant: 8),
+
+            ignoreUnsavedButton.leadingAnchor.constraint(equalTo: purgeBeforeSearchButton.trailingAnchor, constant: 16),
+            ignoreUnsavedButton.centerYAnchor.constraint(equalTo: purgeBeforeSearchButton.centerYAnchor),
 
             searchModeControl.leadingAnchor.constraint(equalTo: findField.leadingAnchor),
             searchModeControl.topAnchor.constraint(equalTo: purgeBeforeSearchButton.bottomAnchor, constant: 8),
@@ -388,13 +395,16 @@ final class FindInFilesPanelController: NSWindowController {
                 statusField.stringValue = Localization.string(.findInFilesInvalidDirectory, default: "Invalid directory")
                 return
             }
+            let skipPaths: Set<String> = ignoreUnsavedButton.state == .on
+                ? (getDirtyFilePaths?() ?? []) : []
             foundResults = FindInFilesSearch.searchInDirectory(
                 dirURL,
                 query: query,
                 filters: FindInFilesSearch.parseFilters(filterField.stringValue),
                 matchCase: matchCase,
                 wholeWord: wholeWord,
-                searchMode: searchMode
+                searchMode: searchMode,
+                skipPaths: skipPaths
             )
         case let .fileList(urls, _):
             guard !urls.isEmpty else {

@@ -40,11 +40,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private lazy var clipboardHistoryPanel = ClipboardHistoryPanelController()
     private lazy var findInFilesPanel: FindInFilesPanelController = {
         let delegate = NSApp.delegate as! AppDelegate
-        return FindInFilesPanelController(
+        let panel = FindInFilesPanelController(
             editor: self,
             resultsStore: delegate.findInFilesResultsStore,
             onResultsUpdated: { delegate.showFoundResultsPanel() }
         )
+        panel.getDirtyFilePaths = { delegate.collectDirtyFilePaths() }
+        return panel
     }()
     private lazy var incrementalSearchPanel = IncrementalSearchPanelController(editor: self)
     private lazy var findCharRangePanel = FindCharRangePanelController(editor: self)

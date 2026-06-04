@@ -7,7 +7,8 @@ public enum FindInFilesSearch {
         filters: [String],
         matchCase: Bool,
         wholeWord: Bool,
-        searchMode: TextSearch.SearchMode = .normal
+        searchMode: TextSearch.SearchMode = .normal,
+        skipPaths: Set<String> = []
     ) -> [FindInFilesMatch] {
         var allResults: [FindInFilesMatch] = []
         let options = TextSearch.Options(
@@ -30,6 +31,8 @@ public enum FindInFilesSearch {
             guard let resourceValues = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
                   resourceValues.isRegularFile == true
             else { continue }
+
+            if !skipPaths.isEmpty, skipPaths.contains(fileURL.path) { continue }
 
             if !filters.isEmpty, !matchesFilter(fileURL.lastPathComponent, filters: filters) {
                 continue

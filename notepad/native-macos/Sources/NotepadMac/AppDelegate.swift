@@ -1753,6 +1753,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windows.filter { $0.window?.isVisible == true }
     }
 
+    /// Returns the file paths of all open documents that have unsaved changes.
+    func collectDirtyFilePaths() -> Set<String> {
+        Set(allEditorControllers().compactMap { ctrl -> String? in
+            guard ctrl.hasUnsavedChanges, let url = ctrl.sessionFileURL else { return nil }
+            return url.path
+        })
+    }
+
     func activeEditorController() -> EditorWindowController? {
         if let keyWindow = NSApp.keyWindow,
            let controller = windows.first(where: { $0.window === keyWindow }) {
