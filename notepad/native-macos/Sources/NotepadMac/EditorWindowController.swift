@@ -3278,8 +3278,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
         let postSelection: NSRange
         if preferencesStore.load().replaceDoesNotMove {
-            // Keep caret at the original position (adjusted for text length change)
-            let delta = replacement.utf16.count - result.replacedRange.length + result.replacedRange.length
+            // Keep caret at the original position (not the replaced range)
             let adjustedLoc = min(currentSelection.location, (result.text as NSString).length)
             postSelection = NSRange(location: adjustedLoc, length: 0)
         } else {
