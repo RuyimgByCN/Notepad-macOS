@@ -147,6 +147,9 @@ protocol EditorSurface: AnyObject {
     // MARK: - Text direction (bidirectional)
     func applyBidirectional(_ mode: Int)  // 0=disabled, 1=L2R, 2=R2L
 
+    // MARK: - Copy/Cut behavior
+    func applyCopyLineWithoutSelection(_ enabled: Bool)
+
     // MARK: - Lifecycle
     /// Called before the surface is released (e.g. window closing) to allow the
     /// implementation to sever any unretained back-references (e.g. Scintilla delegate).
@@ -372,6 +375,7 @@ final class TextViewEditorSurface: EditorSurface {
 
     func applyLinePadding(_ pixels: Int) {}
     func applyBidirectional(_ mode: Int) {}
+    func applyCopyLineWithoutSelection(_ enabled: Bool) {}
     func scrollToSelection() {
         textView.scrollRangeToVisible(textView.selectedRange())
     }
@@ -1687,6 +1691,10 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setBidirectional, parameter: CLong(mode), value: 0)
     }
 
+    func applyCopyLineWithoutSelection(_ enabled: Bool) {
+        bridge.setGeneralProperty(ScintillaMessage.setCopyAllowsLineSelection, parameter: enabled ? 1 : 0, value: 0)
+    }
+
     func scrollToSelection() {
         bridge.setGeneralProperty(ScintillaMessage.scrollCaret, parameter: 0, value: 0)
     }
@@ -2359,6 +2367,7 @@ private enum ScintillaMessage {
     static let setExtraAscent: Int32 = 2525
     static let setExtraDescent: Int32 = 2526
     static let setBidirectional: Int32 = 2709
+    static let setCopyAllowsLineSelection: Int32 = 2660
 }
 
 

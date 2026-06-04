@@ -3381,6 +3381,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyEdgeLine(showsEdgeLine, column: edgeLineColumn)
         editorSurface.applyAutoCompleteChooseSingle(autoCompleteChooseSingle)
         editorSurface.applyAutoCompleteTABFillup(autoCompleteTABFillup)
+        editorSurface.applyCopyLineWithoutSelection(preferences.copyLineWithoutSelection)
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.tabMaxLabelLength = preferences.tabbarMaxLabelLength
         configureAutoPair()
