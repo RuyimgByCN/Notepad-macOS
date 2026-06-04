@@ -44,6 +44,10 @@ final class EditorTabBarView: NSView {
     private let documentView = NSView()
     private var tabButtons: [EditorTabButton] = []
     private let newTabButton = NSButton()
+    // Last valid bar width seen in layout(); used by rebuildTabs() so that
+    // calls from update(state:) always get the correct width even when
+    // scrollView.bounds hasn't been set yet (e.g. before first layout pass).
+    private var validBarWidth: CGFloat = 0
 
     // MARK: - Drag state
     private var draggedButton: EditorTabButton?
@@ -167,20 +171,15 @@ final class EditorTabBarView: NSView {
         rebuildTabs()
     }
 
-    // Pass an explicit maxWidth when calling from layout() so we don't re-read
-    // scrollView.bounds.width (which may still be 0 during the layout pass).
-    private func rebuildTabs(overrideMaxWidth: CGFloat? = nil) {
+    private func rebuildTabs() {
         tabButtons.forEach { $0.removeFromSuperview() }
         tabButtons.removeAll()
 
-        let tabMaxWidth: CGFloat
-        if let override = overrideMaxWidth {
-            tabMaxWidth = override
-        } else {
-            // Only truncate filenames that exceed half the visible bar width.
-            let halfBarWidth = max(EditorTabButton.minWidth, scrollView.bounds.width / 2)
-            tabMaxWidth = min(EditorTabButton.absoluteMaxWidth, halfBarWidth)
-        }
+        // Use the last valid bar width stored by layout(); fall back to scrollView
+        // bounds only if layout() has never run (e.g. headless tests).
+        let knownWidth = validBarWidth > 0 ? validBarWidth : max(0, scrollView.bounds.width)
+        let halfBarWidth = max(EditorTabButton.minWidth, knownWidth / 2)
+        let tabMaxWidth = min(EditorTabButton.absoluteMaxWidth, halfBarWidth)
 
         var x: CGFloat = 0
         for item in state.items {
@@ -221,17 +220,22 @@ final class EditorTabBarView: NSView {
     override func layout() {
         super.layout()
         // Use our own bounds minus the newTabButton so we don't depend on scrollView layout order.
-        let availableWidth = max(0, bounds.width - 28)
-        let newMax = min(EditorTabButton.absoluteMaxWidth,
-                        max(EditorTabButton.minWidth, availableWidth / 2))
+        let w = bounds.width - 28
+        guard w > 0 else { return }
+
+        let widthChanged = abs(w - validBarWidth) > 0.5
+        validBarWidth = w
+
         if !tabButtons.isEmpty {
-            // Recompute tab widths if bar was resized after initial rebuild (e.g. window resize).
-            if tabButtons.first?.dynamicMaxWidth != newMax {
-                rebuildTabs(overrideMaxWidth: newMax)
+            // Recompute tab widths when the bar is resized or when the initial
+            // layout pass finally provides a non-zero width.
+            let newMax = min(EditorTabButton.absoluteMaxWidth, max(EditorTabButton.minWidth, w / 2))
+            if widthChanged || tabButtons.first?.dynamicMaxWidth != newMax {
+                rebuildTabs()
             }
             return
         }
-        documentView.frame = CGRect(x: 0, y: 0, width: max(documentView.frame.width, bounds.width - 28), height: Self.barHeight)
+        documentView.frame = CGRect(x: 0, y: 0, width: max(documentView.frame.width, w), height: Self.barHeight)
     }
 
     override func draw(_ dirtyRect: NSRect) {
