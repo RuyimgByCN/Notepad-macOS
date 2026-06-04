@@ -108,7 +108,9 @@ enum HelpSupport {
         Usage: \(appName) [options] [file paths...]
 
         Options:
+          -help, --help               Print this help and exit
           -nosession                  Launch without restoring previous session
+          -openSession <path>         Open specific session file on launch
           -noPlugin                   Skip loading plugins
           -alwaysOnTop                Open window in always-on-top mode
           -ro, -readOnly              Open file(s) as read-only
@@ -127,6 +129,7 @@ enum HelpSupport {
         Examples:
           \(appName) file.py -l python -n 42
           \(appName) -nosession -ro /etc/hosts
+          \(appName) -openSession ~/work.npsession
           \(appName) -openFoldersAsWorkspace ~/myproject
         """
     }

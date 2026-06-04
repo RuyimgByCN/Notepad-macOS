@@ -158,8 +158,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let args = CommandLine.arguments.dropFirst()
         let parsedArgs = CommandLineArgs.parse(args)
 
+        if parsedArgs.printHelpAndExit {
+            printCommandLineHelp()
+            NSApp.terminate(nil)
+            return
+        }
+
         if parsedArgs.noSession {
             newDocument(nil)
+        } else if let sessionURL = parsedArgs.openSessionURL {
+            loadSessionFile(sessionURL)
         } else if parsedArgs.fileURLs.isEmpty && parsedArgs.newFileURLs.isEmpty {
             restoreSessionOrNewDocument()
         } else {
@@ -1063,6 +1071,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let macroName = item.representedObject as? String,
               let editor = activeEditorController() else { return }
         editor.playNamedMacroByName(macroName)
+    }
+
+    private func printCommandLineHelp() {
+        print(HelpSupport.commandLineArgumentsText(appName: "NotepadMac"))
     }
 
     @objc func showCommandLineArguments(_ sender: Any?) {

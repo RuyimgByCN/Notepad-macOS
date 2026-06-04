@@ -16,6 +16,10 @@ struct CommandLineArgs {
     let openFoldersAsWorkspace: Bool
     let windowX: Int?
     let windowY: Int?
+    /// Session file to open on launch (overrides any saved session)
+    let openSessionURL: URL?
+    /// When true, print usage and exit without launching the app
+    let printHelpAndExit: Bool
 
     static func parse(_ args: any Collection<String>) -> CommandLineArgs {
         var fileURLs: [URL] = []
@@ -32,6 +36,8 @@ struct CommandLineArgs {
         var openFoldersAsWorkspace = false
         var windowX: Int? = nil
         var windowY: Int? = nil
+        var openSessionURL: URL? = nil
+        var printHelpAndExit = false
 
         var iterator = args.makeIterator()
         while let arg = iterator.next() {
@@ -53,9 +59,19 @@ struct CommandLineArgs {
                 // On macOS each launch is already a new instance; flag is accepted but no-op
                 break
             case "-notabbar", "--notabbar", "-systemtray", "--systemtray",
-                 "-loadingTime", "--loadingTime":
-                // Windows-only flags: accepted silently
+                 "-loadingTime", "--loadingTime",
+                 "-quickPrint", "--quickPrint", "-r", "--r":
+                // Windows-only or unsupported flags: accepted silently
                 break
+            case "-help", "--help", "-h", "--h":
+                printHelpAndExit = true
+            case "-openSession", "--openSession":
+                if let next = iterator.next() {
+                    let url = URL(fileURLWithPath: next).resolvingSymlinksInPath()
+                    if FileManager.default.fileExists(atPath: url.path) {
+                        openSessionURL = url
+                    }
+                }
             case "-n", "--n":
                 if let next = iterator.next(), let line = Int(next) {
                     gotoLine = line
@@ -114,7 +130,9 @@ struct CommandLineArgs {
             languageName: languageName,
             openFoldersAsWorkspace: openFoldersAsWorkspace,
             windowX: windowX,
-            windowY: windowY
+            windowY: windowY,
+            openSessionURL: openSessionURL,
+            printHelpAndExit: printHelpAndExit
         )
     }
 }
