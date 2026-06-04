@@ -261,7 +261,6 @@ public enum TextSearch {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: regexOptions) else { return nil }
 
         let fullText = text as String
-        let utf16View = fullText.utf16
 
         // Convert NSRange (UTF-16 based) to Swift Range for regex
         guard let swiftStart = fullText.index(fullText.startIndex, offsetBy: searchRange.location, limitedBy: fullText.endIndex),
