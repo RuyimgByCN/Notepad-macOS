@@ -167,13 +167,20 @@ final class EditorTabBarView: NSView {
         rebuildTabs()
     }
 
-    private func rebuildTabs() {
+    // Pass an explicit maxWidth when calling from layout() so we don't re-read
+    // scrollView.bounds.width (which may still be 0 during the layout pass).
+    private func rebuildTabs(overrideMaxWidth: CGFloat? = nil) {
         tabButtons.forEach { $0.removeFromSuperview() }
         tabButtons.removeAll()
 
-        // Only truncate filenames that exceed half the visible bar width.
-        let halfBarWidth = max(EditorTabButton.minWidth, scrollView.bounds.width / 2)
-        let tabMaxWidth = min(EditorTabButton.absoluteMaxWidth, halfBarWidth)
+        let tabMaxWidth: CGFloat
+        if let override = overrideMaxWidth {
+            tabMaxWidth = override
+        } else {
+            // Only truncate filenames that exceed half the visible bar width.
+            let halfBarWidth = max(EditorTabButton.minWidth, scrollView.bounds.width / 2)
+            tabMaxWidth = min(EditorTabButton.absoluteMaxWidth, halfBarWidth)
+        }
 
         var x: CGFloat = 0
         for item in state.items {
@@ -213,16 +220,18 @@ final class EditorTabBarView: NSView {
 
     override func layout() {
         super.layout()
+        // Use our own bounds minus the newTabButton so we don't depend on scrollView layout order.
+        let availableWidth = max(0, bounds.width - 28)
         let newMax = min(EditorTabButton.absoluteMaxWidth,
-                        max(EditorTabButton.minWidth, scrollView.bounds.width / 2))
+                        max(EditorTabButton.minWidth, availableWidth / 2))
         if !tabButtons.isEmpty {
             // Recompute tab widths if bar was resized after initial rebuild (e.g. window resize).
             if tabButtons.first?.dynamicMaxWidth != newMax {
-                rebuildTabs()
+                rebuildTabs(overrideMaxWidth: newMax)
             }
             return
         }
-        documentView.frame = CGRect(x: 0, y: 0, width: max(documentView.frame.width, scrollView.bounds.width), height: Self.barHeight)
+        documentView.frame = CGRect(x: 0, y: 0, width: max(documentView.frame.width, bounds.width - 28), height: Self.barHeight)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -303,7 +312,8 @@ final class EditorTabButton: NSView {
         let text = prefix + item.title
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12)]
         let textW = (text as NSString).size(withAttributes: attrs).width
-        let raw = Self.hPad + textW + 4 + Self.closeSize + Self.closeRightPad
+        // +6: extra margin so subpixel/Retina rendering doesn't clip CJK characters
+        let raw = Self.hPad + textW + 6 + Self.closeSize + Self.closeRightPad
         return max(Self.minWidth, min(dynamicMaxWidth, ceil(raw)))
     }
 
@@ -316,7 +326,8 @@ final class EditorTabButton: NSView {
         closeBtn.frame = CGRect(x: closeX, y: closeY, width: closeSz, height: closeSz)
 
         let titleX = Self.hPad
-        let titleMaxX = closeX - 4
+        // When the close button is hidden (inactive tab), extend title to the right edge.
+        let titleMaxX = closeBtn.isHidden ? bounds.maxX - Self.hPad : closeX - 4
         let titleH: CGFloat = 17
         let titleY = (h - titleH) / 2
         titleLabel.frame = CGRect(x: titleX, y: titleY, width: max(0, titleMaxX - titleX), height: titleH)
