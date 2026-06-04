@@ -316,8 +316,9 @@ final class EditorTabButton: NSView {
         let text = prefix + item.title
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12)]
         let textW = (text as NSString).size(withAttributes: attrs).width
-        // +6: extra margin so subpixel/Retina rendering doesn't clip CJK characters
-        let raw = Self.hPad + textW + 6 + Self.closeSize + Self.closeRightPad
+        // +12: NSTextField has ~2px inset each side (4px total) + 4px gap before close btn
+        // + 4px safety for CJK subpixel rendering; label width = raw - hPad - gap - close area
+        let raw = Self.hPad + textW + 12 + Self.closeSize + Self.closeRightPad
         return max(Self.minWidth, min(dynamicMaxWidth, ceil(raw)))
     }
 
@@ -331,7 +332,7 @@ final class EditorTabButton: NSView {
 
         let titleX = Self.hPad
         // When the close button is hidden (inactive tab), extend title to the right edge.
-        let titleMaxX = closeBtn.isHidden ? bounds.maxX - Self.hPad : closeX - 4
+        let titleMaxX = closeBtn.isHidden ? bounds.maxX - Self.hPad : closeX - 2
         let titleH: CGFloat = 17
         let titleY = (h - titleH) / 2
         titleLabel.frame = CGRect(x: titleX, y: titleY, width: max(0, titleMaxX - titleX), height: titleH)
