@@ -40,6 +40,7 @@ final class EditorTabBarView: NSView {
     private var draggedButton: EditorTabButton?
     private var dragStartX: CGFloat = 0
     private var dragButtonOriginalFrame: CGRect = .zero
+    private var mouseDownInEmptyArea = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -93,11 +94,13 @@ final class EditorTabBarView: NSView {
         let loc = documentView.convert(event.locationInWindow, from: nil)
         let tabsEnd = tabButtons.last?.frame.maxX ?? 0
         if loc.x > tabsEnd {
+            mouseDownInEmptyArea = true
             if event.clickCount == 2 {
                 onNewTab?()
             }
             return
         }
+        mouseDownInEmptyArea = false
         // Detect drag start on a tab button
         let docLoc = documentView.convert(event.locationInWindow, from: nil)
         if let btn = tabButtons.first(where: { $0.frame.contains(docLoc) }) {
@@ -122,6 +125,7 @@ final class EditorTabBarView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if mouseDownInEmptyArea { mouseDownInEmptyArea = false; return }
         guard let btn = draggedButton else { super.mouseUp(with: event); return }
         btn.alphaValue = 1.0
         let centerX = btn.frame.midX

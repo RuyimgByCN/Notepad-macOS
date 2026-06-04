@@ -3653,6 +3653,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func configureToolbar() {
         window?.toolbar = editorToolbar.makeToolbar()
+        window?.toolbarStyle = .unifiedCompact
     }
 
     private func configureContent() {
