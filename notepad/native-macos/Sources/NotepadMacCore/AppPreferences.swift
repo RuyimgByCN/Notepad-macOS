@@ -145,6 +145,12 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let tabbarMaxLabelLength: Int
     /// Keep the Find dialog open after Replace All
     public let keepFindDialogOpen: Bool
+    /// Print header/footer and margin settings
+    public let printSettings: PrintSettings
+    /// Delimiter for "Select between delimiters": left char (empty = whitespace)
+    public let delimiterLeft: String
+    /// Delimiter for "Select between delimiters": right char (empty = whitespace)
+    public let delimiterRight: String
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -216,7 +222,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         inSelectionThreshold: Int = 1024,
         tabbarDoubleClickClose: Bool = false,
         tabbarMaxLabelLength: Int = 0,
-        keepFindDialogOpen: Bool = true
+        keepFindDialogOpen: Bool = true,
+        printSettings: PrintSettings = .defaultValue,
+        delimiterLeft: String = "",
+        delimiterRight: String = ""
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -288,6 +297,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.tabbarDoubleClickClose = tabbarDoubleClickClose
         self.tabbarMaxLabelLength = max(0, tabbarMaxLabelLength)
         self.keepFindDialogOpen = keepFindDialogOpen
+        self.printSettings = printSettings
+        self.delimiterLeft = delimiterLeft
+        self.delimiterRight = delimiterRight
     }
 
     /// Combined URL schemes: defaults + user-configured extras
@@ -408,7 +420,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             inSelectionThreshold: inSelectionThreshold,
             tabbarDoubleClickClose: tabbarDoubleClickClose,
             tabbarMaxLabelLength: tabbarMaxLabelLength,
-            keepFindDialogOpen: keepFindDialogOpen
+            keepFindDialogOpen: keepFindDialogOpen,
+            printSettings: printSettings,
+            delimiterLeft: delimiterLeft,
+            delimiterRight: delimiterRight
         )
     }
 
@@ -584,6 +599,9 @@ public final class PreferencesStore {
         static let tabbarDoubleClickClose = "notepadMac.tabbarDoubleClickClose"
         static let tabbarMaxLabelLength = "notepadMac.tabbarMaxLabelLength"
         static let keepFindDialogOpen = "notepadMac.keepFindDialogOpen"
+        static let printSettings = "notepadMac.printSettings"
+        static let delimiterLeft = "notepadMac.delimiterLeft"
+        static let delimiterRight = "notepadMac.delimiterRight"
         static let disabledNativePluginIdentifiers = "notepadMac.disabledNativePluginIdentifiers"
         static let findHistory = "notepadMac.findHistory"
         static let replaceHistory = "notepadMac.replaceHistory"
@@ -665,8 +683,19 @@ public final class PreferencesStore {
             inSelectionThreshold: defaults.object(forKey: Key.inSelectionThreshold) as? Int ?? 1024,
             tabbarDoubleClickClose: defaults.object(forKey: Key.tabbarDoubleClickClose) as? Bool ?? false,
             tabbarMaxLabelLength: defaults.object(forKey: Key.tabbarMaxLabelLength) as? Int ?? 0,
-            keepFindDialogOpen: defaults.object(forKey: Key.keepFindDialogOpen) as? Bool ?? true
+            keepFindDialogOpen: defaults.object(forKey: Key.keepFindDialogOpen) as? Bool ?? true,
+            printSettings: Self.loadPrintSettings(from: defaults),
+            delimiterLeft: defaults.string(forKey: Key.delimiterLeft) ?? "",
+            delimiterRight: defaults.string(forKey: Key.delimiterRight) ?? ""
         )
+    }
+
+    private static func loadPrintSettings(from defaults: UserDefaults) -> PrintSettings {
+        guard let data = defaults.data(forKey: Key.printSettings),
+              let ps = try? JSONDecoder().decode(PrintSettings.self, from: data) else {
+            return .defaultValue
+        }
+        return ps
     }
 
     public func save(_ preferences: AppPreferences) {
@@ -737,6 +766,11 @@ public final class PreferencesStore {
         defaults.set(preferences.tabbarDoubleClickClose, forKey: Key.tabbarDoubleClickClose)
         defaults.set(preferences.tabbarMaxLabelLength, forKey: Key.tabbarMaxLabelLength)
         defaults.set(preferences.keepFindDialogOpen, forKey: Key.keepFindDialogOpen)
+        if let data = try? JSONEncoder().encode(preferences.printSettings) {
+            defaults.set(data, forKey: Key.printSettings)
+        }
+        defaults.set(preferences.delimiterLeft, forKey: Key.delimiterLeft)
+        defaults.set(preferences.delimiterRight, forKey: Key.delimiterRight)
         defaults.synchronize()
     }
 

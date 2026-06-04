@@ -35,6 +35,27 @@ final class PreferencesPanelController: NSWindowController {
     private let customBackupDirField = NSTextField(string: "")
     private let customBackupDirBrowseButton = NSButton(title: "", target: nil, action: nil)
     private let printLineNumbersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    // Print section
+    private let printSectionLabel = NSTextField(labelWithString: "")
+    private let printHeaderSectionLabel = NSTextField(labelWithString: "")
+    private let printHeaderLeftField = NSTextField(string: "")
+    private let printHeaderCenterField = NSTextField(string: "$(FILE_NAME)")
+    private let printHeaderRightField = NSTextField(string: "")
+    private let printFooterSectionLabel = NSTextField(labelWithString: "")
+    private let printFooterLeftField = NSTextField(string: "")
+    private let printFooterCenterField = NSTextField(string: "")
+    private let printFooterRightField = NSTextField(string: "$(PAGE) / $(PAGES)")
+    private let printColorModeLabel = NSTextField(labelWithString: "")
+    private let printColorModePopup = NSPopUpButton()
+    private let printFontSizeLabel = NSTextField(labelWithString: "")
+    private let printFontSizeField = NSTextField(string: "0")
+    private let printFontSizeStepper = NSStepper()
+    // Delimiter section (in Window tab)
+    private let delimiterSectionLabel = NSTextField(labelWithString: "")
+    private let delimiterLeftLabel = NSTextField(labelWithString: "")
+    private let delimiterLeftField = NSTextField(string: "")
+    private let delimiterRightLabel = NSTextField(labelWithString: "")
+    private let delimiterRightField = NSTextField(string: "")
     private let openDirFollowsDocButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let folderDropAsWorkspaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let defaultLangLabel = NSTextField(labelWithString: "")
@@ -235,6 +256,14 @@ final class PreferencesPanelController: NSWindowController {
         tabbarSectionLabel.stringValue = "Tab Bar"
         tabbarDoubleClickCloseButton.title = "Double-click tab to close"
         tabbarMaxLabelLengthLabel.stringValue = "Max tab label length (0 = unlimited):"
+        printSectionLabel.stringValue = "Print"
+        printHeaderSectionLabel.stringValue = "Header (Left / Center / Right):"
+        printFooterSectionLabel.stringValue = "Footer (Left / Center / Right):"
+        printColorModeLabel.stringValue = "Color:"
+        printFontSizeLabel.stringValue = "Font size (0=auto):"
+        delimiterSectionLabel.stringValue = "Delimiter"
+        delimiterLeftLabel.stringValue = "Left char (empty=whitespace):"
+        delimiterRightLabel.stringValue = "Right char:"
         printLineNumbersButton.title = "Print line numbers"
         openDirFollowsDocButton.title = Localization.string(.preferencesOpenDirFollowsDoc, default: "Open dialog starts in the current document's directory")
         folderDropAsWorkspaceButton.title = Localization.string(.preferencesFolderDropAsWorkspace, default: "Open dropped folder as workspace")
@@ -323,7 +352,7 @@ final class PreferencesPanelController: NSWindowController {
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper].forEach {
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -333,6 +362,12 @@ final class PreferencesPanelController: NSWindowController {
         autoCompleteField.formatter = integerFormatter
         autoCompleteModePopup.removeAllItems()
         autoCompleteModePopup.addItems(withTitles: ["Disabled", "Function API only", "Document words only", "Function + words (default)"])
+        printColorModePopup.removeAllItems()
+        printColorModePopup.addItems(withTitles: ["Color (as displayed)", "Force black text"])
+        printFontSizeStepper.minValue = 0
+        printFontSizeStepper.maxValue = 32
+        printFontSizeStepper.increment = 1
+        printFontSizeField.formatter = integerFormatter
         inSelectionThresholdStepper.minValue = 1
         inSelectionThresholdStepper.maxValue = 10000
         inSelectionThresholdStepper.increment = 64
@@ -416,7 +451,10 @@ final class PreferencesPanelController: NSWindowController {
          keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel,
          periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup,
          useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton,
-         printLineNumbersButton,
+         printLineNumbersButton, printSectionLabel,
+         printHeaderSectionLabel, printHeaderLeftField, printHeaderCenterField, printHeaderRightField,
+         printFooterSectionLabel, printFooterLeftField, printFooterCenterField, printFooterRightField,
+         printColorModeLabel, printColorModePopup, printFontSizeLabel, printFontSizeField, printFontSizeStepper,
          openDirFollowsDocButton, folderDropAsWorkspaceButton,
          defaultLangLabel, defaultLangPopup
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; sessionCV.addSubview($0) }
@@ -435,10 +473,12 @@ final class PreferencesPanelController: NSWindowController {
 
         // Tab 4 – Window
         [tabbarSectionLabel, tabbarDoubleClickCloseButton,
-         tabbarMaxLabelLengthLabel, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper
+         tabbarMaxLabelLengthLabel, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper,
+         delimiterSectionLabel, delimiterLeftLabel, delimiterLeftField,
+         delimiterRightLabel, delimiterRightField
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; windowCV.addSubview($0) }
 
-        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel, inSelectionSectionLabel, tabbarSectionLabel].forEach {
+        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel, inSelectionSectionLabel, tabbarSectionLabel, printSectionLabel, delimiterSectionLabel].forEach {
             $0.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
         }
         // Convenience anchors for tabs 2 and 3
@@ -677,11 +717,8 @@ final class PreferencesPanelController: NSWindowController {
             customBackupDirBrowseButton.leadingAnchor.constraint(equalTo: customBackupDirField.trailingAnchor, constant: 8),
             customBackupDirBrowseButton.centerYAnchor.constraint(equalTo: customBackupDirField.centerYAnchor),
 
-            printLineNumbersButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
-            printLineNumbersButton.topAnchor.constraint(equalTo: useCustomBackupDirButton.bottomAnchor, constant: 10),
-
             openDirFollowsDocButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
-            openDirFollowsDocButton.topAnchor.constraint(equalTo: printLineNumbersButton.bottomAnchor, constant: 10),
+            openDirFollowsDocButton.topAnchor.constraint(equalTo: useCustomBackupDirButton.bottomAnchor, constant: 10),
 
             folderDropAsWorkspaceButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             folderDropAsWorkspaceButton.topAnchor.constraint(equalTo: openDirFollowsDocButton.bottomAnchor, constant: 10),
@@ -693,7 +730,62 @@ final class PreferencesPanelController: NSWindowController {
             defaultLangPopup.centerYAnchor.constraint(equalTo: defaultLangLabel.centerYAnchor),
             defaultLangPopup.widthAnchor.constraint(equalToConstant: 160),
 
-            sessionCV.bottomAnchor.constraint(equalTo: defaultLangLabel.bottomAnchor, constant: 24)
+            printSectionLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printSectionLabel.topAnchor.constraint(equalTo: defaultLangLabel.bottomAnchor, constant: 20),
+
+            printLineNumbersButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printLineNumbersButton.topAnchor.constraint(equalTo: printSectionLabel.bottomAnchor, constant: 10),
+
+            printHeaderSectionLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printHeaderSectionLabel.topAnchor.constraint(equalTo: printLineNumbersButton.bottomAnchor, constant: 10),
+
+            printHeaderLeftField.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printHeaderLeftField.topAnchor.constraint(equalTo: printHeaderSectionLabel.bottomAnchor, constant: 6),
+            printHeaderLeftField.widthAnchor.constraint(equalToConstant: 120),
+
+            printHeaderCenterField.leadingAnchor.constraint(equalTo: printHeaderLeftField.trailingAnchor, constant: 6),
+            printHeaderCenterField.centerYAnchor.constraint(equalTo: printHeaderLeftField.centerYAnchor),
+            printHeaderCenterField.widthAnchor.constraint(equalToConstant: 120),
+
+            printHeaderRightField.leadingAnchor.constraint(equalTo: printHeaderCenterField.trailingAnchor, constant: 6),
+            printHeaderRightField.centerYAnchor.constraint(equalTo: printHeaderLeftField.centerYAnchor),
+            printHeaderRightField.widthAnchor.constraint(equalToConstant: 120),
+
+            printFooterSectionLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printFooterSectionLabel.topAnchor.constraint(equalTo: printHeaderLeftField.bottomAnchor, constant: 10),
+
+            printFooterLeftField.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printFooterLeftField.topAnchor.constraint(equalTo: printFooterSectionLabel.bottomAnchor, constant: 6),
+            printFooterLeftField.widthAnchor.constraint(equalToConstant: 120),
+
+            printFooterCenterField.leadingAnchor.constraint(equalTo: printFooterLeftField.trailingAnchor, constant: 6),
+            printFooterCenterField.centerYAnchor.constraint(equalTo: printFooterLeftField.centerYAnchor),
+            printFooterCenterField.widthAnchor.constraint(equalToConstant: 120),
+
+            printFooterRightField.leadingAnchor.constraint(equalTo: printFooterCenterField.trailingAnchor, constant: 6),
+            printFooterRightField.centerYAnchor.constraint(equalTo: printFooterLeftField.centerYAnchor),
+            printFooterRightField.widthAnchor.constraint(equalToConstant: 120),
+
+            printColorModeLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printColorModeLabel.topAnchor.constraint(equalTo: printFooterLeftField.bottomAnchor, constant: 10),
+            printColorModeLabel.widthAnchor.constraint(equalToConstant: 80),
+
+            printColorModePopup.leadingAnchor.constraint(equalTo: printColorModeLabel.trailingAnchor, constant: 8),
+            printColorModePopup.centerYAnchor.constraint(equalTo: printColorModeLabel.centerYAnchor),
+            printColorModePopup.widthAnchor.constraint(equalToConstant: 180),
+
+            printFontSizeLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printFontSizeLabel.topAnchor.constraint(equalTo: printColorModeLabel.bottomAnchor, constant: 10),
+            printFontSizeLabel.widthAnchor.constraint(equalToConstant: 130),
+
+            printFontSizeField.leadingAnchor.constraint(equalTo: printFontSizeLabel.trailingAnchor, constant: 8),
+            printFontSizeField.centerYAnchor.constraint(equalTo: printFontSizeLabel.centerYAnchor),
+            printFontSizeField.widthAnchor.constraint(equalToConstant: 50),
+
+            printFontSizeStepper.leadingAnchor.constraint(equalTo: printFontSizeField.trailingAnchor, constant: 6),
+            printFontSizeStepper.centerYAnchor.constraint(equalTo: printFontSizeField.centerYAnchor),
+
+            sessionCV.bottomAnchor.constraint(equalTo: printFontSizeLabel.bottomAnchor, constant: 24)
         ])
 
         // ── Tab 3: Find & Tools ────────────────────────────────
@@ -795,7 +887,26 @@ final class PreferencesPanelController: NSWindowController {
             tabbarMaxLabelLengthStepper.leadingAnchor.constraint(equalTo: tabbarMaxLabelLengthField.trailingAnchor, constant: 6),
             tabbarMaxLabelLengthStepper.centerYAnchor.constraint(equalTo: tabbarMaxLabelLengthField.centerYAnchor),
 
-            windowCV.bottomAnchor.constraint(equalTo: tabbarMaxLabelLengthLabel.bottomAnchor, constant: 24)
+            delimiterSectionLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            delimiterSectionLabel.topAnchor.constraint(equalTo: tabbarMaxLabelLengthLabel.bottomAnchor, constant: 20),
+
+            delimiterLeftLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            delimiterLeftLabel.topAnchor.constraint(equalTo: delimiterSectionLabel.bottomAnchor, constant: 10),
+            delimiterLeftLabel.widthAnchor.constraint(equalToConstant: 180),
+
+            delimiterLeftField.leadingAnchor.constraint(equalTo: delimiterLeftLabel.trailingAnchor, constant: 8),
+            delimiterLeftField.centerYAnchor.constraint(equalTo: delimiterLeftLabel.centerYAnchor),
+            delimiterLeftField.widthAnchor.constraint(equalToConstant: 60),
+
+            delimiterRightLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            delimiterRightLabel.topAnchor.constraint(equalTo: delimiterLeftLabel.bottomAnchor, constant: 10),
+            delimiterRightLabel.widthAnchor.constraint(equalToConstant: 180),
+
+            delimiterRightField.leadingAnchor.constraint(equalTo: delimiterRightLabel.trailingAnchor, constant: 8),
+            delimiterRightField.centerYAnchor.constraint(equalTo: delimiterRightLabel.centerYAnchor),
+            delimiterRightField.widthAnchor.constraint(equalToConstant: 60),
+
+            windowCV.bottomAnchor.constraint(equalTo: delimiterRightLabel.bottomAnchor, constant: 24)
         ])
     }
 
@@ -851,6 +962,18 @@ final class PreferencesPanelController: NSWindowController {
         tabbarDoubleClickCloseButton.state = preferences.tabbarDoubleClickClose ? .on : .off
         tabbarMaxLabelLengthField.intValue = Int32(preferences.tabbarMaxLabelLength)
         tabbarMaxLabelLengthStepper.intValue = Int32(preferences.tabbarMaxLabelLength)
+        let ps = preferences.printSettings
+        printHeaderLeftField.stringValue = ps.header.left
+        printHeaderCenterField.stringValue = ps.header.center
+        printHeaderRightField.stringValue = ps.header.right
+        printFooterLeftField.stringValue = ps.footer.left
+        printFooterCenterField.stringValue = ps.footer.center
+        printFooterRightField.stringValue = ps.footer.right
+        printColorModePopup.selectItem(at: max(0, min(1, ps.colorMode)))
+        printFontSizeField.intValue = Int32(ps.fontSize)
+        printFontSizeStepper.intValue = Int32(ps.fontSize)
+        delimiterLeftField.stringValue = preferences.delimiterLeft
+        delimiterRightField.stringValue = preferences.delimiterRight
         largeFileMBField.intValue = Int32(preferences.largeFileSizeMB)
         largeFileMBStepper.intValue = Int32(preferences.largeFileSizeMB)
         additionalEdgeColumnsField.stringValue = preferences.additionalEdgeColumns
@@ -917,6 +1040,12 @@ final class PreferencesPanelController: NSWindowController {
             tabbarMaxLabelLengthStepper.intValue = tabbarMaxLabelLengthField.intValue
         } else if tabbarMaxLabelLengthStepper.intValue != tabbarMaxLabelLengthField.intValue {
             tabbarMaxLabelLengthField.intValue = tabbarMaxLabelLengthStepper.intValue
+        }
+
+        if sender as? NSTextField === printFontSizeField {
+            printFontSizeStepper.intValue = printFontSizeField.intValue
+        } else if printFontSizeStepper.intValue != printFontSizeField.intValue {
+            printFontSizeField.intValue = printFontSizeStepper.intValue
         }
 
         if sender as? NSButton === useCustomBackupDirButton {
@@ -992,7 +1121,27 @@ final class PreferencesPanelController: NSWindowController {
             inSelectionThreshold: Int(inSelectionThresholdField.intValue),
             tabbarDoubleClickClose: tabbarDoubleClickCloseButton.state == .on,
             tabbarMaxLabelLength: Int(tabbarMaxLabelLengthField.intValue),
-            keepFindDialogOpen: keepFindDialogOpenButton.state == .on
+            keepFindDialogOpen: keepFindDialogOpenButton.state == .on,
+            printSettings: PrintSettings(
+                header: PrintBand(
+                    left: printHeaderLeftField.stringValue,
+                    center: printHeaderCenterField.stringValue,
+                    right: printHeaderRightField.stringValue
+                ),
+                footer: PrintBand(
+                    left: printFooterLeftField.stringValue,
+                    center: printFooterCenterField.stringValue,
+                    right: printFooterRightField.stringValue
+                ),
+                colorMode: printColorModePopup.indexOfSelectedItem,
+                fontSize: Double(printFontSizeField.intValue),
+                marginTop: existing.printSettings.marginTop,
+                marginBottom: existing.printSettings.marginBottom,
+                marginLeft: existing.printSettings.marginLeft,
+                marginRight: existing.printSettings.marginRight
+            ),
+            delimiterLeft: delimiterLeftField.stringValue,
+            delimiterRight: delimiterRightField.stringValue
         )
         preferencesStore.save(preferences)
         loadPreferences()

@@ -1,13 +1,53 @@
 import AppKit
 import NotepadMacCore
 
+/// A paginated NSTextView used as the print view for NSPrintOperation.
+/// Supports optional header/footer bands drawn in the page border area.
 @MainActor
 final class PrintTextView: NSTextView {
+    private let settings: PrintSettings
+    private let filePath: String?
+    private let printDate: Date
+    private var cachedTotalPages: Int = 1
+
+    private static let bandHeight: CGFloat = 18
     private static let printableWidth: CGFloat = 540
     private static let minimumPrintableHeight: CGFloat = 720
 
-    init(document: PrintDocument, fontSize: CGFloat, includeLineNumbers: Bool = true) {
-        let storage = NSTextStorage(attributedString: Self.attributedString(for: document, fontSize: fontSize, includeLineNumbers: includeLineNumbers))
+    // MARK: - Init
+
+    init(
+        document: PrintDocument,
+        fontSize: CGFloat,
+        includeLineNumbers: Bool = true,
+        printSettings: PrintSettings = .defaultValue,
+        filePath: String? = nil
+    ) {
+        self.settings = printSettings
+        self.filePath = filePath
+        self.printDate = Date()
+
+        let effectiveFontSize: CGFloat = printSettings.fontSize > 0
+            ? CGFloat(printSettings.fontSize)
+            : max(fontSize, 9)
+        let hasBands = !printSettings.header.isEmpty || !printSettings.footer.isEmpty
+        let bandH: CGFloat = hasBands ? Self.bandHeight : 0
+
+        let textColor: NSColor = printSettings.colorMode == 1 ? .black : .labelColor
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byWordWrapping
+        paragraph.lineSpacing = 2
+
+        let text = document.renderedPlainText(includeLineNumbers: includeLineNumbers)
+        let attributed = NSAttributedString(
+            string: text,
+            attributes: [
+                .font: NSFont.monospacedSystemFont(ofSize: effectiveFontSize, weight: .regular),
+                .foregroundColor: textColor,
+                .paragraphStyle: paragraph
+            ]
+        )
+        let storage = NSTextStorage(attributedString: attributed)
         let layoutManager = NSLayoutManager()
         let textContainer = NSTextContainer(
             containerSize: NSSize(width: Self.printableWidth, height: CGFloat.greatestFiniteMagnitude)
@@ -24,16 +64,18 @@ final class PrintTextView: NSTextView {
         isEditable = false
         isSelectable = false
         drawsBackground = false
-        textContainerInset = NSSize(width: 0, height: 0)
+        textContainerInset = NSSize(width: 0, height: bandH)
         layoutManager.ensureLayout(for: textContainer)
 
         let usedRect = layoutManager.usedRect(for: textContainer)
-        frame = NSRect(
-            x: 0,
-            y: 0,
-            width: Self.printableWidth,
-            height: max(Self.minimumPrintableHeight, ceil(usedRect.height) + 24)
-        )
+        let totalHeight = max(Self.minimumPrintableHeight, ceil(usedRect.height) + bandH * 2 + 24)
+        frame = NSRect(x: 0, y: 0, width: Self.printableWidth, height: totalHeight)
+
+        // Precompute total pages from layout height vs page height
+        let pageContentH = Self.minimumPrintableHeight - bandH * 2
+        if pageContentH > 0 {
+            cachedTotalPages = max(1, Int(ceil(usedRect.height / pageContentH)))
+        }
     }
 
     @available(*, unavailable)
@@ -41,19 +83,52 @@ final class PrintTextView: NSTextView {
         fatalError("init(coder:) is not supported")
     }
 
-    private static func attributedString(for document: PrintDocument, fontSize: CGFloat, includeLineNumbers: Bool = true) -> NSAttributedString {
-        let text = document.renderedPlainText(includeLineNumbers: includeLineNumbers)
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineBreakMode = .byWordWrapping
-        paragraph.lineSpacing = 2
+    // MARK: - Header / Footer
 
-        return NSAttributedString(
-            string: text,
-            attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: max(fontSize, 9), weight: .regular),
-                .foregroundColor: NSColor.labelColor,
-                .paragraphStyle: paragraph
-            ]
-        )
+    override func drawPageBorder(with borderSize: NSSize) {
+        guard let op = NSPrintOperation.current else { return }
+        let currentPage = op.currentPage
+        let total = cachedTotalPages
+
+        drawBand(settings.header, atTop: true, borderSize: borderSize, page: currentPage, totalPages: total)
+        drawBand(settings.footer, atTop: false, borderSize: borderSize, page: currentPage, totalPages: total)
+    }
+
+    private func drawBand(
+        _ band: PrintBand,
+        atTop: Bool,
+        borderSize: NSSize,
+        page: Int,
+        totalPages: Int
+    ) {
+        guard !band.isEmpty else { return }
+        let bandH = Self.bandHeight
+        let expanded = band.expand(page: page, totalPages: totalPages, filePath: filePath, date: printDate)
+        let y: CGFloat = atTop ? borderSize.height - bandH : 0
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 9),
+            .foregroundColor: NSColor.black
+        ]
+        let pageWidth = borderSize.width
+        if !expanded.left.isEmpty {
+            NSAttributedString(string: expanded.left, attributes: attrs)
+                .draw(at: NSPoint(x: 4, y: y + 4))
+        }
+        if !expanded.center.isEmpty {
+            let s = NSAttributedString(string: expanded.center, attributes: attrs)
+            s.draw(at: NSPoint(x: (pageWidth - s.size().width) / 2, y: y + 4))
+        }
+        if !expanded.right.isEmpty {
+            let s = NSAttributedString(string: expanded.right, attributes: attrs)
+            s.draw(at: NSPoint(x: pageWidth - s.size().width - 4, y: y + 4))
+        }
+        // Thin separator line
+        NSColor.separatorColor.withAlphaComponent(0.4).setStroke()
+        let path = NSBezierPath()
+        let lineY: CGFloat = atTop ? y : y + bandH
+        path.move(to: NSPoint(x: 0, y: lineY))
+        path.line(to: NSPoint(x: pageWidth, y: lineY))
+        path.lineWidth = 0.5
+        path.stroke()
     }
 }

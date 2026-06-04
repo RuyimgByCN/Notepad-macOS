@@ -617,94 +617,59 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     @objc func printDocument(_ sender: Any?) {
-        let document = PrintDocument(
-            title: displayName,
-            text: editorSurface.text,
-            languageDisplayName: language.displayName,
-            encodingDisplayName: encoding.displayName
-        )
-        let printLineNumbers = preferencesStore.load().printLineNumbers
-        let printView = PrintTextView(document: document, fontSize: fontSize, includeLineNumbers: printLineNumbers)
-        let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo()
-        printInfo.horizontalPagination = .fit
-        printInfo.verticalPagination = .automatic
-        printInfo.isHorizontallyCentered = false
-        printInfo.isVerticallyCentered = false
-        printInfo.topMargin = 36
-        printInfo.bottomMargin = 36
-        printInfo.leftMargin = 36
-        printInfo.rightMargin = 36
-
-        let operation = NSPrintOperation(view: printView, printInfo: printInfo)
-        operation.jobTitle = displayName
-        operation.showsPrintPanel = true
-        operation.showsProgressPanel = true
-
-        if let window {
-            operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
-        } else {
-            operation.run()
-        }
+        let prefs = preferencesStore.load()
+        runPrintOperation(text: editorSurface.text, title: displayName, showPanel: true, prefs: prefs)
     }
 
     @objc func printSelection(_ sender: Any?) {
         let sel = editorSurface.selectedRange
-        guard sel.length > 0 else {
-            printDocument(sender)
-            return
-        }
+        guard sel.length > 0 else { printDocument(sender); return }
+        let prefs = preferencesStore.load()
         let selText = (editorSurface.text as NSString).substring(with: sel)
-        let document = PrintDocument(
-            title: "\(displayName) [Selection]",
-            text: selText,
-            languageDisplayName: language.displayName,
-            encodingDisplayName: encoding.displayName
-        )
-        let printLineNumbers2 = preferencesStore.load().printLineNumbers
-        let printView = PrintTextView(document: document, fontSize: fontSize, includeLineNumbers: printLineNumbers2)
-        let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo()
-        printInfo.horizontalPagination = .fit
-        printInfo.verticalPagination = .automatic
-        printInfo.topMargin = 36
-        printInfo.bottomMargin = 36
-        printInfo.leftMargin = 36
-        printInfo.rightMargin = 36
-        let operation = NSPrintOperation(view: printView, printInfo: printInfo)
-        operation.jobTitle = "\(displayName) [Selection]"
-        operation.showsPrintPanel = true
-        operation.showsProgressPanel = true
-        if let window {
-            operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
-        } else {
-            operation.run()
-        }
+        runPrintOperation(text: selText, title: "\(displayName) [Selection]", showPanel: true, prefs: prefs)
     }
 
     /// Print immediately without showing the print dialog.
     func printNow() {
+        let prefs = preferencesStore.load()
+        runPrintOperation(text: editorSurface.text, title: displayName, showPanel: false, prefs: prefs)
+    }
+
+    private func runPrintOperation(text: String, title: String, showPanel: Bool, prefs: AppPreferences) {
         let document = PrintDocument(
-            title: displayName,
-            text: editorSurface.text,
+            title: title,
+            text: text,
             languageDisplayName: language.displayName,
             encodingDisplayName: encoding.displayName
         )
-        let printLineNumbers3 = preferencesStore.load().printLineNumbers
-        let printView = PrintTextView(document: document, fontSize: fontSize, includeLineNumbers: printLineNumbers3)
+        let ps = prefs.printSettings
+        let printView = PrintTextView(
+            document: document,
+            fontSize: fontSize,
+            includeLineNumbers: prefs.printLineNumbers,
+            printSettings: ps,
+            filePath: fileURL?.path
+        )
         let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo()
         printInfo.horizontalPagination = .fit
         printInfo.verticalPagination = .automatic
         printInfo.isHorizontallyCentered = false
         printInfo.isVerticallyCentered = false
-        printInfo.topMargin = 36
-        printInfo.bottomMargin = 36
-        printInfo.leftMargin = 36
-        printInfo.rightMargin = 36
+        printInfo.topMargin = CGFloat(ps.marginTop)
+        printInfo.bottomMargin = CGFloat(ps.marginBottom)
+        printInfo.leftMargin = CGFloat(ps.marginLeft)
+        printInfo.rightMargin = CGFloat(ps.marginRight)
 
         let operation = NSPrintOperation(view: printView, printInfo: printInfo)
-        operation.jobTitle = displayName
-        operation.showsPrintPanel = false
+        operation.jobTitle = title
+        operation.showsPrintPanel = showPanel
         operation.showsProgressPanel = true
-        operation.run()
+
+        if showPanel, let window {
+            operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+        } else {
+            operation.run()
+        }
     }
 
     @objc func convertEncoding(_ sender: Any?) {
