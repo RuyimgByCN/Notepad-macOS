@@ -150,6 +150,9 @@ protocol EditorSurface: AnyObject {
     // MARK: - Copy/Cut behavior
     func applyCopyLineWithoutSelection(_ enabled: Bool)
 
+    // MARK: - Context menu
+    func setContextMenu(_ menu: NSMenu?)
+
     // MARK: - Lifecycle
     /// Called before the surface is released (e.g. window closing) to allow the
     /// implementation to sever any unretained back-references (e.g. Scintilla delegate).
@@ -376,6 +379,7 @@ final class TextViewEditorSurface: EditorSurface {
     func applyLinePadding(_ pixels: Int) {}
     func applyBidirectional(_ mode: Int) {}
     func applyCopyLineWithoutSelection(_ enabled: Bool) {}
+    func setContextMenu(_ menu: NSMenu?) { textView.menu = menu }
     func scrollToSelection() {
         textView.scrollRangeToVisible(textView.selectedRange())
     }
@@ -1693,6 +1697,10 @@ final class ScintillaEditorSurface: EditorSurface {
 
     func applyCopyLineWithoutSelection(_ enabled: Bool) {
         bridge.setGeneralProperty(ScintillaMessage.setCopyAllowsLineSelection, parameter: enabled ? 1 : 0, value: 0)
+    }
+
+    func setContextMenu(_ menu: NSMenu?) {
+        scintillaView.menu = menu
     }
 
     func scrollToSelection() {

@@ -3742,6 +3742,50 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         applyAdvancedViewOptions()
         applyWindowPresentationState()
         window.makeFirstResponder(editorSurface.firstResponder)
+        editorSurface.setContextMenu(buildEditorContextMenu())
+    }
+
+    // MARK: - Editor right-click context menu
+
+    private func buildEditorContextMenu() -> NSMenu {
+        let menu = NSMenu(title: "")
+
+        // Standard edit actions — target=nil flows up the responder chain
+        func stdItem(_ title: String, action: Selector) {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = nil
+            menu.addItem(item)
+        }
+        func selfItem(_ title: String, action: Selector) {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+
+        stdItem(Localization.string(.editUndo,      default: "Undo"),       action: Selector(("undo:")))
+        stdItem(Localization.string(.editRedo,      default: "Redo"),       action: Selector(("redo:")))
+        menu.addItem(.separator())
+
+        stdItem(Localization.string(.editCut,       default: "Cut"),        action: #selector(NSText.cut(_:)))
+        stdItem(Localization.string(.editCopy,      default: "Copy"),       action: #selector(NSText.copy(_:)))
+        stdItem(Localization.string(.editPaste,     default: "Paste"),      action: #selector(NSText.paste(_:)))
+        menu.addItem(.separator())
+
+        stdItem(Localization.string(.editSelectAll, default: "Select All"), action: #selector(NSText.selectAll(_:)))
+        menu.addItem(.separator())
+
+        selfItem(Localization.string(.editToggleReadOnly, default: "Read-Only on Current Document"),
+                 action: #selector(toggleReadOnly(_:)))
+        selfItem(Localization.string(.foldingToggle, default: "Toggle Fold"),
+                 action: #selector(toggleFoldAtCurrentLine(_:)))
+        menu.addItem(.separator())
+
+        selfItem(Localization.string(.editSearchOnInternet, default: "Search on Internet"),
+                 action: #selector(searchOnInternet(_:)))
+        selfItem(Localization.string(.editOpenSelectedFile, default: "Open File"),
+                 action: #selector(openSelectedFile(_:)))
+
+        return menu
     }
 
     private func observeEditorNotifications() {
