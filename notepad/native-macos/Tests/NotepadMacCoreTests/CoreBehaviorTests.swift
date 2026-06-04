@@ -405,7 +405,10 @@ import Testing
         "Windows-1258 (Vietnamese)",
         "ISO 8859-2 (Central European)",
         "ISO 8859-15 (Western European)",
-        "KOI8-R (Russian)"
+        "KOI8-R (Russian)",
+        "OEM CP437 (MS-DOS US)",
+        "OEM CP850 (MS-DOS Western)",
+        "OEM CP866 (MS-DOS Cyrillic)"
     ])
     #expect(TextEncodingOption(encoding: .utf16LittleEndian) == .utf16LittleEndian)
     #expect(TextEncodingOption(encoding: .ascii)?.displayName == "ASCII")

@@ -79,6 +79,10 @@ public enum TextEncodingOption: String, CaseIterable, Equatable, Sendable {
     case isoLatin9      // ISO 8859-15 Western European
     // Other
     case koi8r          // Russian KOI8-R
+    // OEM/DOS codepages
+    case dosCP437       // OEM United States (MS-DOS)
+    case dosCP850       // OEM Multilingual Latin 1 (MS-DOS Western)
+    case dosCP866       // OEM Russian / Cyrillic (MS-DOS)
 
     public init?(encoding: String.Encoding) {
         switch encoding {
@@ -130,6 +134,12 @@ public enum TextEncodingOption: String, CaseIterable, Equatable, Sendable {
             self = .isoLatin9
         case String.Encoding.koi8rEncoding:
             self = .koi8r
+        case String.Encoding.dosCP437Encoding:
+            self = .dosCP437
+        case String.Encoding.dosCP850Encoding:
+            self = .dosCP850
+        case String.Encoding.dosCP866Encoding:
+            self = .dosCP866
         default:
             return nil
         }
@@ -161,6 +171,9 @@ public enum TextEncodingOption: String, CaseIterable, Equatable, Sendable {
         case .isoLatin2: .isoLatin2
         case .isoLatin9: .isoLatin9Encoding
         case .koi8r: .koi8rEncoding
+        case .dosCP437: .dosCP437Encoding
+        case .dosCP850: .dosCP850Encoding
+        case .dosCP866: .dosCP866Encoding
         }
     }
 
@@ -190,6 +203,9 @@ public enum TextEncodingOption: String, CaseIterable, Equatable, Sendable {
         case .isoLatin2: "ISO 8859-2 (Central European)"
         case .isoLatin9: "ISO 8859-15 (Western European)"
         case .koi8r: "KOI8-R (Russian)"
+        case .dosCP437: "OEM CP437 (MS-DOS US)"
+        case .dosCP850: "OEM CP850 (MS-DOS Western)"
+        case .dosCP866: "OEM CP866 (MS-DOS Cyrillic)"
         }
     }
 }
@@ -208,6 +224,10 @@ public extension String.Encoding {
     static let windowsCP1258Encoding = String.Encoding(rawValue: UInt(CFStringConvertEncodingToNSStringEncoding(1258)))
     static let isoLatin9Encoding = String.Encoding(rawValue: UInt(CFStringConvertEncodingToNSStringEncoding(0x0201)))
     static let koi8rEncoding = String.Encoding(rawValue: UInt(CFStringConvertEncodingToNSStringEncoding(2562)))
+    // OEM/DOS codepages via CFStringEncoding
+    static let dosCP437Encoding = String.Encoding(rawValue: UInt(CFStringConvertEncodingToNSStringEncoding(0x0400)))
+    static let dosCP850Encoding = String.Encoding(rawValue: UInt(CFStringConvertEncodingToNSStringEncoding(0x0406)))
+    static let dosCP866Encoding = String.Encoding(rawValue: UInt(CFStringConvertEncodingToNSStringEncoding(0x0407)))
 
     var supportsByteOrderMarkIntent: Bool {
         switch self {
