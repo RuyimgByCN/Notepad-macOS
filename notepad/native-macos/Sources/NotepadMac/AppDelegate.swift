@@ -618,7 +618,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if ext == "npproj" {
             do {
                 let workspace = try WorkspaceDocument.load(from: url)
-                workspacePanel.show(workspace: workspace)
+                workspacePanel.show(workspace: workspace, url: url)
             } catch { NSApp.presentError(error) }
             return nil
         }
@@ -627,7 +627,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            snippet.contains("<NotepadPlus") || snippet.contains("<Project") {
             do {
                 let workspace = try WorkspaceDocument.load(from: url)
-                workspacePanel.show(workspace: workspace)
+                workspacePanel.show(workspace: workspace, url: url)
             } catch { /* fall through to open as text */ }
             return nil
         }
@@ -825,7 +825,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openWorkspaceURL(_ url: URL, in panel: WorkspacePanelController) {
         do {
             let workspace = try WorkspaceDocument.load(from: url)
-            panel.show(workspace: workspace)
+            panel.show(workspace: workspace, url: url)
             panel.window?.makeKeyAndOrderFront(nil)
         } catch {
             NSApp.presentError(error)
@@ -2159,7 +2159,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func loadWorkspaceFile(_ url: URL) {
         do {
             currentWorkspaceURL = url
-            showWorkspace(try WorkspaceDocument.load(from: url))
+            let ws = try WorkspaceDocument.load(from: url)
+            workspaceStore.save(ws)
+            workspacePanel.show(workspace: ws, url: url)
         } catch {
             NSApp.presentError(error)
         }

@@ -11,6 +11,8 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
     var onFindInFiles: ((URL) -> Void)?
 
     private var workspace: WorkspaceDocument?
+    /// URL the current workspace was loaded from / last saved to. Nil if never saved.
+    private var currentWorkspaceURL: URL?
     private var watchedURL: URL?
     private var fsEventStream: FSEventStreamRef?
     private var reloadWorkspace: (() -> Void)?
@@ -47,9 +49,10 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         fatalError("init(coder:) is not supported")
     }
 
-    func show(workspace: WorkspaceDocument) {
+    func show(workspace: WorkspaceDocument, url: URL? = nil) {
         self.workspace = workspace
-        window?.title = workspace.name
+        self.currentWorkspaceURL = url
+        window?.title = url?.lastPathComponent ?? workspace.name
         outlineView.reloadData()
         expandAll()
         showWindow(nil)
@@ -212,6 +215,74 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
     private func configureContent() {
         guard let contentView = window?.contentView else { return }
 
+        // Toolbar row: New | Open | Save | Save As | — | Add Files | Add Folder
+        let toolbarView = NSView()
+        toolbarView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(toolbarView)
+
+        func makeToolbarButton(image: String, tip: String, selector: Selector) -> NSButton {
+            let b = NSButton()
+            b.translatesAutoresizingMaskIntoConstraints = false
+            b.bezelStyle = .inline
+            b.isBordered = false
+            b.image = NSImage(systemSymbolName: image, accessibilityDescription: nil)
+            b.toolTip = tip
+            b.target = self
+            b.action = selector
+            b.setAccessibilityLabel(tip)
+            return b
+        }
+
+        let btnNew     = makeToolbarButton(image: "doc.badge.plus",    tip: "New Workspace",     selector: #selector(newWorkspace(_:)))
+        let btnOpen    = makeToolbarButton(image: "folder",            tip: "Open Workspace...", selector: #selector(openWorkspace(_:)))
+        let btnSave    = makeToolbarButton(image: "square.and.arrow.down", tip: "Save Workspace", selector: #selector(saveWorkspace(_:)))
+        let btnSaveAs  = makeToolbarButton(image: "square.and.arrow.down.on.square", tip: "Save Workspace As...", selector: #selector(saveWorkspaceAs(_:)))
+        let btnAddFiles  = makeToolbarButton(image: "doc.badge.plus",    tip: "Add Files...",    selector: #selector(addFilesFromToolbar(_:)))
+        let btnAddFolder = makeToolbarButton(image: "folder.badge.plus", tip: "Add Folder...",   selector: #selector(addFolderFromToolbar(_:)))
+
+        for btn in [btnNew, btnOpen, btnSave, btnSaveAs, btnAddFiles, btnAddFolder] {
+            toolbarView.addSubview(btn)
+        }
+
+        let btnW: CGFloat = 26
+        let spacing: CGFloat = 2
+        NSLayoutConstraint.activate([
+            toolbarView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            toolbarView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            toolbarView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            toolbarView.heightAnchor.constraint(equalToConstant: 28),
+
+            btnNew.leadingAnchor.constraint(equalTo: toolbarView.leadingAnchor, constant: 4),
+            btnNew.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
+            btnNew.widthAnchor.constraint(equalToConstant: btnW),
+            btnNew.heightAnchor.constraint(equalToConstant: btnW),
+
+            btnOpen.leadingAnchor.constraint(equalTo: btnNew.trailingAnchor, constant: spacing),
+            btnOpen.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
+            btnOpen.widthAnchor.constraint(equalToConstant: btnW),
+            btnOpen.heightAnchor.constraint(equalToConstant: btnW),
+
+            btnSave.leadingAnchor.constraint(equalTo: btnOpen.trailingAnchor, constant: spacing),
+            btnSave.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
+            btnSave.widthAnchor.constraint(equalToConstant: btnW),
+            btnSave.heightAnchor.constraint(equalToConstant: btnW),
+
+            btnSaveAs.leadingAnchor.constraint(equalTo: btnSave.trailingAnchor, constant: spacing),
+            btnSaveAs.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
+            btnSaveAs.widthAnchor.constraint(equalToConstant: btnW),
+            btnSaveAs.heightAnchor.constraint(equalToConstant: btnW),
+
+            btnAddFiles.leadingAnchor.constraint(equalTo: btnSaveAs.trailingAnchor, constant: 8),
+            btnAddFiles.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
+            btnAddFiles.widthAnchor.constraint(equalToConstant: btnW),
+            btnAddFiles.heightAnchor.constraint(equalToConstant: btnW),
+
+            btnAddFolder.leadingAnchor.constraint(equalTo: btnAddFiles.trailingAnchor, constant: spacing),
+            btnAddFolder.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
+            btnAddFolder.widthAnchor.constraint(equalToConstant: btnW),
+            btnAddFolder.heightAnchor.constraint(equalToConstant: btnW),
+        ])
+
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
@@ -235,9 +306,133 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            scrollView.topAnchor.constraint(equalTo: toolbarView.bottomAnchor),
             scrollView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         ])
+    }
+
+    // MARK: - Workspace file operations
+
+    @objc private func newWorkspace(_ sender: Any?) {
+        workspace = WorkspaceDocument(name: "Workspace", projects: [
+            WorkspaceNode(name: "Project A", kind: .project)
+        ])
+        currentWorkspaceURL = nil
+        window?.title = Localization.string(.workspacePanelTitle)
+        outlineView.reloadData()
+        expandAll()
+    }
+
+    @objc private func openWorkspace(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.xml]
+        panel.title = "Open Workspace"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let doc = try WorkspaceDocument.load(from: url)
+            show(workspace: doc, url: url)
+        } catch {
+            NSApp.presentError(error)
+        }
+    }
+
+    @objc private func saveWorkspace(_ sender: Any?) {
+        if let url = currentWorkspaceURL {
+            saveToURL(url)
+        } else {
+            saveWorkspaceAs(sender)
+        }
+    }
+
+    @objc private func saveWorkspaceAs(_ sender: Any?) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.xml]
+        panel.nameFieldStringValue = (workspace?.name ?? "Workspace") + ".xml"
+        panel.title = "Save Workspace"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        currentWorkspaceURL = url
+        window?.title = url.lastPathComponent
+        saveToURL(url)
+    }
+
+    private func saveToURL(_ url: URL) {
+        guard let workspace else { return }
+        do {
+            try workspace.write(to: url)
+        } catch {
+            NSApp.presentError(error)
+        }
+    }
+
+    // MARK: - Add files / folders
+
+    private func targetProjectIndex(for node: WorkspaceNode?) -> Int {
+        guard let workspace else { return 0 }
+        guard let node else { return 0 }
+        if node.kind == .project {
+            return workspace.projects.firstIndex(of: node) ?? 0
+        }
+        // For non-project nodes, find the project that contains them (use first project as fallback)
+        for (i, project) in workspace.projects.enumerated() {
+            if nodeIsDescendant(node, of: project) { return i }
+        }
+        return 0
+    }
+
+    private func nodeIsDescendant(_ target: WorkspaceNode, of ancestor: WorkspaceNode) -> Bool {
+        ancestor.children.contains(target) ||
+        ancestor.children.contains { nodeIsDescendant(target, of: $0) }
+    }
+
+    private func addFiles(toProjectAt projectIndex: Int) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.title = "Add Files to Workspace"
+        guard panel.runModal() == .OK else { return }
+        workspace = workspace?.addingFiles(panel.urls, toProjectAt: projectIndex)
+        outlineView.reloadData()
+        expandAll()
+    }
+
+    private func addFolder(toProjectAt projectIndex: Int) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.title = "Add Folder to Workspace"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        workspace = workspace?.addingFolder(url, recursive: true, toProjectAt: projectIndex)
+        outlineView.reloadData()
+        expandAll()
+    }
+
+    @objc private func addFilesFromToolbar(_ sender: Any?) {
+        addFiles(toProjectAt: 0)
+    }
+
+    @objc private func addFolderFromToolbar(_ sender: Any?) {
+        addFolder(toProjectAt: 0)
+    }
+
+    @objc private func addFilesHere(_ sender: Any?) {
+        let idx = targetProjectIndex(for: contextMenuNode())
+        addFiles(toProjectAt: idx)
+    }
+
+    @objc private func addFolderHere(_ sender: Any?) {
+        let idx = targetProjectIndex(for: contextMenuNode())
+        addFolder(toProjectAt: idx)
+    }
+
+    @objc private func removeNode(_ sender: Any?) {
+        guard let node = contextMenuNode() else { return }
+        workspace = workspace?.removingNode(node)
+        outlineView.reloadData()
     }
 
     private func refreshLocalizedStrings() {
@@ -285,6 +480,13 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
 
     private func buildContextMenu() -> NSMenu {
         let menu = NSMenu()
+
+        // Edit operations
+        menu.addItem(withTitle: "Add Files...", action: #selector(addFilesHere(_:)), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Add Folder...", action: #selector(addFolderHere(_:)), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Remove from Workspace", action: #selector(removeNode(_:)), keyEquivalent: "").target = self
+        menu.addItem(NSMenuItem.separator())
+
         menu.addItem(withTitle: Localization.string(.workspaceContextRevealInFinder, default: "Reveal in Finder"),
                      action: #selector(revealInFinder(_:)), keyEquivalent: "").target = self
         menu.addItem(withTitle: Localization.string(.workspaceContextOpenInTerminal, default: "Open in Terminal"),

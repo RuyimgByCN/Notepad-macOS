@@ -92,6 +92,47 @@ public struct WorkspaceDocument: Codable, Equatable, Sendable {
         try document.xmlData(options: [.nodePrettyPrint]).write(to: url, options: .atomic)
     }
 
+    // MARK: - Mutation helpers (return new instances; WorkspaceDocument is a value type)
+
+    /// Returns a new document with the given files appended to the project at `projectIndex`.
+    public func addingFiles(_ urls: [URL], toProjectAt projectIndex: Int) -> WorkspaceDocument {
+        var newProjects = projects
+        guard projectIndex >= 0, projectIndex < newProjects.count else { return self }
+        let p = newProjects[projectIndex]
+        let newNodes = urls.map { WorkspaceNode.file(url: $0) }
+        newProjects[projectIndex] = WorkspaceNode(name: p.name, kind: .project, url: p.url,
+                                                  children: p.children + newNodes)
+        return WorkspaceDocument(name: name, projects: newProjects)
+    }
+
+    /// Returns a new document with a folder node (optionally populated recursively) appended
+    /// to the project at `projectIndex`.
+    public func addingFolder(_ url: URL, recursive: Bool, toProjectAt projectIndex: Int) -> WorkspaceDocument {
+        var newProjects = projects
+        guard projectIndex >= 0, projectIndex < newProjects.count else { return self }
+        let p = newProjects[projectIndex]
+        let children: [WorkspaceNode] = recursive
+            ? (try? Self.workspaceChildren(in: url)) ?? []
+            : []
+        let folderNode = WorkspaceNode(name: url.lastPathComponent, kind: .folder,
+                                       url: url, children: children)
+        newProjects[projectIndex] = WorkspaceNode(name: p.name, kind: .project, url: p.url,
+                                                  children: p.children + [folderNode])
+        return WorkspaceDocument(name: name, projects: newProjects)
+    }
+
+    /// Returns a new document with the matching node removed (deep, equality-based).
+    public func removingNode(_ target: WorkspaceNode) -> WorkspaceDocument {
+        func remove(_ nodes: [WorkspaceNode]) -> [WorkspaceNode] {
+            nodes.compactMap { node -> WorkspaceNode? in
+                guard node != target else { return nil }
+                return WorkspaceNode(name: node.name, kind: node.kind, url: node.url,
+                                    children: remove(node.children))
+            }
+        }
+        return WorkspaceDocument(name: name, projects: remove(projects))
+    }
+
     public static func folderWorkspace(from rootURL: URL) throws -> WorkspaceDocument {
         let root = rootURL.standardizedFileURL
         let children = try workspaceChildren(in: root)
