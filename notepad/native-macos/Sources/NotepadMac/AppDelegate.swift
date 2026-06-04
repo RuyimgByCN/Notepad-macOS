@@ -60,6 +60,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var workspacePanel = WorkspacePanelController { [weak self] url in
         self?.openFile(url)
     }
+    private lazy var workspacePanel2 = WorkspacePanelController { [weak self] url in
+        self?.openFile(url)
+    }
+    private lazy var workspacePanel3 = WorkspacePanelController { [weak self] url in
+        self?.openFile(url)
+    }
     private lazy var fileBrowserPanel = WorkspacePanelController { [weak self] url in
         self?.openFile(url)
     }
@@ -705,6 +711,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let paths = controllers.compactMap { $0.sessionFileURL?.path }.joined(separator: "\n")
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(paths, forType: .string)
+        }
+    }
+
+    @objc func showProjectPanel2(_ sender: Any?) {
+        workspacePanel2.window?.title = "Project Panel 2"
+        workspacePanel2.window?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc func showProjectPanel3(_ sender: Any?) {
+        workspacePanel3.window?.title = "Project Panel 3"
+        workspacePanel3.window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Open a workspace file in Project Panel 2.
+    @objc func openWorkspaceInPanel2(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.xml]
+        panel.title = "Open Workspace for Project Panel 2"
+        panel.runModal()
+        guard let url = panel.url else { return }
+        openWorkspaceURL(url, in: workspacePanel2)
+    }
+
+    /// Open a workspace file in Project Panel 3.
+    @objc func openWorkspaceInPanel3(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.xml]
+        panel.title = "Open Workspace for Project Panel 3"
+        panel.runModal()
+        guard let url = panel.url else { return }
+        openWorkspaceURL(url, in: workspacePanel3)
+    }
+
+    private func openWorkspaceURL(_ url: URL, in panel: WorkspacePanelController) {
+        do {
+            let workspace = try WorkspaceDocument.load(from: url)
+            panel.show(workspace: workspace)
+            panel.window?.makeKeyAndOrderFront(nil)
+        } catch {
+            NSApp.presentError(error)
         }
     }
 

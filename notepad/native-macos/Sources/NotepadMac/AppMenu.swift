@@ -959,6 +959,17 @@ enum AppMenu {
         viewMenu.addItem(withTitle: Localization.string(.viewDocumentMap, default: "Document Map..."), action: #selector(EditorWindowController.showDocumentMap(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewFileBrowser, default: "File Browser..."), action: #selector(AppDelegate.showFileBrowser(_:)), keyEquivalent: "").target = delegate
         viewMenu.addItem(withTitle: Localization.string(.viewLocateCurrentFile, default: "Locate Current File"), action: #selector(AppDelegate.locateCurrentFile(_:)), keyEquivalent: "").target = delegate
+        // Project Panel 2 and 3 (additional workspace panels)
+        viewMenu.addItem(
+            withTitle: Localization.string(.viewProjectPanel2, default: "Project Panel 2..."),
+            action: #selector(AppDelegate.showProjectPanel2(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+        viewMenu.addItem(
+            withTitle: Localization.string(.viewProjectPanel3, default: "Project Panel 3..."),
+            action: #selector(AppDelegate.showProjectPanel3(_:)),
+            keyEquivalent: ""
+        ).target = delegate
         viewMenu.addItem(withTitle: Localization.string(.viewFunctionList, default: "Function List..."), action: #selector(EditorWindowController.showFunctionList(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewFoundResults, default: "Found Results..."), action: #selector(AppDelegate.showFoundResultsPanel(_:)), keyEquivalent: "").target = delegate
         viewMenu.addItem(withTitle: Localization.string(.viewDocumentStatistics, default: "Document Statistics..."), action: #selector(EditorWindowController.showDocumentStatistics(_:)), keyEquivalent: "")
