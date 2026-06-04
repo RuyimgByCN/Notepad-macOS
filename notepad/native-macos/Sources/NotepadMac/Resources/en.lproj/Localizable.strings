@@ -399,6 +399,15 @@
 "findInFiles.searching" = "Searching...";
 "findInFiles.noResults" = "No results found";
 "findInFiles.resultCount" = "%d result(s) found";
+"findInFiles.purgeBeforeSearch" = "Purge before each search";
+"foundResults.panelTitle" = "Found Results";
+"foundResults.empty" = "No search results";
+"foundResults.summary" = "%1$d result(s) in %2$d file(s)";
+"foundResults.openAll" = "Open All Files";
+"foundResults.copyPathnames" = "Copy Pathnames";
+"foundResults.copyAll" = "Copy All";
+"foundResults.deleteSelected" = "Delete Selected";
+"foundResults.clearAll" = "Clear All";
 "findInFiles.invalidDirectory" = "Invalid directory";
 "menu.bookmark" = "Bookmark";
 "bookmark.toggle" = "Toggle Bookmark";
@@ -585,6 +594,7 @@
 "view.fileBrowser" = "File Browser...";
 "view.locateCurrentFile" = "Locate Current File";
 "view.functionList" = "Function List...";
+"view.foundResults" = "Found Results...";
 "view.documentStatistics" = "Document Statistics...";
 "view.monitoring" = "Monitoring (tail -f)";
 "view.launchInBrowser" = "Launch in Browser";
@@ -884,11 +894,28 @@
 "incrementalSearch.title" = "Incremental Search";
 "incrementalSearch.placeholder" = "Search…";
 "findCharRange.title" = "Find Characters in Range";
-"findCharRange.startLabel" = "Start (code point):";
-"findCharRange.endLabel" = "End (code point):";
+"findCharRange.nonASCII" = "Non-ASCII characters (128-255)";
+"findCharRange.ascii" = "ASCII characters (0-127)";
+"findCharRange.custom" = "My range in 0-255:";
+"findCharRange.startLabel" = "Start:";
+"findCharRange.endLabel" = "End:";
+"findCharRange.directionDown" = "Down";
+"findCharRange.directionUp" = "Up";
+"findCharRange.wrap" = "Wrap around";
 "findCharRange.findButton" = "Find";
-"findCharRange.invalidRange" = "Invalid range. Start must be ≤ End.";
+"findCharRange.invalidRange" = "Enter values between 0 and 255, with start ≤ end.";
 "findCharRange.noMatch" = "No characters found in range.";
+"search.findInProjects" = "Find in Projects...";
+"search.findInFinder" = "Find in Search Results...";
+"findInProjects.panelTitle" = "Find in Projects";
+"findInProjects.noWorkspaceTitle" = "No Workspace";
+"findInProjects.noWorkspaceMessage" = "Open a workspace before searching in projects.";
+"findInProjects.noFilesTitle" = "No Project Files";
+"findInProjects.noFilesMessage" = "The current workspace does not contain any files.";
+"findInFinder.panelTitle" = "Find in Search Results";
+"findInFinder.noResultsTitle" = "No Search Results";
+"findInFinder.noResultsMessage" = "Run Find in Files first, or open Found Results with matching files.";
+"foundResults.findInFinder" = "Find in Search Results...";
 
 // Multi-select
 "menu.editMultiSelect" = "Multi-Select";

@@ -38,7 +38,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private lazy var columnEditorPanel = ColumnEditorPanelController()
     private lazy var rectangularSelectionPanel = RectangularSelectionPanelController()
     private lazy var clipboardHistoryPanel = ClipboardHistoryPanelController()
-    private lazy var findInFilesPanel = FindInFilesPanelController(editor: self)
+    private lazy var findInFilesPanel: FindInFilesPanelController = {
+        let delegate = NSApp.delegate as! AppDelegate
+        return FindInFilesPanelController(
+            editor: self,
+            resultsStore: delegate.findInFilesResultsStore,
+            onResultsUpdated: { delegate.showFoundResultsPanel() }
+        )
+    }()
     private lazy var incrementalSearchPanel = IncrementalSearchPanelController(editor: self)
     private lazy var findCharRangePanel = FindCharRangePanelController(editor: self)
     private lazy var editorToolbar = EditorWindowToolbar(controller: self)
@@ -65,7 +72,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var foldMarginStyle = 0
     private var useFirstLineAsTabName = false
     private var autoReloadOnExternalChange = false
-    private var backupOnSave = false
+    private var backupOnSaveMode: BackupOnSaveMode = .none
+    private var useCustomBackupDirectory = false
+    private var customBackupDirectory = ""
     private var additionalEdgeColumns: [Int] = []
     private var linePadding = 0
     /// 0=default, 1=LTR, 2=RTL — mirrors SCI_SETBIDIRECTIONAL values
@@ -1600,41 +1609,27 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         findCharRangePanel.show()
     }
 
-    func findCharactersInRange(start: UInt32, end: UInt32) {
-        guard start <= end else {
+    func findCharactersInRange(options: CharRangeSearchOptions) {
+        let text = editorSurface.text
+        let selection = editorSurface.selectedRange
+        guard let matchRange = CharRangeFinder.findNext(in: text, from: selection, options: options) else {
             NSSound.beep()
             return
         }
-        let text = editorSurface.text
+        editorSurface.setSelectedRange(matchRange)
+        updateStatus()
+    }
+
+    func performFindCharRange(options: CharRangeSearchOptions) -> Bool {
+        findCharactersInRange(options: options)
         let selection = editorSurface.selectedRange
-        let startIndex = selection.length > 0 ? NSMaxRange(selection) : selection.location
-        let scalars = text.unicodeScalars
-        var searchIndex = scalars.index(scalars.startIndex, offsetBy: min(startIndex, scalars.count))
-        while searchIndex < scalars.endIndex {
-            let scalar = scalars[searchIndex]
-            let value = scalar.value
-            if value >= start && value <= end {
-                let location = scalars.distance(from: scalars.startIndex, to: searchIndex)
-                // Find the end of consecutive matching characters
-                var endSearchIndex = scalars.index(after: searchIndex)
-                while endSearchIndex < scalars.endIndex {
-                    let nextValue = scalars[endSearchIndex].value
-                    if nextValue >= start && nextValue <= end {
-                        endSearchIndex = scalars.index(after: endSearchIndex)
-                    } else {
-                        break
-                    }
-                }
-                let endLocation = scalars.distance(from: scalars.startIndex, to: endSearchIndex)
-                let matchRange = NSRange(location: location, length: endLocation - location)
-                editorSurface.setSelectedRange(matchRange)
-                updateStatus()
-                return
-            }
-            searchIndex = scalars.index(after: searchIndex)
-        }
-        // Not found – beep
-        NSSound.beep()
+        return selection.length > 0 || options.direction == .up
+    }
+
+    func performFindCharRange(start: UInt32, end: UInt32) -> Bool {
+        performFindCharRange(options: CharRangeSearchOptions(
+            preset: .custom(UInt8(min(max(Int(start), 0), 255)), UInt8(min(max(Int(end), 0), 255)))
+        ))
     }
 
     // MARK: - Select and Find
@@ -1857,15 +1852,21 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     // MARK: - Found Results Navigation
 
     @objc func goToNextFound(_ sender: Any?) {
+        if let appDelegate = NSApp.delegate as? AppDelegate, appDelegate.navigateFoundResult(forward: true) {
+            return
+        }
         findPanel.findNextFromMenu()
     }
 
     @objc func goToPreviousFound(_ sender: Any?) {
+        if let appDelegate = NSApp.delegate as? AppDelegate, appDelegate.navigateFoundResult(forward: false) {
+            return
+        }
         findPanel.findPreviousFromMenu()
     }
 
     @objc func focusFoundResults(_ sender: Any?) {
-        findInFilesPanel.show()
+        (NSApp.delegate as? AppDelegate)?.showFoundResultsPanel()
     }
 
     // MARK: - Change History Navigation
@@ -2171,6 +2172,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     func showFindInFilesPanel(searchRoot: URL) {
         findInFilesPanel.show(searchRoot: searchRoot)
+    }
+
+    func showFindInFilesPanel(fileURLs: [URL], title: String) {
+        findInFilesPanel.show(fileURLs: fileURLs, title: title)
     }
 
     @objc func showFindPanel(_ sender: Any?) {
@@ -3304,11 +3309,6 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.hideIncrementalHighlight()
     }
 
-    func performFindCharRange(start: UInt32, end: UInt32) -> Bool {
-        findCharactersInRange(start: start, end: end)
-        return editorSurface.selectedRange.length > 0
-    }
-
     func applyPreferences(_ preferences: AppPreferences) {
         fontSize = CGFloat(preferences.editorFontSize)
         wrapsLines = preferences.wrapsLines
@@ -3332,7 +3332,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         foldMarginStyle = preferences.foldMarginStyle
         useFirstLineAsTabName = preferences.useFirstLineAsTabName
         autoReloadOnExternalChange = preferences.autoReloadOnExternalChange
-        backupOnSave = preferences.backupOnSave
+        backupOnSaveMode = preferences.backupOnSaveMode
+        useCustomBackupDirectory = preferences.useCustomBackupDirectory
+        customBackupDirectory = preferences.customBackupDirectory
         additionalEdgeColumns = preferences.additionalEdgeColumns
             .split(separator: ",")
             .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
@@ -3890,9 +3892,18 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func save(to url: URL) {
         do {
-            if backupOnSave, FileManager.default.fileExists(atPath: url.path) {
-                let bakURL = url.deletingPathExtension().appendingPathExtension(url.pathExtension.isEmpty ? "bak" : url.pathExtension + ".bak")
-                try? FileManager.default.copyItem(at: url, to: bakURL)
+            if backupOnSaveMode != .none, FileManager.default.fileExists(atPath: url.path),
+               let backupURL = BackupPathBuilder.backupURL(
+                   for: url,
+                   mode: backupOnSaveMode,
+                   useCustomDirectory: useCustomBackupDirectory,
+                   customDirectory: customBackupDirectory
+               ) {
+                try? BackupPathBuilder.ensureParentDirectoryExists(for: backupURL)
+                if FileManager.default.fileExists(atPath: backupURL.path) {
+                    try? FileManager.default.removeItem(at: backupURL)
+                }
+                try? FileManager.default.copyItem(at: url, to: backupURL)
             }
             let nextSavePolicy = savePolicy.converted(to: encoding)
             try TextFileCodec.write(

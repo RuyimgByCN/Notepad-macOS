@@ -491,6 +491,16 @@ enum AppMenu {
             action: #selector(EditorWindowController.showFindInFilesPanel(_:)),
             keyEquivalent: "f"
         ).keyEquivalentModifierMask = [.command, .shift]
+        searchMenu.addItem(
+            withTitle: Localization.string(.searchFindInProjects, default: "Find in Projects..."),
+            action: #selector(AppDelegate.showFindInProjectsPanel(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+        searchMenu.addItem(
+            withTitle: Localization.string(.searchFindInFinder, default: "Find in Search Results..."),
+            action: #selector(AppDelegate.showFindInFinderPanel(_:)),
+            keyEquivalent: ""
+        ).target = delegate
         let goToLine = searchMenu.addItem(
             withTitle: Localization.string(.searchGoToLine, default: "Go To Line..."),
             action: #selector(EditorWindowController.showGoToLinePanel(_:)),
@@ -942,6 +952,7 @@ enum AppMenu {
         viewMenu.addItem(withTitle: Localization.string(.viewFileBrowser, default: "File Browser..."), action: #selector(AppDelegate.showFileBrowser(_:)), keyEquivalent: "").target = delegate
         viewMenu.addItem(withTitle: Localization.string(.viewLocateCurrentFile, default: "Locate Current File"), action: #selector(AppDelegate.locateCurrentFile(_:)), keyEquivalent: "").target = delegate
         viewMenu.addItem(withTitle: Localization.string(.viewFunctionList, default: "Function List..."), action: #selector(EditorWindowController.showFunctionList(_:)), keyEquivalent: "")
+        viewMenu.addItem(withTitle: Localization.string(.viewFoundResults, default: "Found Results..."), action: #selector(AppDelegate.showFoundResultsPanel(_:)), keyEquivalent: "").target = delegate
         viewMenu.addItem(withTitle: Localization.string(.viewDocumentStatistics, default: "Document Statistics..."), action: #selector(EditorWindowController.showDocumentStatistics(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewMonitoring, default: "Monitoring (tail -f)"), action: #selector(EditorWindowController.toggleMonitoringMode(_:)), keyEquivalent: "")
         viewMenu.addItem(NSMenuItem.separator())

@@ -76,6 +76,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     )
     private let customShortcutStore = CustomShortcutStore()
+    private(set) var findInFilesResultsStore = FindInFilesResultsStore()
+    private lazy var foundResultsPanel: FoundResultsPanelController = {
+        let panel = FoundResultsPanelController(store: findInFilesResultsStore)
+        panel.onNavigateToMatch = { [weak self] match in
+            self?.openFileAtLine(fileURL: URL(fileURLWithPath: match.filePath), line: match.line)
+            self?.foundResultsPanel.reload()
+        }
+        panel.onFindInSearchResults = { [weak self] in
+            self?.showFindInFinderPanel(nil)
+        }
+        return panel
+    }()
     private lazy var shortcutMapperPanel: ShortcutMapperPanelController = {
         let panel = ShortcutMapperPanelController(shortcutStore: customShortcutStore)
         panel.onShortcutsChanged = { [weak self] in
@@ -340,6 +352,81 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let controller = self?.activeEditorController() else { return }
             controller.goToLine(line)
         }
+    }
+
+    func showFoundResultsPanel() {
+        foundResultsPanel.show()
+    }
+
+    @objc func showFoundResultsPanel(_ sender: Any?) {
+        showFoundResultsPanel()
+    }
+
+    @objc func showFindInProjectsPanel(_ sender: Any?) {
+        guard let workspace = workspaceStore.load() else {
+            presentSimpleAlert(
+                title: Localization.string(.findInProjectsNoWorkspaceTitle, default: "No Workspace"),
+                message: Localization.string(.findInProjectsNoWorkspaceMessage, default: "Open a workspace before searching in projects.")
+            )
+            return
+        }
+        let fileURLs = workspace.allFileURLs()
+        guard !fileURLs.isEmpty else {
+            presentSimpleAlert(
+                title: Localization.string(.findInProjectsNoFilesTitle, default: "No Project Files"),
+                message: Localization.string(.findInProjectsNoFilesMessage, default: "The current workspace does not contain any files.")
+            )
+            return
+        }
+        presentFindInFileList(
+            fileURLs: fileURLs,
+            title: Localization.string(.findInProjectsPanelTitle, default: "Find in Projects")
+        )
+    }
+
+    @objc func showFindInFinderPanel(_ sender: Any?) {
+        let paths = findInFilesResultsStore.uniqueFilePaths()
+        guard !paths.isEmpty else {
+            presentSimpleAlert(
+                title: Localization.string(.findInFinderNoResultsTitle, default: "No Search Results"),
+                message: Localization.string(.findInFinderNoResultsMessage, default: "Run Find in Files first, or open Found Results with matching files.")
+            )
+            return
+        }
+        let fileURLs = paths.map { URL(fileURLWithPath: $0) }
+        presentFindInFileList(
+            fileURLs: fileURLs,
+            title: Localization.string(.findInFinderPanelTitle, default: "Find in Search Results")
+        )
+    }
+
+    private func presentFindInFileList(fileURLs: [URL], title: String) {
+        if let controller = activeEditorController() ?? windows.first {
+            controller.showFindInFilesPanel(fileURLs: fileURLs, title: title)
+            return
+        }
+        newDocument(nil)
+        windows.last?.showFindInFilesPanel(fileURLs: fileURLs, title: title)
+    }
+
+    private func presentSimpleAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        alert.runModal()
+    }
+
+    @discardableResult
+    func navigateFoundResult(forward: Bool) -> Bool {
+        guard findInFilesResultsStore.hasResults else { return false }
+        let match = forward
+            ? findInFilesResultsStore.selectNext()
+            : findInFilesResultsStore.selectPrevious()
+        guard let match else { return false }
+        openFileAtLine(fileURL: URL(fileURLWithPath: match.filePath), line: match.line)
+        foundResultsPanel.reload()
+        return true
     }
 
     @objc func clearRecentFiles(_ sender: Any?) {
@@ -1927,8 +2014,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func scheduleSnapshotSave() {
+        let prefs = preferencesStore.load()
+        guard prefs.rememberLastSession, prefs.snapshotModeEnabled else { return }
+
         snapshotSaveTimer?.invalidate()
-        snapshotSaveTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: false) { [weak self] _ in
+        let interval = TimeInterval(prefs.periodicBackupIntervalSeconds)
+        snapshotSaveTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.saveSession()
             }

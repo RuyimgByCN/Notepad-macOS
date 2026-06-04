@@ -25,7 +25,15 @@ final class PreferencesPanelController: NSWindowController {
     private let noCheckRecentAtLaunchButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let keepAbsentFilesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoReloadButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
-    private let backupOnSaveButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let snapshotModeButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let periodicBackupLabel = NSTextField(labelWithString: "")
+    private let periodicBackupField = NSTextField(string: "7")
+    private let periodicBackupStepper = NSStepper()
+    private let backupOnSaveLabel = NSTextField(labelWithString: "")
+    private let backupOnSavePopup = NSPopUpButton()
+    private let useCustomBackupDirButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let customBackupDirField = NSTextField(string: "")
+    private let customBackupDirBrowseButton = NSButton(title: "", target: nil, action: nil)
     private let printLineNumbersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let openDirFollowsDocButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let folderDropAsWorkspaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -196,7 +204,12 @@ final class PreferencesPanelController: NSWindowController {
         noCheckRecentAtLaunchButton.title = "Don't check recent files at launch"
         keepAbsentFilesButton.title = "Keep absent files in session"
         autoReloadButton.title = "Auto-reload file when changed externally"
-        backupOnSaveButton.title = "Create .bak backup file when saving"
+        snapshotModeButton.title = "Enable session snapshot and periodic backup"
+        periodicBackupLabel.stringValue = "Periodic backup interval (seconds):"
+        backupOnSaveLabel.stringValue = "Backup on save:"
+        useCustomBackupDirButton.title = "Use custom backup directory"
+        customBackupDirBrowseButton.title = Localization.string(.findInFilesBrowse, default: "Browse...")
+        populateBackupOnSavePopup()
         printLineNumbersButton.title = "Print line numbers"
         openDirFollowsDocButton.title = Localization.string(.preferencesOpenDirFollowsDoc, default: "Open dialog starts in the current document's directory")
         folderDropAsWorkspaceButton.title = Localization.string(.preferencesFolderDropAsWorkspace, default: "Open dropped folder as workspace")
@@ -282,7 +295,7 @@ final class PreferencesPanelController: NSWindowController {
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, backupOnSaveButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField].forEach {
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -322,6 +335,18 @@ final class PreferencesPanelController: NSWindowController {
         recentFilesMaxStepper.maxValue = 50
         recentFilesMaxStepper.increment = 1
 
+        periodicBackupField.formatter = integerFormatter
+        periodicBackupStepper.minValue = 1
+        periodicBackupStepper.maxValue = 3600
+        periodicBackupStepper.increment = 1
+        periodicBackupStepper.target = self
+        periodicBackupStepper.action = #selector(controlChanged(_:))
+
+        useCustomBackupDirButton.target = self
+        useCustomBackupDirButton.action = #selector(controlChanged(_:))
+        customBackupDirBrowseButton.target = self
+        customBackupDirBrowseButton.action = #selector(browseCustomBackupDirectory(_:))
+
         fontSizeField.formatter = integerFormatter
         tabSizeField.formatter = tabSizeFormatter
 
@@ -348,7 +373,10 @@ final class PreferencesPanelController: NSWindowController {
          rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton,
          recentFilesMaxLabel, recentFilesMaxField, recentFilesMaxStepper,
          recentFilesShowFullPathButton, noCheckRecentAtLaunchButton,
-         keepAbsentFilesButton, autoReloadButton, backupOnSaveButton, printLineNumbersButton,
+         keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel,
+         periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup,
+         useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton,
+         printLineNumbersButton,
          openDirFollowsDocButton, folderDropAsWorkspaceButton,
          defaultLangLabel, defaultLangPopup
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; sessionCV.addSubview($0) }
@@ -558,11 +586,37 @@ final class PreferencesPanelController: NSWindowController {
             autoReloadButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             autoReloadButton.topAnchor.constraint(equalTo: keepAbsentFilesButton.bottomAnchor, constant: 10),
 
-            backupOnSaveButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
-            backupOnSaveButton.topAnchor.constraint(equalTo: autoReloadButton.bottomAnchor, constant: 10),
+            snapshotModeButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            snapshotModeButton.topAnchor.constraint(equalTo: autoReloadButton.bottomAnchor, constant: 10),
+
+            periodicBackupLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            periodicBackupLabel.topAnchor.constraint(equalTo: snapshotModeButton.bottomAnchor, constant: 10),
+
+            periodicBackupField.leadingAnchor.constraint(equalTo: periodicBackupLabel.trailingAnchor, constant: 8),
+            periodicBackupField.centerYAnchor.constraint(equalTo: periodicBackupLabel.centerYAnchor),
+            periodicBackupField.widthAnchor.constraint(equalToConstant: 56),
+
+            periodicBackupStepper.leadingAnchor.constraint(equalTo: periodicBackupField.trailingAnchor, constant: 4),
+            periodicBackupStepper.centerYAnchor.constraint(equalTo: periodicBackupField.centerYAnchor),
+
+            backupOnSaveLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            backupOnSaveLabel.topAnchor.constraint(equalTo: periodicBackupLabel.bottomAnchor, constant: 10),
+
+            backupOnSavePopup.leadingAnchor.constraint(equalTo: backupOnSaveLabel.trailingAnchor, constant: 8),
+            backupOnSavePopup.centerYAnchor.constraint(equalTo: backupOnSaveLabel.centerYAnchor),
+
+            useCustomBackupDirButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            useCustomBackupDirButton.topAnchor.constraint(equalTo: backupOnSaveLabel.bottomAnchor, constant: 10),
+
+            customBackupDirField.leadingAnchor.constraint(equalTo: useCustomBackupDirButton.trailingAnchor, constant: 8),
+            customBackupDirField.centerYAnchor.constraint(equalTo: useCustomBackupDirButton.centerYAnchor),
+            customBackupDirField.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
+
+            customBackupDirBrowseButton.leadingAnchor.constraint(equalTo: customBackupDirField.trailingAnchor, constant: 8),
+            customBackupDirBrowseButton.centerYAnchor.constraint(equalTo: customBackupDirField.centerYAnchor),
 
             printLineNumbersButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
-            printLineNumbersButton.topAnchor.constraint(equalTo: backupOnSaveButton.bottomAnchor, constant: 10),
+            printLineNumbersButton.topAnchor.constraint(equalTo: useCustomBackupDirButton.bottomAnchor, constant: 10),
 
             openDirFollowsDocButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             openDirFollowsDocButton.topAnchor.constraint(equalTo: printLineNumbersButton.bottomAnchor, constant: 10),
@@ -669,7 +723,13 @@ final class PreferencesPanelController: NSWindowController {
         noCheckRecentAtLaunchButton.state = preferences.noCheckRecentAtLaunch ? .on : .off
         keepAbsentFilesButton.state = preferences.keepAbsentFilesInSession ? .on : .off
         autoReloadButton.state = preferences.autoReloadOnExternalChange ? .on : .off
-        backupOnSaveButton.state = preferences.backupOnSave ? .on : .off
+        snapshotModeButton.state = preferences.snapshotModeEnabled ? .on : .off
+        periodicBackupField.intValue = Int32(preferences.periodicBackupIntervalSeconds)
+        periodicBackupStepper.intValue = Int32(preferences.periodicBackupIntervalSeconds)
+        selectBackupOnSaveMode(preferences.backupOnSaveMode)
+        useCustomBackupDirButton.state = preferences.useCustomBackupDirectory ? .on : .off
+        customBackupDirField.stringValue = preferences.customBackupDirectory
+        updateCustomBackupDirEnabled()
         printLineNumbersButton.state = preferences.printLineNumbers ? .on : .off
         openDirFollowsDocButton.state = preferences.openDirectoryFollowsDocument ? .on : .off
         folderDropAsWorkspaceButton.state = preferences.folderDropOpensAsWorkspace ? .on : .off
@@ -729,6 +789,18 @@ final class PreferencesPanelController: NSWindowController {
             recentFilesMaxField.intValue = recentFilesMaxStepper.intValue
         }
 
+        if sender as? NSTextField === periodicBackupField {
+            periodicBackupStepper.intValue = periodicBackupField.intValue
+        } else if sender as? NSStepper === periodicBackupStepper {
+            periodicBackupField.intValue = periodicBackupStepper.intValue
+        } else if periodicBackupStepper.intValue != periodicBackupField.intValue {
+            periodicBackupStepper.intValue = periodicBackupField.intValue
+        }
+
+        if sender as? NSButton === useCustomBackupDirButton {
+            updateCustomBackupDirEnabled()
+        }
+
         updateSearchEngineFieldState()
 
         // Load existing preferences to preserve fields not shown in this panel
@@ -779,7 +851,11 @@ final class PreferencesPanelController: NSWindowController {
             noCheckRecentAtLaunch: noCheckRecentAtLaunchButton.state == .on,
             keepAbsentFilesInSession: keepAbsentFilesButton.state == .on,
             autoReloadOnExternalChange: autoReloadButton.state == .on,
-            backupOnSave: backupOnSaveButton.state == .on,
+            backupOnSaveMode: selectedBackupOnSaveMode(),
+            snapshotModeEnabled: snapshotModeButton.state == .on,
+            periodicBackupIntervalSeconds: Int(periodicBackupField.intValue),
+            useCustomBackupDirectory: useCustomBackupDirButton.state == .on,
+            customBackupDirectory: customBackupDirField.stringValue,
             additionalEdgeColumns: additionalEdgeColumnsField.stringValue,
             linePadding: linePaddingSegmented.selectedSegment,
             openDirectoryFollowsDocument: openDirFollowsDocButton.state == .on,
@@ -924,5 +1000,55 @@ final class PreferencesPanelController: NSWindowController {
 
     private var selectedNewDocLineEnding: String {
         newDocLineEndingPopup.selectedItem?.representedObject as? String ?? "lf"
+    }
+
+    private func populateBackupOnSavePopup() {
+        backupOnSavePopup.removeAllItems()
+        for mode in BackupOnSaveMode.allCases {
+            backupOnSavePopup.addItem(withTitle: mode.displayName)
+            backupOnSavePopup.lastItem?.representedObject = mode.rawValue
+        }
+    }
+
+    private func selectBackupOnSaveMode(_ mode: BackupOnSaveMode) {
+        if let index = backupOnSavePopup.itemArray.firstIndex(where: {
+            $0.representedObject as? String == mode.rawValue
+        }) {
+            backupOnSavePopup.selectItem(at: index)
+        } else {
+            backupOnSavePopup.selectItem(at: 0)
+        }
+    }
+
+    private func selectedBackupOnSaveMode() -> BackupOnSaveMode {
+        let raw = backupOnSavePopup.selectedItem?.representedObject as? String
+        return BackupOnSaveMode(rawValue: raw ?? "") ?? .none
+    }
+
+    private func updateCustomBackupDirEnabled() {
+        let enabled = useCustomBackupDirButton.state == .on
+        customBackupDirField.isEnabled = enabled
+        customBackupDirBrowseButton.isEnabled = enabled
+    }
+
+    @objc private func browseCustomBackupDirectory(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        customBackupDirField.stringValue = url.path
+        savePreferences(sender: sender)
+    }
+}
+
+private extension BackupOnSaveMode {
+    var displayName: String {
+        switch self {
+        case .none: "None"
+        case .simple: "Simple (.bak)"
+        case .verbose: "Verbose (timestamped .bak)"
+        }
     }
 }

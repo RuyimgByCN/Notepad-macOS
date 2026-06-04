@@ -399,6 +399,15 @@
 "findInFiles.searching" = "搜索中...";
 "findInFiles.noResults" = "未找到结果";
 "findInFiles.resultCount" = "找到 %d 个结果";
+"findInFiles.purgeBeforeSearch" = "每次搜索前清空结果";
+"foundResults.panelTitle" = "查找结果";
+"foundResults.empty" = "无搜索结果";
+"foundResults.summary" = "%1$d 个结果，%2$d 个文件";
+"foundResults.openAll" = "打开全部文件";
+"foundResults.copyPathnames" = "复制路径";
+"foundResults.copyAll" = "复制全部";
+"foundResults.deleteSelected" = "删除所选";
+"foundResults.clearAll" = "清空全部";
 "findInFiles.invalidDirectory" = "无效目录";
 "menu.bookmark" = "书签";
 "bookmark.toggle" = "切换书签";
@@ -585,6 +594,7 @@
 "view.fileBrowser" = "文件浏览器...";
 "view.locateCurrentFile" = "定位当前文件";
 "view.functionList" = "函数列表...";
+"view.foundResults" = "查找结果...";
 "view.documentStatistics" = "文档统计...";
 "view.monitoring" = "监控 (tail -f)";
 "view.launchInBrowser" = "在浏览器中打开";
@@ -884,11 +894,28 @@
 "incrementalSearch.title" = "增量搜索";
 "incrementalSearch.placeholder" = "搜索…";
 "findCharRange.title" = "查找字符范围";
-"findCharRange.startLabel" = "起始（码位）：";
-"findCharRange.endLabel" = "结束（码位）：";
+"findCharRange.nonASCII" = "非 ASCII 字符 (128-255)";
+"findCharRange.ascii" = "ASCII 字符 (0-127)";
+"findCharRange.custom" = "自定义范围 (0-255)：";
+"findCharRange.startLabel" = "起始：";
+"findCharRange.endLabel" = "结束：";
+"findCharRange.directionDown" = "向下";
+"findCharRange.directionUp" = "向上";
+"findCharRange.wrap" = "循环查找";
 "findCharRange.findButton" = "查找";
-"findCharRange.invalidRange" = "无效范围。起始值必须 ≤ 结束值。";
+"findCharRange.invalidRange" = "请输入 0-255 之间的值，且起始值 ≤ 结束值。";
 "findCharRange.noMatch" = "未找到范围内的字符。";
+"search.findInProjects" = "在项目中查找...";
+"search.findInFinder" = "在搜索结果中查找...";
+"findInProjects.panelTitle" = "在项目中查找";
+"findInProjects.noWorkspaceTitle" = "无工作区";
+"findInProjects.noWorkspaceMessage" = "请先打开工作区，再执行项目中查找。";
+"findInProjects.noFilesTitle" = "无项目文件";
+"findInProjects.noFilesMessage" = "当前工作区中没有可搜索的文件。";
+"findInFinder.panelTitle" = "在搜索结果中查找";
+"findInFinder.noResultsTitle" = "无搜索结果";
+"findInFinder.noResultsMessage" = "请先执行“在文件中查找”，或打开包含匹配项的 Found Results。";
+"foundResults.findInFinder" = "在搜索结果中查找...";
 
 // 多选
 "menu.editMultiSelect" = "多选";

@@ -109,7 +109,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let noCheckRecentAtLaunch: Bool
     public let keepAbsentFilesInSession: Bool
     public let autoReloadOnExternalChange: Bool
-    public let backupOnSave: Bool
+    public let backupOnSaveMode: BackupOnSaveMode
+    public let snapshotModeEnabled: Bool
+    public let periodicBackupIntervalSeconds: Int
+    public let useCustomBackupDirectory: Bool
+    public let customBackupDirectory: String
     /// Comma-separated list of additional vertical edge columns (e.g. "80,120")
     public let additionalEdgeColumns: String
     public let linePadding: Int   // extra pixels above each line (SCI_SETEXTRAASCENT), 0-5
@@ -178,7 +182,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         noCheckRecentAtLaunch: Bool = false,
         keepAbsentFilesInSession: Bool = false,
         autoReloadOnExternalChange: Bool = false,
-        backupOnSave: Bool = false,
+        backupOnSaveMode: BackupOnSaveMode = .none,
+        snapshotModeEnabled: Bool = true,
+        periodicBackupIntervalSeconds: Int = 7,
+        useCustomBackupDirectory: Bool = false,
+        customBackupDirectory: String = "",
         additionalEdgeColumns: String = "",
         linePadding: Int = 0,
         openDirectoryFollowsDocument: Bool = false,
@@ -238,7 +246,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.noCheckRecentAtLaunch = noCheckRecentAtLaunch
         self.keepAbsentFilesInSession = keepAbsentFilesInSession
         self.autoReloadOnExternalChange = autoReloadOnExternalChange
-        self.backupOnSave = backupOnSave
+        self.backupOnSaveMode = backupOnSaveMode
+        self.snapshotModeEnabled = snapshotModeEnabled
+        self.periodicBackupIntervalSeconds = min(max(periodicBackupIntervalSeconds, 1), 3600)
+        self.useCustomBackupDirectory = useCustomBackupDirectory
+        self.customBackupDirectory = customBackupDirectory
         self.additionalEdgeColumns = additionalEdgeColumns
         self.linePadding = max(0, min(5, linePadding))
         self.openDirectoryFollowsDocument = openDirectoryFollowsDocument
@@ -348,7 +360,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             noCheckRecentAtLaunch: noCheckRecentAtLaunch,
             keepAbsentFilesInSession: keepAbsentFilesInSession,
             autoReloadOnExternalChange: autoReloadOnExternalChange,
-            backupOnSave: backupOnSave,
+            backupOnSaveMode: backupOnSaveMode,
+            snapshotModeEnabled: snapshotModeEnabled,
+            periodicBackupIntervalSeconds: periodicBackupIntervalSeconds,
+            useCustomBackupDirectory: useCustomBackupDirectory,
+            customBackupDirectory: customBackupDirectory,
             additionalEdgeColumns: additionalEdgeColumns,
             linePadding: linePadding,
             openDirectoryFollowsDocument: openDirectoryFollowsDocument,
@@ -423,7 +439,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             noCheckRecentAtLaunch: noCheckRecentAtLaunch,
             keepAbsentFilesInSession: keepAbsentFilesInSession,
             autoReloadOnExternalChange: autoReloadOnExternalChange,
-            backupOnSave: backupOnSave,
+            backupOnSaveMode: backupOnSaveMode,
+            snapshotModeEnabled: snapshotModeEnabled,
+            periodicBackupIntervalSeconds: periodicBackupIntervalSeconds,
+            useCustomBackupDirectory: useCustomBackupDirectory,
+            customBackupDirectory: customBackupDirectory,
             additionalEdgeColumns: additionalEdgeColumns,
             linePadding: linePadding,
             openDirectoryFollowsDocument: openDirectoryFollowsDocument,
@@ -501,6 +521,11 @@ public final class PreferencesStore {
         static let keepAbsentFilesInSession = "notepadMac.keepAbsentFilesInSession"
         static let autoReloadOnExternalChange = "notepadMac.autoReloadOnExternalChange"
         static let backupOnSave = "notepadMac.backupOnSave"
+        static let backupOnSaveMode = "notepadMac.backupOnSaveMode"
+        static let snapshotModeEnabled = "notepadMac.snapshotModeEnabled"
+        static let periodicBackupIntervalSeconds = "notepadMac.periodicBackupIntervalSeconds"
+        static let useCustomBackupDirectory = "notepadMac.useCustomBackupDirectory"
+        static let customBackupDirectory = "notepadMac.customBackupDirectory"
         static let additionalEdgeColumns = "notepadMac.additionalEdgeColumns"
         static let linePadding = "notepadMac.linePadding"
         static let openDirectoryFollowsDocument = "notepadMac.openDirectoryFollowsDocument"
@@ -568,7 +593,11 @@ public final class PreferencesStore {
             noCheckRecentAtLaunch: defaults.object(forKey: Key.noCheckRecentAtLaunch) as? Bool ?? false,
             keepAbsentFilesInSession: defaults.object(forKey: Key.keepAbsentFilesInSession) as? Bool ?? false,
             autoReloadOnExternalChange: defaults.object(forKey: Key.autoReloadOnExternalChange) as? Bool ?? false,
-            backupOnSave: defaults.object(forKey: Key.backupOnSave) as? Bool ?? false,
+            backupOnSaveMode: Self.loadBackupOnSaveMode(from: defaults),
+            snapshotModeEnabled: defaults.object(forKey: Key.snapshotModeEnabled) as? Bool ?? AppPreferences.defaultValue.snapshotModeEnabled,
+            periodicBackupIntervalSeconds: defaults.object(forKey: Key.periodicBackupIntervalSeconds) as? Int ?? AppPreferences.defaultValue.periodicBackupIntervalSeconds,
+            useCustomBackupDirectory: defaults.object(forKey: Key.useCustomBackupDirectory) as? Bool ?? false,
+            customBackupDirectory: defaults.string(forKey: Key.customBackupDirectory) ?? "",
             additionalEdgeColumns: defaults.string(forKey: Key.additionalEdgeColumns) ?? "",
             linePadding: defaults.object(forKey: Key.linePadding) as? Int ?? 0,
             openDirectoryFollowsDocument: defaults.object(forKey: Key.openDirectoryFollowsDocument) as? Bool ?? false,
@@ -624,7 +653,12 @@ public final class PreferencesStore {
         defaults.set(preferences.noCheckRecentAtLaunch, forKey: Key.noCheckRecentAtLaunch)
         defaults.set(preferences.keepAbsentFilesInSession, forKey: Key.keepAbsentFilesInSession)
         defaults.set(preferences.autoReloadOnExternalChange, forKey: Key.autoReloadOnExternalChange)
-        defaults.set(preferences.backupOnSave, forKey: Key.backupOnSave)
+        defaults.set(preferences.backupOnSaveMode.rawValue, forKey: Key.backupOnSaveMode)
+        defaults.set(preferences.backupOnSaveMode != .none, forKey: Key.backupOnSave)
+        defaults.set(preferences.snapshotModeEnabled, forKey: Key.snapshotModeEnabled)
+        defaults.set(preferences.periodicBackupIntervalSeconds, forKey: Key.periodicBackupIntervalSeconds)
+        defaults.set(preferences.useCustomBackupDirectory, forKey: Key.useCustomBackupDirectory)
+        defaults.set(preferences.customBackupDirectory, forKey: Key.customBackupDirectory)
         defaults.set(preferences.additionalEdgeColumns, forKey: Key.additionalEdgeColumns)
         defaults.set(preferences.linePadding, forKey: Key.linePadding)
         defaults.set(preferences.openDirectoryFollowsDocument, forKey: Key.openDirectoryFollowsDocument)
@@ -679,5 +713,16 @@ public final class PreferencesStore {
             defaults.set(identifiers.sorted(), forKey: Key.disabledNativePluginIdentifiers)
         }
         defaults.synchronize()
+    }
+
+    private static func loadBackupOnSaveMode(from defaults: UserDefaults) -> BackupOnSaveMode {
+        if let raw = defaults.string(forKey: Key.backupOnSaveMode),
+           let mode = BackupOnSaveMode(rawValue: raw) {
+            return mode
+        }
+        if defaults.object(forKey: Key.backupOnSave) as? Bool == true {
+            return .simple
+        }
+        return .none
     }
 }

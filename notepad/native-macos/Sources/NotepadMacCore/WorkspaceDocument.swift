@@ -99,6 +99,29 @@ public struct WorkspaceDocument: Codable, Equatable, Sendable {
         return WorkspaceDocument(name: root.lastPathComponent, projects: [project])
     }
 
+    public func allFileURLs() -> [URL] {
+        var urls: [URL] = []
+        var seen: Set<String> = []
+        for project in projects {
+            collectFileURLs(in: project, into: &urls, seen: &seen)
+        }
+        return urls
+    }
+
+    private func collectFileURLs(in node: WorkspaceNode, into urls: inout [URL], seen: inout Set<String>) {
+        switch node.kind {
+        case .file:
+            guard let url = node.url else { return }
+            let path = url.standardizedFileURL.path
+            guard seen.insert(path).inserted else { return }
+            urls.append(url.standardizedFileURL)
+        case .project, .folder:
+            for child in node.children {
+                collectFileURLs(in: child, into: &urls, seen: &seen)
+            }
+        }
+    }
+
     private static func workspaceChildren(in directory: URL) throws -> [WorkspaceNode] {
         let resourceKeys: [URLResourceKey] = [.isDirectoryKey, .isRegularFileKey]
         let urls = try FileManager.default.contentsOfDirectory(

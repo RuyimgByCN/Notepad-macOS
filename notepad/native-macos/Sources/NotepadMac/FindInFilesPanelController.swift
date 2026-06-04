@@ -3,7 +3,15 @@ import NotepadMacCore
 
 @MainActor
 final class FindInFilesPanelController: NSWindowController {
+    private enum SearchScope {
+        case directory
+        case fileList([URL], title: String)
+    }
+
     private weak var editor: EditorWindowController?
+    private let resultsStore: FindInFilesResultsStore
+    private var onResultsUpdated: (() -> Void)?
+    private var searchScope: SearchScope = .directory
 
     private let findField = NSTextField(string: "")
     private let directoryField = NSTextField(string: "")
@@ -13,6 +21,7 @@ final class FindInFilesPanelController: NSWindowController {
     private let filterLabel = NSTextField(labelWithString: "")
     private let matchCaseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let wholeWordButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let purgeBeforeSearchButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let searchModeControl = NSSegmentedControl()
     private let replaceField = NSTextField(string: "")
     private let replaceLabel = NSTextField(labelWithString: "")
@@ -23,17 +32,16 @@ final class FindInFilesPanelController: NSWindowController {
     private let statusField = NSTextField(labelWithString: "")
     private let resultsScrollView = NSScrollView()
     private let resultsTable = NSTableView()
-    private var results: [FindInFilesResult] = []
+    private var results: [FindInFilesMatch] = []
 
-    private struct FindInFilesResult {
-        let filePath: String
-        let line: Int
-        let column: Int
-        let lineText: String
-    }
-
-    init(editor: EditorWindowController) {
+    init(
+        editor: EditorWindowController,
+        resultsStore: FindInFilesResultsStore,
+        onResultsUpdated: (() -> Void)? = nil
+    ) {
         self.editor = editor
+        self.resultsStore = resultsStore
+        self.onResultsUpdated = onResultsUpdated
 
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 600, height: 460),
@@ -66,6 +74,8 @@ final class FindInFilesPanelController: NSWindowController {
     }
 
     func show(searchRoot: URL? = nil) {
+        searchScope = .directory
+        applySearchScopeUI()
         refreshLocalizedStrings()
         if let root = searchRoot {
             directoryField.stringValue = root.path
@@ -74,7 +84,20 @@ final class FindInFilesPanelController: NSWindowController {
             // Auto-fill directory from active document's directory
             directoryField.stringValue = editorURL.deletingLastPathComponent().path
         }
-        // Auto-fill find field from current selection
+        populateFindFieldFromSelection()
+        presentPanel()
+    }
+
+    func show(fileURLs: [URL], title: String) {
+        searchScope = .fileList(fileURLs, title: title)
+        applySearchScopeUI()
+        refreshLocalizedStrings()
+        window?.title = title
+        populateFindFieldFromSelection()
+        presentPanel()
+    }
+
+    private func populateFindFieldFromSelection() {
         if let editor {
             let sel = editor.editorSurface.selectedRange
             let text = editor.editorSurface.text as NSString
@@ -82,11 +105,31 @@ final class FindInFilesPanelController: NSWindowController {
                 findField.stringValue = text.substring(with: sel)
             }
         }
+    }
+
+    private func presentPanel() {
         showWindow(nil)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
         window?.makeFirstResponder(findField)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func applySearchScopeUI() {
+        switch searchScope {
+        case .directory:
+            directoryLabel.isHidden = false
+            directoryField.isHidden = false
+            browseButton.isHidden = false
+            filterLabel.isHidden = false
+            filterField.isHidden = false
+        case .fileList:
+            directoryLabel.isHidden = true
+            directoryField.isHidden = true
+            browseButton.isHidden = true
+            filterLabel.isHidden = true
+            filterField.isHidden = true
+        }
     }
 
     @objc private func localizationDidChange(_ notification: Notification) {
@@ -100,6 +143,7 @@ final class FindInFilesPanelController: NSWindowController {
         filterLabel.stringValue = Localization.string(.findInFilesFilterLabel, default: "Filter:")
         matchCaseButton.title = Localization.string(.findMatchCase, default: "Match Case")
         wholeWordButton.title = Localization.string(.findWholeWord, default: "Whole Word")
+        purgeBeforeSearchButton.title = Localization.string(.findInFilesPurgeBeforeSearch, default: "Purge before each search")
         searchModeControl.setLabel(Localization.string(.findModeNormal, default: "Normal"), forSegment: 0)
         searchModeControl.setLabel(Localization.string(.findModeExtended, default: "Extended"), forSegment: 1)
         searchModeControl.setLabel(Localization.string(.findModeRegex, default: "Regex"), forSegment: 2)
@@ -112,6 +156,7 @@ final class FindInFilesPanelController: NSWindowController {
         findField.placeholderString = Localization.string(.findInFilesFindPlaceholder, default: "Search term")
         directoryField.placeholderString = Localization.string(.findInFilesDirectoryPlaceholder, default: "Directory path")
         filterField.placeholderString = Localization.string(.findInFilesFilterPlaceholder, default: "*.txt, *.swift")
+        purgeBeforeSearchButton.state = .on
         findField.setAccessibilityLabel(Localization.string(.findInFilesFindLabel, default: "Find what:"))
         directoryField.setAccessibilityLabel(Localization.string(.findInFilesDirectoryLabel, default: "Directory:"))
         filterField.setAccessibilityLabel(Localization.string(.findInFilesFilterLabel, default: "Filter:"))
@@ -160,7 +205,7 @@ final class FindInFilesPanelController: NSWindowController {
             replaceLabel, replaceField,
             directoryLabel, directoryField, browseButton,
             filterLabel, filterField,
-            matchCaseButton, wholeWordButton, searchModeControl,
+            matchCaseButton, wholeWordButton, purgeBeforeSearchButton, searchModeControl,
             findButton, replaceAllButton, cancelButton,
             statusField,
             resultsScrollView
@@ -218,8 +263,11 @@ final class FindInFilesPanelController: NSWindowController {
             wholeWordButton.leadingAnchor.constraint(equalTo: matchCaseButton.trailingAnchor, constant: 20),
             wholeWordButton.centerYAnchor.constraint(equalTo: matchCaseButton.centerYAnchor),
 
+            purgeBeforeSearchButton.leadingAnchor.constraint(equalTo: findField.leadingAnchor),
+            purgeBeforeSearchButton.topAnchor.constraint(equalTo: matchCaseButton.bottomAnchor, constant: 8),
+
             searchModeControl.leadingAnchor.constraint(equalTo: findField.leadingAnchor),
-            searchModeControl.topAnchor.constraint(equalTo: matchCaseButton.bottomAnchor, constant: 10),
+            searchModeControl.topAnchor.constraint(equalTo: purgeBeforeSearchButton.bottomAnchor, constant: 8),
 
             // Buttons
             findButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -18),
@@ -276,7 +324,7 @@ final class FindInFilesPanelController: NSWindowController {
         let wholeWord = wholeWordButton.state == .on
         let modes: [TextSearch.SearchMode] = [.normal, .extended, .regex]
         let searchMode = modes[max(0, min(searchModeControl.selectedSegment, modes.count - 1))]
-        let filters = parseFilters(filterField.stringValue)
+        let filters = FindInFilesSearch.parseFilters(filterField.stringValue)
         let options = TextSearch.Options(matchCase: matchCase, wholeWord: wholeWord, wraps: false, direction: .down, searchMode: searchMode)
 
         statusField.stringValue = Localization.string(.findInFilesSearching, default: "Replacing...")
@@ -290,7 +338,7 @@ final class FindInFilesPanelController: NSWindowController {
         for case let fileURL as URL in enumerator {
             guard let rv = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
                   rv.isRegularFile == true else { continue }
-            if !filters.isEmpty, !matchesFilter(fileURL.lastPathComponent, filters: filters) { continue }
+            if !filters.isEmpty, !FindInFilesSearch.matchesFilter(fileURL.lastPathComponent, filters: filters) { continue }
             guard let loaded = try? TextFileCodec.read(fileURL) else { continue }
             let result = TextSearch.replaceAll(query, with: replacement, in: loaded.text, options: options)
             guard result.count > 0 else { continue }
@@ -305,48 +353,67 @@ final class FindInFilesPanelController: NSWindowController {
             totalReplaced, filesModified
         )
         results.removeAll()
+        resultsStore.clear()
         resultsTable.reloadData()
     }
 
     @objc private func performFind(_ sender: Any?) {
         let query = findField.stringValue
-        let directory = directoryField.stringValue
-        let filter = filterField.stringValue
-
-        guard !query.isEmpty, !directory.isEmpty else {
+        guard !query.isEmpty else {
             NSSound.beep()
             return
         }
-
-        let dirURL = URL(fileURLWithPath: directory)
-        guard FileManager.default.fileExists(atPath: directory),
-              (try? dirURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
-        else {
-            statusField.stringValue = Localization.string(.findInFilesInvalidDirectory, default: "Invalid directory")
-            return
-        }
-
-        statusField.stringValue = Localization.string(.findInFilesSearching, default: "Searching...")
-        results.removeAll()
-        resultsTable.reloadData()
 
         let matchCase = matchCaseButton.state == .on
         let wholeWord = wholeWordButton.state == .on
         let modes: [TextSearch.SearchMode] = [.normal, .extended, .regex]
         let searchMode = modes[max(0, min(searchModeControl.selectedSegment, modes.count - 1))]
-        let filters = parseFilters(filter)
 
-        let foundResults = searchInDirectory(
-            dirURL,
-            query: query,
-            filters: filters,
-            matchCase: matchCase,
-            wholeWord: wholeWord,
-            searchMode: searchMode
-        )
+        statusField.stringValue = Localization.string(.findInFilesSearching, default: "Searching...")
+        results.removeAll()
+        resultsTable.reloadData()
+
+        let foundResults: [FindInFilesMatch]
+        switch searchScope {
+        case .directory:
+            let directory = directoryField.stringValue
+            guard !directory.isEmpty else {
+                NSSound.beep()
+                return
+            }
+            let dirURL = URL(fileURLWithPath: directory)
+            guard FileManager.default.fileExists(atPath: directory),
+                  (try? dirURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+            else {
+                statusField.stringValue = Localization.string(.findInFilesInvalidDirectory, default: "Invalid directory")
+                return
+            }
+            foundResults = FindInFilesSearch.searchInDirectory(
+                dirURL,
+                query: query,
+                filters: FindInFilesSearch.parseFilters(filterField.stringValue),
+                matchCase: matchCase,
+                wholeWord: wholeWord,
+                searchMode: searchMode
+            )
+        case let .fileList(urls, _):
+            guard !urls.isEmpty else {
+                statusField.stringValue = Localization.string(.findInFilesNoResults, default: "No results found")
+                return
+            }
+            foundResults = FindInFilesSearch.searchInFiles(
+                urls,
+                query: query,
+                matchCase: matchCase,
+                wholeWord: wholeWord,
+                searchMode: searchMode
+            )
+        }
 
         results = foundResults
         resultsTable.reloadData()
+        resultsStore.setResults(foundResults, purgeFirst: purgeBeforeSearchButton.state == .on)
+        onResultsUpdated?()
 
         if results.isEmpty {
             statusField.stringValue = Localization.string(.findInFilesNoResults, default: "No results found")
@@ -360,9 +427,9 @@ final class FindInFilesPanelController: NSWindowController {
 
     private func buildResultsContextMenu() -> NSMenu {
         let menu = NSMenu()
-        menu.addItem(withTitle: "Open All Files", action: #selector(openAllResultFiles(_:)), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "Copy Pathnames", action: #selector(copyResultPathnames(_:)), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "Copy All", action: #selector(copyAllResults(_:)), keyEquivalent: "").target = self
+        menu.addItem(withTitle: Localization.string(.foundResultsOpenAll, default: "Open All Files"), action: #selector(openAllResultFiles(_:)), keyEquivalent: "").target = self
+        menu.addItem(withTitle: Localization.string(.foundResultsCopyPathnames, default: "Copy Pathnames"), action: #selector(copyResultPathnames(_:)), keyEquivalent: "").target = self
+        menu.addItem(withTitle: Localization.string(.foundResultsCopyAll, default: "Copy All"), action: #selector(copyAllResults(_:)), keyEquivalent: "").target = self
         return menu
     }
 
@@ -411,118 +478,18 @@ final class FindInFilesPanelController: NSWindowController {
         guard row >= 0, row < results.count else { return }
 
         let result = results[row]
-        let fileURL = URL(fileURLWithPath: result.filePath)
+        openResult(result)
+    }
 
-        // Ask the delegate to open the file at the specific line
+    private func openResult(_ result: FindInFilesMatch) {
         NotificationCenter.default.post(
             name: .findInFilesOpenFile,
             object: nil,
             userInfo: [
-                "filePath": fileURL.path,
+                "filePath": result.filePath,
                 "line": result.line
             ]
         )
-    }
-
-    private func parseFilters(_ filter: String) -> [String] {
-        filter
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-    }
-
-    private func searchInDirectory(
-        _ directory: URL,
-        query: String,
-        filters: [String],
-        matchCase: Bool,
-        wholeWord: Bool,
-        searchMode: TextSearch.SearchMode = .normal
-    ) -> [FindInFilesResult] {
-        var allResults: [FindInFilesResult] = []
-        let fileManager = FileManager.default
-        let options: TextSearch.Options = TextSearch.Options(
-            matchCase: matchCase,
-            wholeWord: wholeWord,
-            wraps: false,
-            direction: .down,
-            searchMode: searchMode
-        )
-
-        guard let enumerator = fileManager.enumerator(
-            at: directory,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return []
-        }
-
-        for case let fileURL as URL in enumerator {
-            guard let resourceValues = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
-                  resourceValues.isRegularFile == true
-            else { continue }
-
-            if !filters.isEmpty, !matchesFilter(fileURL.lastPathComponent, filters: filters) {
-                continue
-            }
-
-            // Try auto-detecting encoding via TextFileCodec, fall back to UTF-8
-            let content: String
-            if let loaded = try? TextFileCodec.read(fileURL) {
-                content = loaded.text
-            } else if let s = try? String(contentsOf: fileURL, encoding: .utf8) {
-                content = s
-            } else {
-                continue
-            }
-
-            let fileResults = searchInContent(content, query: query, options: options, filePath: fileURL.path)
-            allResults.append(contentsOf: fileResults)
-        }
-
-        return allResults
-    }
-
-    private func matchesFilter(_ filename: String, filters: [String]) -> Bool {
-        for filter in filters {
-            let pattern = filter
-                .replacingOccurrences(of: ".", with: "\\.")
-                .replacingOccurrences(of: "*", with: ".*")
-                .replacingOccurrences(of: "?", with: ".")
-            if filename.range(of: "^\(pattern)$", options: .regularExpression) != nil {
-                return true
-            }
-        }
-        return false
-    }
-
-    private func searchInContent(
-        _ content: String,
-        query: String,
-        options: TextSearch.Options,
-        filePath: String
-    ) -> [FindInFilesResult] {
-        var results: [FindInFilesResult] = []
-        let nsContent = content as NSString
-        var searchFrom = NSRange(location: 0, length: 0)
-
-        while let range = TextSearch.findNext(query, in: content, from: searchFrom, options: options) {
-            let lineRange = nsContent.lineRange(for: range)
-            let lineNumber = nsContent.substring(with: NSRange(location: 0, length: lineRange.location)).components(separatedBy: .newlines).count
-            let lineText = nsContent.substring(with: lineRange).trimmingCharacters(in: .newlines)
-            let column = range.location - lineRange.location + 1
-
-            results.append(FindInFilesResult(
-                filePath: filePath,
-                line: lineNumber,
-                column: column,
-                lineText: lineText
-            ))
-
-            searchFrom = NSRange(location: range.location + range.length, length: 0)
-        }
-
-        return results
     }
 }
 
