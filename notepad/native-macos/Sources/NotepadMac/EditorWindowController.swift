@@ -2089,6 +2089,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         language = nextLanguage
         cachedAutoCompletionCatalog = nil
         cachedAutoCompletionCatalogLanguage = nil
+        applyTabSettingsForCurrentLanguage()
         highlight()
         updateStatus()
     }
@@ -3418,6 +3419,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
               let lang = languageCatalog.language(named: name)
         else { return }
         language = lang
+        applyTabSettingsForCurrentLanguage()
         highlight()
         updateStatus()
     }
@@ -4585,6 +4587,18 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func applyTabSettings(_ tabSize: Int, insertSpaces: Bool) {
         editorSurface.applyTabSize(tabSize, insertSpaces: insertSpaces)
+    }
+
+    /// Re-apply tab settings considering per-language overrides.
+    func applyTabSettingsForCurrentLanguage() {
+        let prefs = preferencesStore.load()
+        let overrides = prefs.parsedLanguageTabOverrides()
+        let langKey = language.name.lowercased()
+        if let override = overrides[langKey] {
+            applyTabSettings(override.tabSize, insertSpaces: override.insertSpaces)
+        } else {
+            applyTabSettings(prefs.tabSize, insertSpaces: prefs.insertSpacesInsteadOfTabs)
+        }
     }
 
     private func applyStatusBarVisibility() {

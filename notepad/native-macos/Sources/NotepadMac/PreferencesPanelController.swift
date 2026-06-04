@@ -142,6 +142,9 @@ final class PreferencesPanelController: NSWindowController {
     // URL indicator style (in Editor tab)
     private let urlIndicatorStyleLabel = NSTextField(labelWithString: "")
     private let urlIndicatorStyleSegmented = NSSegmentedControl()
+    // Per-language tab overrides (in Editor tab)
+    private let langTabOverridesLabel = NSTextField(labelWithString: "")
+    private let langTabOverridesField = NSTextField(string: "")
     // Tabbar section (in Window tab)
     private let tabbarSectionLabel = NSTextField(labelWithString: "")
     private let tabbarDoubleClickCloseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -278,6 +281,8 @@ final class PreferencesPanelController: NSWindowController {
         copyLineWithoutSelectionButton.title = "Copy / Cut whole line when nothing is selected"
         smartHighlightUseFindSettingsButton.title = "Smart highlight uses Find dialog Match Case / Whole Word settings"
         urlIndicatorStyleLabel.stringValue = "URL style:"
+        langTabOverridesLabel.stringValue = "Lang tabs:"
+        langTabOverridesField.placeholderString = "python:4s, html:2s, c:8t  (langname:sizeS/T)"
         findTransparencyLabel.stringValue = "Find dialog transparency when unfocused:"
         tabbarSectionLabel.stringValue = "Tab Bar"
         tabbarDoubleClickCloseButton.title = "Double-click tab to close"
@@ -383,7 +388,7 @@ final class PreferencesPanelController: NSWindowController {
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, replaceDoesNotMoveButton, findDialogMonospaceButton, findTransparencySlider, fileChangeDetectionButton, copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton, urlIndicatorStyleSegmented, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, replaceDoesNotMoveButton, findDialogMonospaceButton, findTransparencySlider, fileChangeDetectionButton, copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton, urlIndicatorStyleSegmented, langTabOverridesField, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -482,7 +487,8 @@ final class PreferencesPanelController: NSWindowController {
          autoCompleteModeLabel, autoCompleteModePopup,
          autoCompleteChooseSingleButton, autoCompleteTABFillupButton,
          copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton,
-         urlIndicatorStyleLabel, urlIndicatorStyleSegmented
+         urlIndicatorStyleLabel, urlIndicatorStyleSegmented,
+         langTabOverridesLabel, langTabOverridesField
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; editCV.addSubview($0) }
 
         // Tab 2 – Session & Files
@@ -692,8 +698,16 @@ final class PreferencesPanelController: NSWindowController {
             urlIndicatorStyleSegmented.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             urlIndicatorStyleSegmented.centerYAnchor.constraint(equalTo: urlIndicatorStyleLabel.centerYAnchor),
 
+            langTabOverridesLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            langTabOverridesLabel.topAnchor.constraint(equalTo: urlIndicatorStyleLabel.bottomAnchor, constant: 14),
+            langTabOverridesLabel.widthAnchor.constraint(equalToConstant: 80),
+
+            langTabOverridesField.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            langTabOverridesField.trailingAnchor.constraint(equalTo: editCV.trailingAnchor, constant: -18),
+            langTabOverridesField.centerYAnchor.constraint(equalTo: langTabOverridesLabel.centerYAnchor),
+
             // Pin Tab1 content bottom
-            editCV.bottomAnchor.constraint(equalTo: urlIndicatorStyleLabel.bottomAnchor, constant: 24)
+            editCV.bottomAnchor.constraint(equalTo: langTabOverridesLabel.bottomAnchor, constant: 24)
         ])
 
         // ── Tab 2: Session & Files ──────────────────────────────
@@ -1058,6 +1072,7 @@ final class PreferencesPanelController: NSWindowController {
         copyLineWithoutSelectionButton.state = preferences.copyLineWithoutSelection ? .on : .off
         smartHighlightUseFindSettingsButton.state = preferences.smartHighlightUseFindSettings ? .on : .off
         urlIndicatorStyleSegmented.selectedSegment = max(0, min(2, preferences.urlIndicatorStyle))
+        langTabOverridesField.stringValue = preferences.languageTabOverrides
         findTransparencySlider.doubleValue = preferences.findDialogTransparency
         tabbarDoubleClickCloseButton.state = preferences.tabbarDoubleClickClose ? .on : .off
         tabbarMaxLabelLengthField.intValue = Int32(preferences.tabbarMaxLabelLength)
@@ -1256,7 +1271,8 @@ final class PreferencesPanelController: NSWindowController {
             findDialogMonospace: findDialogMonospaceButton.state == .on,
             copyLineWithoutSelection: copyLineWithoutSelectionButton.state == .on,
             smartHighlightUseFindSettings: smartHighlightUseFindSettingsButton.state == .on,
-            urlIndicatorStyle: urlIndicatorStyleSegmented.selectedSegment
+            urlIndicatorStyle: urlIndicatorStyleSegmented.selectedSegment,
+            languageTabOverrides: langTabOverridesField.stringValue
         )
         preferencesStore.save(preferences)
         loadPreferences()

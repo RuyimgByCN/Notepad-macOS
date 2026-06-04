@@ -173,6 +173,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let smartHighlightUseFindSettings: Bool
     /// URL highlight style: 0=underline, 1=box, 2=full-box
     public let urlIndicatorStyle: Int
+    /// Per-language tab overrides, comma-separated, e.g. "python:4s,html:2s,c:8t"
+    /// Format: langname:sizeX where X is 's' (spaces) or 't' (tabs)
+    public let languageTabOverrides: String
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -258,7 +261,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         findDialogMonospace: Bool = false,
         copyLineWithoutSelection: Bool = true,
         smartHighlightUseFindSettings: Bool = false,
-        urlIndicatorStyle: Int = 0
+        urlIndicatorStyle: Int = 0,
+        languageTabOverrides: String = ""
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -344,6 +348,27 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.copyLineWithoutSelection = copyLineWithoutSelection
         self.smartHighlightUseFindSettings = smartHighlightUseFindSettings
         self.urlIndicatorStyle = max(0, min(2, urlIndicatorStyle))
+        self.languageTabOverrides = languageTabOverrides
+    }
+
+    /// Parse languageTabOverrides string into a dictionary.
+    /// Format: "python:4s,html:2s,c:8t" → ["python": (4, spaces), "html": (2, spaces), "c": (8, tabs)]
+    public func parsedLanguageTabOverrides() -> [String: (tabSize: Int, insertSpaces: Bool)] {
+        var result: [String: (Int, Bool)] = [:]
+        for entry in languageTabOverrides.split(separator: ",") {
+            let parts = entry.trimmingCharacters(in: .whitespaces).split(separator: ":", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            let lang = String(parts[0]).trimmingCharacters(in: .whitespaces).lowercased()
+            let sizeStr = String(parts[1]).trimmingCharacters(in: .whitespaces)
+            guard !lang.isEmpty, !sizeStr.isEmpty else { continue }
+            let usesSpaces = sizeStr.last?.lowercased() == "s"
+            let usesTabs = sizeStr.last?.lowercased() == "t"
+            guard usesSpaces || usesTabs else { continue }
+            let numStr = String(sizeStr.dropLast())
+            guard let size = Int(numStr), size >= 1, size <= 16 else { continue }
+            result[lang] = (size, usesSpaces)
+        }
+        return result
     }
 
     /// Combined URL schemes: defaults + user-configured extras
@@ -478,7 +503,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             findDialogMonospace: findDialogMonospace,
             copyLineWithoutSelection: copyLineWithoutSelection,
             smartHighlightUseFindSettings: smartHighlightUseFindSettings,
-            urlIndicatorStyle: urlIndicatorStyle
+            urlIndicatorStyle: urlIndicatorStyle,
+            languageTabOverrides: languageTabOverrides
         )
     }
 
