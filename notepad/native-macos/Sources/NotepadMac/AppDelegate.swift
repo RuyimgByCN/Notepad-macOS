@@ -1052,11 +1052,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.saveSession()
             self.rememberClosedDocument(controller)
             self.consumeCloseCompletions(for: controller)
-            // If this tab's window was the visible one, show the new active tab's window.
+            // If this tab's window was the visible one, show the next tab or open a new document.
             if wasVisible {
                 let activeId = self.tabState.activeIdentity
                 let next = self.windows.first { $0.tabIdentity == activeId } ?? self.windows.first
-                if let next { self.activate(next) }
+                if let next {
+                    self.activate(next)
+                } else {
+                    // Last tab closed — open a new empty file instead of leaving the app windowless.
+                    self.newDocument(nil)
+                }
             }
         }
         controller.onContentChange = { [weak self] in
