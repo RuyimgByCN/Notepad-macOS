@@ -15,6 +15,14 @@ final class ColumnEditorPanelController: NSObject {
         defer: false
     )
     private let rangeField = NSTextField(labelWithString: "")
+    private let textLabel = NSTextField(labelWithString: "")
+    private let columnLabel = NSTextField(labelWithString: "")
+    private let initialLabel = NSTextField(labelWithString: "")
+    private let incrementLabel = NSTextField(labelWithString: "")
+    private let repeatLabel = NSTextField(labelWithString: "")
+    private let formatLabel = NSTextField(labelWithString: "")
+    private let paddingLabel = NSTextField(labelWithString: "")
+    private let widthLabel = NSTextField(labelWithString: "")
     private let textModeButton = NSButton(
         radioButtonWithTitle: Localization.string(.columnEditorModeText, default: "Text to Insert"),
         target: nil,
@@ -34,14 +42,25 @@ final class ColumnEditorPanelController: NSObject {
     private let formatPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let paddingPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let widthField = NSTextField(string: "1")
+    private let applyButton = NSButton(title: "", target: nil, action: nil)
     private var onApply: ((ColumnEditorOperation, Int) -> Void)?
 
     override init() {
         super.init()
-        panel.title = Localization.string(.columnEditorPanelTitle, default: "Column Editor")
         panel.isReleasedWhenClosed = false
         configureContent()
+        refreshLocalizedStrings()
         updateModeControls()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(localizationDidChange(_:)),
+            name: Localization.localizationDidChangeNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func show(lineRange: ClosedRange<Int>, column: Int, onApply: @escaping (ColumnEditorOperation, Int) -> Void) {
@@ -62,47 +81,36 @@ final class ColumnEditorPanelController: NSObject {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func configureContent() {
-        let root = NSView()
-        root.translatesAutoresizingMaskIntoConstraints = false
-        panel.contentView = root
+    @objc private func localizationDidChange(_ notification: Notification) {
+        refreshLocalizedStrings()
+        updateModeControls()
+    }
+
+    private func refreshLocalizedStrings() {
+        panel.title = Localization.string(.columnEditorPanelTitle, default: "Column Editor")
         rangeField.setAccessibilityLabel(
             Localization.string(.columnEditorRangeAccessibilityLabel, default: "Selected line range")
         )
-
-        let textLabel = NSTextField(labelWithString: Localization.string(.columnEditorTextLabel, default: "Text"))
-        let columnLabel = NSTextField(labelWithString: Localization.string(.columnEditorColumnLabel, default: "Column"))
-        let initialLabel = NSTextField(labelWithString: Localization.string(.columnEditorInitialLabel, default: "Initial"))
-        let incrementLabel = NSTextField(labelWithString: Localization.string(.columnEditorIncrementLabel, default: "Increase by"))
-        let repeatLabel = NSTextField(labelWithString: Localization.string(.columnEditorRepeatLabel, default: "Repeat"))
-        let formatLabel = NSTextField(labelWithString: Localization.string(.columnEditorFormatLabel, default: "Format"))
-        let paddingLabel = NSTextField(labelWithString: Localization.string(.columnEditorPaddingLabel, default: "Leading"))
-        let widthLabel = NSTextField(labelWithString: Localization.string(.columnEditorWidthLabel, default: "Width"))
-        let applyButton = NSButton(
-            title: Localization.string(.columnEditorApplyInsert, default: "Insert"),
-            target: self,
-            action: #selector(apply(_:))
-        )
-
-        textModeButton.target = self
-        textModeButton.action = #selector(modeChanged(_:))
-        textModeButton.state = .on
+        textLabel.stringValue = Localization.string(.columnEditorTextLabel, default: "Text")
+        columnLabel.stringValue = Localization.string(.columnEditorColumnLabel, default: "Column")
+        initialLabel.stringValue = Localization.string(.columnEditorInitialLabel, default: "Initial")
+        incrementLabel.stringValue = Localization.string(.columnEditorIncrementLabel, default: "Increase by")
+        repeatLabel.stringValue = Localization.string(.columnEditorRepeatLabel, default: "Repeat")
+        formatLabel.stringValue = Localization.string(.columnEditorFormatLabel, default: "Format")
+        paddingLabel.stringValue = Localization.string(.columnEditorPaddingLabel, default: "Leading")
+        widthLabel.stringValue = Localization.string(.columnEditorWidthLabel, default: "Width")
+        textModeButton.title = Localization.string(.columnEditorModeText, default: "Text to Insert")
+        numberModeButton.title = Localization.string(.columnEditorModeNumber, default: "Number to Insert")
         textModeButton.setAccessibilityLabel(
             Localization.string(.columnEditorTextModeAccessibilityLabel, default: "Text insertion mode")
         )
-        numberModeButton.target = self
-        numberModeButton.action = #selector(modeChanged(_:))
         numberModeButton.setAccessibilityLabel(
             Localization.string(.columnEditorNumberModeAccessibilityLabel, default: "Number insertion mode")
         )
-
         textField.placeholderString = Localization.string(.columnEditorPlaceholderText, default: "Text")
         textField.setAccessibilityLabel(
             Localization.string(.columnEditorTextFieldAccessibilityLabel, default: "Text to insert")
         )
-        [columnField, initialField, incrementField, repeatField, widthField].forEach {
-            $0.formatter = integerFormatter
-        }
         columnField.setAccessibilityLabel(
             Localization.string(.columnEditorColumnFieldAccessibilityLabel, default: "Insertion column")
         )
@@ -118,15 +126,10 @@ final class ColumnEditorPanelController: NSObject {
         widthField.setAccessibilityLabel(
             Localization.string(.columnEditorWidthFieldAccessibilityLabel, default: "Padding width")
         )
-        columnStepper.minValue = 1
-        columnStepper.maxValue = 9999
-        columnStepper.increment = 1
-        columnStepper.target = self
-        columnStepper.action = #selector(stepperChanged(_:))
         columnStepper.setAccessibilityLabel(
             Localization.string(.columnEditorColumnStepperAccessibilityLabel, default: "Insertion column stepper")
         )
-
+        formatPopup.removeAllItems()
         formatPopup.addItems(withTitles: [
             Localization.string(.columnEditorFormatDecimal, default: "Dec"),
             Localization.string(.columnEditorFormatHex, default: "Hex"),
@@ -134,6 +137,7 @@ final class ColumnEditorPanelController: NSObject {
             Localization.string(.columnEditorFormatOctal, default: "Oct"),
             Localization.string(.columnEditorFormatBinary, default: "Bin")
         ])
+        paddingPopup.removeAllItems()
         paddingPopup.addItems(withTitles: [
             Localization.string(.columnEditorPaddingNone, default: "None"),
             Localization.string(.columnEditorPaddingZeros, default: "Zeros"),
@@ -145,10 +149,32 @@ final class ColumnEditorPanelController: NSObject {
         paddingPopup.setAccessibilityLabel(
             Localization.string(.columnEditorPaddingAccessibilityLabel, default: "Leading padding")
         )
-        applyButton.bezelStyle = .rounded
         applyButton.setAccessibilityLabel(
             Localization.string(.columnEditorApplyAccessibilityLabel, default: "Apply column edit")
         )
+    }
+
+    private func configureContent() {
+        let root = NSView()
+        root.translatesAutoresizingMaskIntoConstraints = false
+        panel.contentView = root
+
+        textModeButton.target = self
+        textModeButton.action = #selector(modeChanged(_:))
+        textModeButton.state = .on
+        numberModeButton.target = self
+        numberModeButton.action = #selector(modeChanged(_:))
+        [columnField, initialField, incrementField, repeatField, widthField].forEach {
+            $0.formatter = integerFormatter
+        }
+        columnStepper.minValue = 1
+        columnStepper.maxValue = 9999
+        columnStepper.increment = 1
+        columnStepper.target = self
+        columnStepper.action = #selector(stepperChanged(_:))
+        applyButton.target = self
+        applyButton.action = #selector(apply(_:))
+        applyButton.bezelStyle = .rounded
 
         let views: [NSView] = [
             rangeField,
@@ -291,6 +317,10 @@ final class ColumnEditorPanelController: NSObject {
         [initialField, incrementField, repeatField, formatPopup, paddingPopup, widthField].forEach {
             $0.isEnabled = !isTextMode
         }
+        applyButton.title = Localization.string(
+            .columnEditorApplyInsert,
+            default: "Insert"
+        )
     }
 
     private func numberOptions() -> ColumnNumberOptions {

@@ -11,6 +11,143 @@ public struct TextEditCommandResult: Equatable, Sendable {
 }
 
 public enum TextEditCommands {
+    public static func splitLines(
+        in text: String,
+        selectedRange: NSRange,
+        lineWidth: Int = 80
+    ) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        let block = lineBlock(containing: range, in: lines)
+        let width = max(1, lineWidth)
+        var editedText = ""
+
+        for (index, line) in lines.enumerated() {
+            if block.contains(index) {
+                let ending = lineEnding(for: line, in: nsText, defaultLineEnding: LineEnding.detect(in: text).rawValue)
+                editedText += splitBody(
+                    nsText.substring(with: line.bodyRange),
+                    at: width,
+                    with: ending
+                )
+                editedText += nsText.substring(with: line.endingRange)
+            } else {
+                editedText += nsText.substring(with: line.fullRange)
+            }
+        }
+
+        let start = mappedLocationForSplit(
+            range.location,
+            in: lines,
+            block: block,
+            lineWidth: width,
+            text: nsText,
+            defaultLineEnding: LineEnding.detect(in: text).rawValue
+        )
+        let end = mappedLocationForSplit(
+            range.endLocation,
+            in: lines,
+            block: block,
+            lineWidth: width,
+            text: nsText,
+            defaultLineEnding: LineEnding.detect(in: text).rawValue
+        )
+        return TextEditCommandResult(
+            text: editedText,
+            selectedRange: NSRange(location: start, length: max(0, end - start))
+        )
+    }
+
+    public static func transposeLine(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        guard lines.count >= 2 else {
+            return TextEditCommandResult(text: text, selectedRange: range)
+        }
+
+        let targetIndex = lineIndex(containing: range.location, in: lines)
+        guard targetIndex > 0 else {
+            return TextEditCommandResult(text: text, selectedRange: range)
+        }
+
+        let currentLine = lines[targetIndex]
+        let previousLine = lines[targetIndex - 1]
+
+        var swappedLines: [TextEditLine] = lines
+        swappedLines[targetIndex] = previousLine
+        swappedLines[targetIndex - 1] = currentLine
+        let editedText = swappedLines
+            .map { nsText.substring(with: $0.fullRange) }
+            .joined()
+
+        let mappedLocation = { (location: Int) -> Int in
+            switch location {
+            case previousLine.fullRange.location..<previousLine.fullRange.endLocation:
+                return currentLine.fullRange.location + (location - previousLine.fullRange.location)
+            case currentLine.fullRange.location..<currentLine.fullRange.endLocation:
+                return previousLine.fullRange.location + (location - currentLine.fullRange.location)
+            default:
+                return location
+            }
+        }
+
+        return TextEditCommandResult(
+            text: editedText,
+            selectedRange: NSRange(
+                location: mappedLocation(range.location),
+                length: max(0, mappedLocation(range.endLocation) - mappedLocation(range.location))
+            )
+        )
+    }
+
+    public static func insertBlankLineAboveCurrentLine(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        guard !lines.isEmpty else { return TextEditCommandResult(text: text, selectedRange: range) }
+
+        let insertionLine = line(containing: range.location, in: lines)
+        let insertionIndex = insertionLine.bodyRange.location
+        let insertion = LineEnding.detect(in: text).rawValue
+        let editedText = nsText.replacingCharacters(in: NSRange(location: insertionIndex, length: 0), with: insertion)
+
+        let mapped = mappedLocationForInsertions(
+            in: range,
+            insertedAt: insertionIndex,
+            insertLength: insertion.utf16.count,
+            textLength: nsText.length
+        )
+        return TextEditCommandResult(
+            text: editedText,
+            selectedRange: NSRange(location: mapped.location, length: mapped.length)
+        )
+    }
+
+    public static func insertBlankLineBelowCurrentLine(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        guard !lines.isEmpty else { return TextEditCommandResult(text: text, selectedRange: range) }
+
+        let insertionLine = line(containing: range.location, in: lines)
+        let insertionIndex = insertionLine.fullRange.endLocation
+        let insertion = LineEnding.detect(in: text).rawValue
+        let editedText = nsText.replacingCharacters(in: NSRange(location: insertionIndex, length: 0), with: insertion)
+
+        let mapped = mappedLocationForInsertions(
+            in: range,
+            insertedAt: insertionIndex,
+            insertLength: insertion.utf16.count,
+            textLength: nsText.length
+        )
+        return TextEditCommandResult(
+            text: editedText,
+            selectedRange: NSRange(location: mapped.location, length: mapped.length)
+        )
+    }
+
     public static func duplicate(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
         let range = clamped(selectedRange, in: text)
         if range.length > 0 {
@@ -45,6 +182,387 @@ public enum TextEditCommands {
         let end = mappedLocation(range.endLocation, afterRemoving: removedRanges)
         return TextEditCommandResult(
             text: trimmedText,
+            selectedRange: NSRange(location: start, length: max(0, end - start))
+        )
+    }
+
+    public static func trimLeadingWhitespace(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        let block = lineBlock(containing: range, in: lines)
+        var trimmedText = ""
+        var removedRanges: [NSRange] = []
+
+        for (index, line) in lines.enumerated() {
+            guard block.contains(index) else {
+                trimmedText += nsText.substring(with: line.fullRange)
+                continue
+            }
+
+            let keepStart = leadingWhitespaceEnd(in: nsText, bodyRange: line.bodyRange)
+            if keepStart > line.bodyRange.location {
+                removedRanges.append(
+                    NSRange(location: line.bodyRange.location, length: keepStart - line.bodyRange.location)
+                )
+            }
+            trimmedText += nsText.substring(with: NSRange(
+                location: keepStart,
+                length: line.bodyRange.endLocation - keepStart
+            ))
+            trimmedText += nsText.substring(with: line.endingRange)
+        }
+
+        let start = mappedLocation(range.location, afterRemoving: removedRanges)
+        let end = mappedLocation(range.endLocation, afterRemoving: removedRanges)
+        return TextEditCommandResult(
+            text: trimmedText,
+            selectedRange: NSRange(location: start, length: max(0, end - start))
+        )
+    }
+
+    public static func trimLeadingAndTrailingWhitespace(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        let block = lineBlock(containing: range, in: lines)
+        var trimmedText = ""
+        var removedRanges: [NSRange] = []
+
+        for (index, line) in lines.enumerated() {
+            guard block.contains(index) else {
+                trimmedText += nsText.substring(with: line.fullRange)
+                continue
+            }
+
+            let lineEnd = line.bodyRange.endLocation
+            if line.bodyRange.location == lineEnd {
+                trimmedText += nsText.substring(with: line.fullRange)
+                continue
+            }
+
+            let leadingEnd = leadingWhitespaceEnd(in: nsText, bodyRange: line.bodyRange)
+            let trailingStart = trailingWhitespaceStart(in: nsText, bodyRange: line.bodyRange)
+
+            if leadingEnd >= trailingStart {
+                removedRanges.append(line.bodyRange)
+                trimmedText += nsText.substring(with: line.endingRange)
+            } else {
+                let keepStart = leadingEnd
+                let keepLength = trailingStart - leadingEnd
+                if keepStart > line.bodyRange.location {
+                    removedRanges.append(
+                        NSRange(
+                            location: line.bodyRange.location,
+                            length: keepStart - line.bodyRange.location
+                        )
+                    )
+                }
+                if keepStart < keepStart + keepLength {
+                    if trailingStart < lineEnd {
+                        removedRanges.append(
+                            NSRange(location: trailingStart, length: lineEnd - trailingStart)
+                        )
+                    }
+                }
+                trimmedText += nsText.substring(with: NSRange(location: keepStart, length: keepLength))
+                trimmedText += nsText.substring(with: line.endingRange)
+            }
+        }
+
+        let start = mappedLocation(range.location, afterRemoving: removedRanges)
+        let end = mappedLocation(range.endLocation, afterRemoving: removedRanges)
+        return TextEditCommandResult(
+            text: trimmedText,
+            selectedRange: NSRange(location: start, length: max(0, end - start))
+        )
+    }
+
+    public static func eolToWhitespace(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let effectiveRange = range.length == 0 ? NSRange(location: 0, length: text.utf16.count) : range
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        let block = if range.length == 0 {
+            0...(lines.count - 1)
+        } else {
+            lineBlock(containing: effectiveRange, in: lines)
+        }
+        var editedText = ""
+        var replacements: [TextEditReplacement] = []
+
+        for (index, line) in lines.enumerated() {
+            if block.contains(index) && index < block.upperBound {
+                let body = nsText.substring(with: line.bodyRange)
+                editedText += body
+                replacements.append(
+                    TextEditReplacement(
+                        sourceRange: line.endingRange,
+                        replacementLength: " ".utf16.count
+                    )
+                )
+                editedText += " "
+            } else {
+                editedText += nsText.substring(with: line.fullRange)
+            }
+        }
+
+        let start = mapLocation(effectiveRange.location, with: replacements, inTextLength: nsText.length)
+        let end = mapLocation(effectiveRange.endLocation, with: replacements, inTextLength: nsText.length)
+        return TextEditCommandResult(
+            text: editedText,
+            selectedRange: NSRange(location: start, length: max(0, end - start))
+        )
+    }
+
+    public static func trimAll(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let effectiveRange = range.length == 0 ? NSRange(location: 0, length: text.utf16.count) : range
+        let bothTrimmed = trimLeadingAndTrailingWhitespace(in: text, selectedRange: effectiveRange)
+        let eolWhitespace = eolToWhitespace(in: bothTrimmed.text, selectedRange: bothTrimmed.selectedRange)
+        return eolWhitespace
+    }
+
+    public static func tabToSpaces(
+        in text: String,
+        selectedRange: NSRange,
+        tabWidth: Int = 4
+    ) -> TextEditCommandResult {
+        convertWhitespace(
+            in: text,
+            selectedRange: selectedRange
+        ) { body in
+            tabToSpaces(in: body, tabWidth: tabWidth)
+        }
+    }
+
+    public static func spaceToTabsLeading(
+        in text: String,
+        selectedRange: NSRange,
+        tabWidth: Int = 4
+    ) -> TextEditCommandResult {
+        convertWhitespace(
+            in: text,
+            selectedRange: selectedRange
+        ) { body in
+            spaceToTabs(in: body, tabWidth: tabWidth, leadingOnly: true)
+        }
+    }
+
+    public static func spaceToTabsAll(
+        in text: String,
+        selectedRange: NSRange,
+        tabWidth: Int = 4
+    ) -> TextEditCommandResult {
+        convertWhitespace(
+            in: text,
+            selectedRange: selectedRange
+        ) { body in
+            spaceToTabs(in: body, tabWidth: tabWidth, leadingOnly: false)
+        }
+    }
+
+    public static func setBlockComments(
+        in text: String,
+        selectedRange: NSRange,
+        commentStart: String,
+        commentEnd: String
+    ) -> TextEditCommandResult {
+        guard !commentStart.isEmpty, !commentEnd.isEmpty else {
+            return TextEditCommandResult(text: text, selectedRange: clamped(selectedRange, in: text))
+        }
+
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        let block = lineBlock(containing: range, in: lines)
+        let startToken = commentStart + " "
+        let endToken = " " + commentEnd
+        var editedText = ""
+        var replacements: [TextEditReplacement] = []
+
+        for (index, line) in lines.enumerated() {
+            guard block.contains(index) else {
+                editedText += nsText.substring(with: line.fullRange)
+                continue
+            }
+
+            let indentEnd = leadingWhitespaceEnd(in: nsText, bodyRange: line.bodyRange)
+            if indentEnd == line.bodyRange.endLocation {
+                editedText += nsText.substring(with: line.fullRange)
+                continue
+            }
+
+            let indentLength = indentEnd - line.bodyRange.location
+            let indent = nsText.substring(with: NSRange(location: line.bodyRange.location, length: indentLength))
+            let content = nsText.substring(with: NSRange(location: indentEnd, length: line.bodyRange.endLocation - indentEnd))
+            editedText += indent + startToken + content + endToken
+            editedText += nsText.substring(with: line.endingRange)
+            replacements.append(
+                TextEditReplacement(
+                    sourceRange: NSRange(location: indentEnd, length: 0),
+                    replacementLength: startToken.utf16.count
+                )
+            )
+            replacements.append(
+                TextEditReplacement(
+                    sourceRange: NSRange(location: line.bodyRange.endLocation, length: 0),
+                    replacementLength: endToken.utf16.count
+                )
+            )
+        }
+
+        let start = mapLocation(range.location, with: replacements, inTextLength: nsText.length)
+        let end = mapLocation(range.endLocation, with: replacements, inTextLength: nsText.length)
+        return TextEditCommandResult(
+            text: editedText,
+            selectedRange: NSRange(location: start, length: max(0, end - start))
+        )
+    }
+
+    public static func removeBlockComments(
+        in text: String,
+        selectedRange: NSRange,
+        commentStart: String,
+        commentEnd: String
+    ) -> TextEditCommandResult {
+        guard !commentStart.isEmpty, !commentEnd.isEmpty else {
+            return TextEditCommandResult(text: text, selectedRange: clamped(selectedRange, in: text))
+        }
+
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        let block = lineBlock(containing: range, in: lines)
+        var editedText = ""
+        var replacements: [TextEditReplacement] = []
+
+        for (index, line) in lines.enumerated() {
+            guard block.contains(index) else {
+                editedText += nsText.substring(with: line.fullRange)
+                continue
+            }
+
+            let indentEnd = leadingWhitespaceEnd(in: nsText, bodyRange: line.bodyRange)
+            let body = nsText.substring(with: line.bodyRange)
+            let bodyUTF16Length = (body as NSString).length
+            let startLength = blockCommentStartRemovalLength(
+                in: body,
+                indentUTF16Offset: indentEnd - line.bodyRange.location,
+                commentStart: commentStart
+            )
+            let endLength = blockCommentEndRemovalLength(in: body, commentEnd: commentEnd)
+
+            if let startLength, let endLength,
+               indentEnd - line.bodyRange.location + startLength <= bodyUTF16Length - endLength {
+                let indentLength = indentEnd - line.bodyRange.location
+                let keepStart = indentLength
+                let middleStart = keepStart + startLength
+                let middleEnd = bodyUTF16Length - endLength
+                let indent = (body as NSString).substring(with: NSRange(location: 0, length: keepStart))
+                let content = (body as NSString).substring(with: NSRange(location: middleStart, length: middleEnd - middleStart))
+                editedText += indent + content
+                editedText += nsText.substring(with: line.endingRange)
+
+                replacements.append(
+                    TextEditReplacement(
+                        sourceRange: NSRange(location: indentEnd, length: startLength),
+                        replacementLength: 0
+                    )
+                )
+                replacements.append(
+                    TextEditReplacement(
+                        sourceRange: NSRange(
+                            location: line.bodyRange.endLocation - endLength,
+                            length: endLength
+                        ),
+                        replacementLength: 0
+                    )
+                )
+            } else {
+                editedText += nsText.substring(with: line.fullRange)
+            }
+        }
+
+        let start = mapLocation(range.location, with: replacements, inTextLength: nsText.length)
+        let end = mapLocation(range.endLocation, with: replacements, inTextLength: nsText.length)
+        return TextEditCommandResult(
+            text: editedText,
+            selectedRange: NSRange(location: start, length: max(0, end - start))
+        )
+    }
+
+    public static func streamComment(
+        in text: String,
+        selectedRange: NSRange,
+        commentStart: String,
+        commentEnd: String
+    ) -> TextEditCommandResult {
+        guard !commentStart.isEmpty, !commentEnd.isEmpty else {
+            return TextEditCommandResult(text: text, selectedRange: clamped(selectedRange, in: text))
+        }
+
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let effectiveRange: NSRange
+        if range.length == 0 {
+            let currentLine = line(containing: range.location, in: splitLines(in: nsText))
+            let lineStart = leadingWhitespaceEnd(in: nsText, bodyRange: currentLine.bodyRange)
+            effectiveRange = NSRange(location: lineStart, length: currentLine.bodyRange.endLocation - lineStart)
+        } else {
+            effectiveRange = range
+        }
+
+        let startToken = commentStart + " "
+        let endToken = " " + commentEnd
+        let result = mutableCopy(of: text)
+        result.insert(startToken, at: effectiveRange.location)
+        result.insert(endToken, at: effectiveRange.endLocation + startToken.utf16.count)
+
+        return TextEditCommandResult(
+            text: String(result),
+            selectedRange: NSRange(
+                location: effectiveRange.location + startToken.utf16.count,
+                length: effectiveRange.length
+            )
+        )
+    }
+
+    public static func streamUncomment(
+        in text: String,
+        selectedRange: NSRange,
+        commentStart: String,
+        commentEnd: String
+    ) -> TextEditCommandResult {
+        guard !commentStart.isEmpty, !commentEnd.isEmpty else {
+            return TextEditCommandResult(text: text, selectedRange: clamped(selectedRange, in: text))
+        }
+
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        guard let pair = findStreamCommentPair(
+            in: nsText,
+            selection: range,
+            commentStart: commentStart,
+            commentEnd: commentEnd
+        ) else {
+            return TextEditCommandResult(text: text, selectedRange: range)
+        }
+
+        let result = mutableCopy(of: text)
+        result.deleteCharacters(in: pair.endRange)
+        result.deleteCharacters(in: pair.startRange)
+        let replacements = [
+            TextEditReplacement(sourceRange: pair.startRange, replacementLength: 0),
+            TextEditReplacement(sourceRange: pair.endRange, replacementLength: 0)
+        ]
+        let start = mapLocation(range.location, with: replacements, inTextLength: nsText.length)
+        let end = mapLocation(range.endLocation, with: replacements, inTextLength: nsText.length)
+        return TextEditCommandResult(
+            text: String(result),
             selectedRange: NSRange(location: start, length: max(0, end - start))
         )
     }
@@ -109,6 +627,142 @@ public enum TextEditCommands {
         sortSelectedLines(in: text, selectedRange: selectedRange, order: .descending)
     }
 
+    public static func sortSelectedLinesAsIntegersAscending(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        sortSelectedLinesByNumber(
+            in: text,
+            selectedRange: selectedRange,
+            allowedCharacters: Set(" \t-0123456789")
+        ) { Int64($0) }
+    }
+
+    public static func sortSelectedLinesAsIntegersDescending(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        sortSelectedLinesByNumber(
+            in: text,
+            selectedRange: selectedRange,
+            order: .descending,
+            allowedCharacters: Set(" \t-0123456789")
+        ) { Int64($0) }
+    }
+
+    public static func sortSelectedLinesAsDecimalCommaAscending(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        sortSelectedLinesByNumber(
+            in: text,
+            selectedRange: selectedRange,
+            allowedCharacters: Set(" \t-0123456789,")
+        ) { Double($0.replacingOccurrences(of: ",", with: ".")) }
+    }
+
+    public static func sortSelectedLinesAsDecimalCommaDescending(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        sortSelectedLinesByNumber(
+            in: text,
+            selectedRange: selectedRange,
+            order: .descending,
+            allowedCharacters: Set(" \t-0123456789,")
+        ) { Double($0.replacingOccurrences(of: ",", with: ".")) }
+    }
+
+    public static func sortSelectedLinesAsDecimalDotAscending(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        sortSelectedLinesByNumber(
+            in: text,
+            selectedRange: selectedRange,
+            allowedCharacters: Set(" \t-0123456789.")
+        ) { Double($0) }
+    }
+
+    public static func sortSelectedLinesAsDecimalDotDescending(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        sortSelectedLinesByNumber(
+            in: text,
+            selectedRange: selectedRange,
+            order: .descending,
+            allowedCharacters: Set(" \t-0123456789.")
+        ) { Double($0) }
+    }
+
+    public static func reverseSelectedLines(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
+        sortSelectedLineTokens(in: text, selectedRange: selectedRange) { tokens in
+            Array(tokens.reversed())
+        }
+    }
+
+    public static func randomizeSelectedLines(
+        in text: String,
+        selectedRange: NSRange,
+        randomKey: () -> Int = { Int.random(in: Int.min...Int.max) }
+    ) -> TextEditCommandResult {
+        sortSelectedLineTokens(in: text, selectedRange: selectedRange) { tokens in
+            tokens.enumerated().map { (offset: $0.offset, token: $0.element, key: randomKey()) }
+                .sorted { lhs, rhs in
+                    if lhs.key == rhs.key {
+                        return lhs.offset < rhs.offset
+                    }
+                    return lhs.key < rhs.key
+                }
+                .map(\.token)
+        }
+    }
+
+    public static func sortSelectedLinesCaseInsensitiveAscending(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        sortSelectedLinesCaseInsensitive(in: text, selectedRange: selectedRange, order: .ascending)
+    }
+
+    public static func sortSelectedLinesCaseInsensitiveDescending(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        sortSelectedLinesCaseInsensitive(in: text, selectedRange: selectedRange, order: .descending)
+    }
+
+    public static func sortSelectedLinesInLocaleAscending(
+        in text: String,
+        selectedRange: NSRange,
+        locale: Locale = .current
+    ) -> TextEditCommandResult {
+        sortSelectedLinesInLocale(in: text, selectedRange: selectedRange, order: .ascending, locale: locale)
+    }
+
+    public static func sortSelectedLinesInLocaleDescending(
+        in text: String,
+        selectedRange: NSRange,
+        locale: Locale = .current
+    ) -> TextEditCommandResult {
+        sortSelectedLinesInLocale(in: text, selectedRange: selectedRange, order: .descending, locale: locale)
+    }
+
+    public static func sortSelectedLinesByLengthAscending(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        sortSelectedLinesByLength(in: text, selectedRange: selectedRange, order: .ascending)
+    }
+
+    public static func sortSelectedLinesByLengthDescending(
+        in text: String,
+        selectedRange: NSRange
+    ) -> TextEditCommandResult {
+        sortSelectedLinesByLength(in: text, selectedRange: selectedRange, order: .descending)
+    }
+
     public static func uppercaseSelection(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
         convertSelectionCase(in: text, selectedRange: selectedRange, conversion: .uppercase)
     }
@@ -123,6 +777,41 @@ public enum TextEditCommands {
 
     public static func sentenceCaseSelection(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
         convertSelectionCase(in: text, selectedRange: selectedRange, conversion: .sentence)
+    }
+
+    public static func properCaseSelection(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
+        convertSelectionCase(in: text, selectedRange: selectedRange, conversion: .proper)
+    }
+
+    public static func randomCaseSelection(
+        in text: String,
+        selectedRange: NSRange,
+        randomBit: () -> Bool = { Bool.random() }
+    ) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        guard range.length > 0 else {
+            return TextEditCommandResult(text: text, selectedRange: range)
+        }
+
+        let nsText = text as NSString
+        let selectedText = nsText.substring(with: range)
+        let replacement = selectedText.map { character -> String in
+            let characterText = String(character)
+            let uppercased = characterText.uppercased()
+            let lowercased = characterText.lowercased()
+            let hasCase = uppercased != lowercased
+
+            guard hasCase else { return characterText }
+            return randomBit() ? uppercased : lowercased
+        }
+        .joined()
+
+        let result = mutableCopy(of: text)
+        result.replaceCharacters(in: range, with: replacement)
+        return TextEditCommandResult(
+            text: String(result),
+            selectedRange: NSRange(location: range.location, length: replacement.utf16.count)
+        )
     }
 
     public static func deleteCurrentLineOrSelection(in text: String, selectedRange: NSRange) -> TextEditCommandResult {
@@ -510,6 +1199,182 @@ public enum TextEditCommands {
         )
     }
 
+    private static func sortSelectedLinesByNumber<T: Comparable>(
+        in text: String,
+        selectedRange: NSRange,
+        order: LineSortOrder = .ascending,
+        allowedCharacters: Set<Character>,
+        parse: (String) -> T?
+    ) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        let block = lineBlock(containing: range, in: lines)
+        guard block.lowerBound < block.upperBound else {
+            return TextEditCommandResult(text: text, selectedRange: range)
+        }
+
+        var tokens = lineTokens(from: lines, in: nsText)
+        let selectedTokens = Array(tokens[block])
+        var blankTokens: [TextEditLineToken] = []
+        var numericTokens: [(offset: Int, token: TextEditLineToken, value: T)] = []
+
+        for (offset, token) in selectedTokens.enumerated() {
+            let prepared = String(token.body.prefix { allowedCharacters.contains($0) })
+            let trimmed = prepared.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if trimmed.isEmpty {
+                blankTokens.append(token)
+                continue
+            }
+
+            guard let value = parse(trimmed) else {
+                return TextEditCommandResult(text: text, selectedRange: range)
+            }
+            numericTokens.append((offset: offset, token: token, value: value))
+        }
+
+        numericTokens.sort { lhs, rhs in
+            if lhs.value == rhs.value {
+                return lhs.offset < rhs.offset
+            }
+            switch order {
+            case .ascending:
+                return lhs.value < rhs.value
+            case .descending:
+                return lhs.value > rhs.value
+            }
+        }
+
+        let sortedBlockTokens = switch order {
+        case .ascending:
+            blankTokens + numericTokens.map(\.token)
+        case .descending:
+            numericTokens.map(\.token) + blankTokens
+        }
+
+        tokens.replaceSubrange(block, with: sortedBlockTokens)
+        normalizeFinalLineEnding(in: &tokens)
+        let starts = lineStarts(in: tokens)
+        let sortedText = tokens.map(\.fullText).joined()
+        let selectionStart = starts[block.lowerBound]
+        let selectionEnd = starts[block.upperBound] + tokens[block.upperBound].fullUTF16Length
+
+        return TextEditCommandResult(
+            text: sortedText,
+            selectedRange: NSRange(location: selectionStart, length: selectionEnd - selectionStart)
+        )
+    }
+
+    private static func sortSelectedLinesByLength(
+        in text: String,
+        selectedRange: NSRange,
+        order: LineSortOrder
+    ) -> TextEditCommandResult {
+        sortSelectedLineTokens(in: text, selectedRange: selectedRange) { tokens in
+            tokens.enumerated().sorted { lhs, rhs in
+                let lhsLength = lhs.element.body.utf16.count
+                let rhsLength = rhs.element.body.utf16.count
+
+                if lhsLength == rhsLength {
+                    return lhs.offset < rhs.offset
+                }
+
+                switch order {
+                case .ascending:
+                    return lhsLength < rhsLength
+                case .descending:
+                    return lhsLength > rhsLength
+                }
+            }
+            .map(\.element)
+        }
+    }
+
+    private static func sortSelectedLinesCaseInsensitive(
+        in text: String,
+        selectedRange: NSRange,
+        order: LineSortOrder
+    ) -> TextEditCommandResult {
+        sortSelectedLineTokens(in: text, selectedRange: selectedRange) { tokens in
+            tokens.enumerated().sorted { lhs, rhs in
+                let lhsValue = lhs.element.body.lowercased()
+                let rhsValue = rhs.element.body.lowercased()
+
+                if lhsValue == rhsValue {
+                    return lhs.offset < rhs.offset
+                }
+
+                switch order {
+                case .ascending:
+                    return lhsValue < rhsValue
+                case .descending:
+                    return lhsValue > rhsValue
+                }
+            }
+            .map(\.element)
+        }
+    }
+
+    private static func sortSelectedLinesInLocale(
+        in text: String,
+        selectedRange: NSRange,
+        order: LineSortOrder,
+        locale: Locale
+    ) -> TextEditCommandResult {
+        sortSelectedLineTokens(in: text, selectedRange: selectedRange) { tokens in
+            tokens.enumerated().sorted { lhs, rhs in
+                let comparison = lhs.element.body.compare(
+                    rhs.element.body,
+                    options: [.caseInsensitive, .numeric],
+                    range: nil,
+                    locale: locale
+                )
+
+                if comparison == .orderedSame {
+                    return lhs.offset < rhs.offset
+                }
+
+                switch order {
+                case .ascending:
+                    return comparison == .orderedAscending
+                case .descending:
+                    return comparison == .orderedDescending
+                }
+            }
+            .map(\.element)
+        }
+    }
+
+    private static func sortSelectedLineTokens(
+        in text: String,
+        selectedRange: NSRange,
+        transform: ([TextEditLineToken]) -> [TextEditLineToken]
+    ) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        let block = lineBlock(containing: range, in: lines)
+        guard block.lowerBound < block.upperBound else {
+            return TextEditCommandResult(text: text, selectedRange: range)
+        }
+
+        var tokens = lineTokens(from: lines, in: nsText)
+        let selectedTokens = Array(tokens[block])
+        let transformedTokens = transform(selectedTokens)
+        tokens.replaceSubrange(block, with: transformedTokens)
+        normalizeFinalLineEnding(in: &tokens)
+        let starts = lineStarts(in: tokens)
+        let sortedText = tokens.map(\.fullText).joined()
+        let selectionStart = starts[block.lowerBound]
+        let selectionEnd = starts[block.upperBound] + tokens[block.upperBound].fullUTF16Length
+
+        return TextEditCommandResult(
+            text: sortedText,
+            selectedRange: NSRange(location: selectionStart, length: selectionEnd - selectionStart)
+        )
+    }
+
     private static func removeDuplicateLines(
         in text: String,
         selectedRange: NSRange,
@@ -552,6 +1417,51 @@ public enum TextEditCommands {
         )
     }
 
+    private static func convertWhitespace(
+        in text: String,
+        selectedRange: NSRange,
+        transform: (String) -> TextEditBodyTransform
+    ) -> TextEditCommandResult {
+        let range = clamped(selectedRange, in: text)
+        let nsText = text as NSString
+        let lines = splitLines(in: nsText)
+        let block = range.length == 0
+            ? 0...(lines.count - 1)
+            : lineBlock(containing: range, in: lines)
+        var editedText = ""
+        var replacements: [TextEditReplacement] = []
+
+        for (index, line) in lines.enumerated() {
+            guard block.contains(index) else {
+                editedText += nsText.substring(with: line.fullRange)
+                continue
+            }
+
+            let body = nsText.substring(with: line.bodyRange)
+            let transformed = transform(body)
+            editedText += transformed.text
+            editedText += nsText.substring(with: line.endingRange)
+            replacements.append(
+                contentsOf: transformed.replacements.map { replacement in
+                    TextEditReplacement(
+                        sourceRange: NSRange(
+                            location: line.bodyRange.location + replacement.sourceRange.location,
+                            length: replacement.sourceRange.length
+                        ),
+                        replacementLength: replacement.replacementLength
+                    )
+                }
+            )
+        }
+
+        let start = mapLocation(range.location, with: replacements, inTextLength: nsText.length)
+        let end = mapLocation(range.endLocation, with: replacements, inTextLength: nsText.length)
+        return TextEditCommandResult(
+            text: editedText,
+            selectedRange: NSRange(location: start, length: max(0, end - start))
+        )
+    }
+
     private static func convertSelectionCase(
         in text: String,
         selectedRange: NSRange,
@@ -587,6 +1497,8 @@ public enum TextEditCommands {
             .joined()
         case .sentence:
             replacement = sentenceCased(selectedText.uppercased())
+        case .proper:
+            replacement = properCased(selectedText.uppercased())
         }
 
         let result = mutableCopy(of: text)
@@ -622,6 +1534,363 @@ public enum TextEditCommands {
         return location
     }
 
+    private static func leadingWhitespaceEnd(in text: NSString, bodyRange: NSRange) -> Int {
+        var location = bodyRange.location
+        while location < bodyRange.endLocation {
+            let unit = text.character(at: location)
+            if unit == 32 || unit == 9 {
+                location += 1
+            } else {
+                break
+            }
+        }
+        return location
+    }
+
+    private static func splitBody(
+        _ body: String,
+        at lineWidth: Int,
+        with lineEnding: String
+    ) -> String {
+        let nsBody = body as NSString
+        guard nsBody.length > lineWidth else { return body }
+
+        let splitLength = max(1, lineWidth)
+        var splitBody = ""
+        var location = 0
+
+        while location < nsBody.length {
+            let pieceLength = min(splitLength, nsBody.length - location)
+            let piece = nsBody.substring(with: NSRange(location: location, length: pieceLength))
+            splitBody += piece
+
+            location += pieceLength
+            if location < nsBody.length {
+                splitBody += lineEnding
+            }
+        }
+
+        return splitBody
+    }
+
+    private static func lineEnding(for line: TextEditLine, in text: NSString, defaultLineEnding: String) -> String {
+        if line.endingRange.length > 0 {
+            return text.substring(with: line.endingRange)
+        }
+
+        return defaultLineEnding
+    }
+
+    private static func tabToSpaces(in body: String, tabWidth: Int) -> TextEditBodyTransform {
+        let width = max(1, tabWidth)
+        let nsBody = body as NSString
+        var transformed = ""
+        var replacements: [TextEditReplacement] = []
+        var column = 0
+        var location = 0
+
+        while location < nsBody.length {
+            let unit = nsBody.character(at: location)
+            if unit == 9 {
+                let spaceCount = width - (column % width)
+                transformed += String(repeating: " ", count: spaceCount)
+                replacements.append(
+                    TextEditReplacement(
+                        sourceRange: NSRange(location: location, length: 1),
+                        replacementLength: spaceCount
+                    )
+                )
+                column += spaceCount
+            } else {
+                transformed += nsBody.substring(with: NSRange(location: location, length: 1))
+                column += 1
+            }
+            location += 1
+        }
+
+        return TextEditBodyTransform(text: transformed, replacements: replacements)
+    }
+
+    private static func spaceToTabs(
+        in body: String,
+        tabWidth: Int,
+        leadingOnly: Bool
+    ) -> TextEditBodyTransform {
+        let width = max(1, tabWidth)
+        let nsBody = body as NSString
+        var transformed = ""
+        var replacements: [TextEditReplacement] = []
+        var column = 0
+        var location = 0
+        var withinIndentation = true
+
+        while location < nsBody.length {
+            let unit = nsBody.character(at: location)
+
+            if unit == 32, withinIndentation || !leadingOnly {
+                let runStart = location
+                let runColumn = column
+
+                while location < nsBody.length, nsBody.character(at: location) == 32 {
+                    location += 1
+                    column += 1
+                }
+
+                let runLength = location - runStart
+                let replacement = tabifiedSpaces(
+                    count: runLength,
+                    startingColumn: runColumn,
+                    tabWidth: width
+                )
+                transformed += replacement
+
+                if replacement != String(repeating: " ", count: runLength) {
+                    replacements.append(
+                        TextEditReplacement(
+                            sourceRange: NSRange(location: runStart, length: runLength),
+                            replacementLength: replacement.utf16.count
+                        )
+                    )
+                }
+                continue
+            }
+
+            transformed += nsBody.substring(with: NSRange(location: location, length: 1))
+
+            if unit == 9 {
+                column += width - (column % width)
+            } else {
+                column += 1
+                if leadingOnly, unit != 32 {
+                    withinIndentation = false
+                }
+            }
+
+            location += 1
+        }
+
+        return TextEditBodyTransform(text: transformed, replacements: replacements)
+    }
+
+    private static func tabifiedSpaces(
+        count: Int,
+        startingColumn: Int,
+        tabWidth: Int
+    ) -> String {
+        guard count > 0 else { return "" }
+
+        var remaining = count
+        var column = startingColumn
+        var transformed = ""
+
+        while remaining > 0 {
+            let spacesToNextStop = tabWidth - (column % tabWidth)
+            if spacesToNextStop > 1, remaining >= spacesToNextStop {
+                transformed += "\t"
+                remaining -= spacesToNextStop
+                column += spacesToNextStop
+            } else {
+                transformed += " "
+                remaining -= 1
+                column += 1
+            }
+        }
+
+        return transformed
+    }
+
+    private static func blockCommentStartRemovalLength(
+        in body: String,
+        indentUTF16Offset: Int,
+        commentStart: String
+    ) -> Int? {
+        let afterIndent = (body as NSString).substring(from: indentUTF16Offset)
+        let spaced = commentStart + " "
+        if afterIndent.hasPrefix(spaced) {
+            return spaced.utf16.count
+        }
+        if afterIndent.hasPrefix(commentStart) {
+            return commentStart.utf16.count
+        }
+        return nil
+    }
+
+    private static func blockCommentEndRemovalLength(in body: String, commentEnd: String) -> Int? {
+        let spaced = " " + commentEnd
+        if body.hasSuffix(spaced) {
+            return spaced.utf16.count
+        }
+        if body.hasSuffix(commentEnd) {
+            return commentEnd.utf16.count
+        }
+        return nil
+    }
+
+    private static func findStreamCommentPair(
+        in text: NSString,
+        selection: NSRange,
+        commentStart: String,
+        commentEnd: String
+    ) -> TextEditCommentPair? {
+        let startCandidates = [commentStart + " ", commentStart]
+        let endCandidates = [" " + commentEnd, commentEnd]
+        let searchLocation = min(selection.location, text.length)
+
+        for startToken in startCandidates {
+            let startRange = text.range(
+                of: startToken,
+                options: .backwards,
+                range: NSRange(location: 0, length: searchLocation + 1)
+            )
+            guard startRange.location != NSNotFound else { continue }
+
+            for endToken in endCandidates {
+                let startOfEndSearch = startRange.endLocation
+                guard startOfEndSearch <= text.length else { continue }
+                let endSearchRange = NSRange(location: startOfEndSearch, length: text.length - startOfEndSearch)
+                let endRange = text.range(of: endToken, options: [], range: endSearchRange)
+                guard endRange.location != NSNotFound else { continue }
+
+                let fullRange = NSRange(
+                    location: startRange.location,
+                    length: endRange.endLocation - startRange.location
+                )
+                if selection.location >= fullRange.location && selection.endLocation <= fullRange.endLocation {
+                    return TextEditCommentPair(startRange: startRange, endRange: endRange)
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private static func splitInsertions(
+        for lineWidth: Int,
+        bodyLength: Int
+    ) -> Int {
+        if bodyLength <= lineWidth {
+            return 0
+        }
+
+        return max(0, (bodyLength - 1) / lineWidth)
+    }
+
+    private static func splitInsertions(
+        before location: Int,
+        lineWidth: Int,
+        bodyLength: Int
+    ) -> Int {
+        if bodyLength <= lineWidth {
+            return 0
+        }
+
+        if location <= 0 {
+            return 0
+        }
+
+        if location >= bodyLength {
+            return splitInsertions(for: lineWidth, bodyLength: bodyLength)
+        }
+
+        return location / lineWidth
+    }
+
+    private static func mappedLocationForSplit(
+        _ location: Int,
+        in lines: [TextEditLine],
+        block: ClosedRange<Int>,
+        lineWidth: Int,
+        text: NSString,
+        defaultLineEnding: String
+    ) -> Int {
+        var mapped = 0
+
+        for (index, line) in lines.enumerated() {
+            let sourceRange = line.fullRange
+            let isSplitLine = block.contains(index)
+
+            if location <= sourceRange.location {
+                return mapped
+            }
+
+            if isSplitLine {
+                let lineEnding = lineEnding(for: line, in: text, defaultLineEnding: defaultLineEnding)
+                let bodyLength = line.bodyRange.length
+                let insertedLength = splitInsertions(for: lineWidth, bodyLength: bodyLength)
+                let splitBodyLength = line.bodyRange.length + (insertedLength * lineEnding.utf16.count)
+
+                if location < line.bodyRange.endLocation {
+                    let localOffset = location - line.bodyRange.location
+                    let addedSplitLength = splitInsertions(
+                        before: localOffset,
+                        lineWidth: lineWidth,
+                        bodyLength: bodyLength
+                    ) * lineEnding.utf16.count
+                    return mapped + localOffset + addedSplitLength
+                }
+
+                if location <= sourceRange.endLocation {
+                    let localOffset = location - line.bodyRange.endLocation
+                    return mapped + splitBodyLength + localOffset
+                }
+
+                mapped += splitBodyLength + line.endingRange.length
+                continue
+            }
+
+            if location <= sourceRange.endLocation {
+                return mapped + max(0, location - sourceRange.location)
+            }
+
+            mapped += sourceRange.length
+        }
+
+        return text.length
+    }
+
+    private static func mappedLocationForInsertions(
+        in sourceRange: NSRange,
+        insertedAt sourceInsertionAt: Int,
+        insertLength: Int,
+        textLength: Int
+    ) -> NSRange {
+        let newTextLength = textLength + insertLength
+        let mappedStart = sourceRange.location >= sourceInsertionAt
+            ? min(sourceRange.location + insertLength, newTextLength)
+            : sourceRange.location
+        let mappedEnd = sourceRange.endLocation >= sourceInsertionAt
+            ? min(sourceRange.endLocation + insertLength, newTextLength)
+            : sourceRange.endLocation
+
+        return NSRange(location: mappedStart, length: max(0, mappedEnd - mappedStart))
+    }
+
+    private static func mapLocation(
+        _ location: Int,
+        with replacements: [TextEditReplacement],
+        inTextLength: Int
+    ) -> Int {
+        let clampedLocation = min(max(location, 0), inTextLength)
+        var replacementDelta = 0
+
+        for replacement in replacements {
+            let sourceStart = replacement.sourceRange.location
+            let sourceEnd = replacement.sourceRange.endLocation
+
+            if clampedLocation <= sourceStart {
+                return clampedLocation + replacementDelta
+            }
+
+            if clampedLocation <= sourceEnd {
+                return sourceStart + replacement.replacementLength + replacementDelta
+            }
+
+            replacementDelta += replacement.replacementLength - replacement.sourceRange.length
+        }
+
+        return clampedLocation + replacementDelta
+    }
+
     private static func sentenceCased(_ text: String) -> String {
         var shouldCapitalizeNextCasedCharacter = true
         var result = ""
@@ -649,6 +1918,46 @@ public enum TextEditCommands {
         }
 
         return result
+    }
+
+    private static func properCased(_ text: String) -> String {
+        let characters = Array(text)
+        var result = ""
+
+        for (index, character) in characters.enumerated() {
+            let characterText = String(character)
+            let uppercased = characterText.uppercased()
+            let lowercased = characterText.lowercased()
+            let hasCase = uppercased != lowercased
+
+            guard hasCase else {
+                result += characterText
+                continue
+            }
+
+            let followsWordApostrophe = index >= 2
+                && isSingleQuote(characters[index - 1])
+                && isAlphaNumeric(characters[index - 2])
+            let startsWord = index == 0 || !isAlphaNumeric(characters[index - 1])
+
+            if followsWordApostrophe {
+                result += lowercased
+            } else if startsWord {
+                result += uppercased
+            } else {
+                result += lowercased
+            }
+        }
+
+        return result
+    }
+
+    private static func isSingleQuote(_ character: Character) -> Bool {
+        character == "'" || character == "’"
+    }
+
+    private static func isAlphaNumeric(_ character: Character) -> Bool {
+        character.unicodeScalars.contains { CharacterSet.alphanumerics.contains($0) }
     }
 
     private static func mappedLocation(_ location: Int, afterRemoving removedRanges: [NSRange]) -> Int {
@@ -694,6 +2003,16 @@ private struct TextEditLine: Equatable {
     }
 }
 
+private struct TextEditReplacement {
+    let sourceRange: NSRange
+    let replacementLength: Int
+}
+
+private struct TextEditBodyTransform {
+    let text: String
+    let replacements: [TextEditReplacement]
+}
+
 private struct TextEditLineToken {
     let sourceIndex: Int
     let body: String
@@ -713,6 +2032,11 @@ private struct TextEditLinePosition {
     let offset: Int
 }
 
+private struct TextEditCommentPair {
+    let startRange: NSRange
+    let endRange: NSRange
+}
+
 private enum LineMoveDirection {
     case up
     case down
@@ -728,6 +2052,7 @@ private enum CaseConversion {
     case lowercase
     case inverted
     case sentence
+    case proper
 }
 
 private extension NSRange {

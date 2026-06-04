@@ -48,6 +48,10 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
     private let documentURLProvider: () -> URL?
     private let selectionProvider: () -> PluginCommandSelectionContext?
     private let runtime = PluginCommandRuntime()
+    private let pluginColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("plugin"))
+    private let commandColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("command"))
+    private let identifierColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("identifier"))
+    private let versionColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("version"))
 
     private var directories: [URL] = []
     private var catalog = PluginCatalog(plugins: [])
@@ -77,6 +81,13 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
 
         super.init(window: panel)
         configureContent()
+        refreshLocalizedStrings()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(localizationDidChange(_:)),
+            name: Localization.localizationDidChangeNotification,
+            object: nil
+        )
     }
 
     @available(*, unavailable)
@@ -84,10 +95,15 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         fatalError("init(coder:) is not supported")
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     func show() {
         if runningTask == nil {
             reload()
         }
+        refreshLocalizedStrings()
         showWindow(nil)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
@@ -115,6 +131,10 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         updateControls()
+    }
+
+    @objc private func localizationDidChange(_ notification: Notification) {
+        refreshLocalizedStrings()
     }
 
     private func configureContent() {
@@ -181,26 +201,14 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         tableView.delegate = self
         tableView.target = self
         tableView.doubleAction = #selector(runSelectedCommand(_:))
-        tableView.addTableColumn(column(
-            identifier: "plugin",
-            title: Localization.string(.pluginsColumnPlugin, default: "Plugin"),
-            width: 210
-        ))
-        tableView.addTableColumn(column(
-            identifier: "command",
-            title: Localization.string(.pluginsColumnCommand, default: "Command"),
-            width: 230
-        ))
-        tableView.addTableColumn(column(
-            identifier: "identifier",
-            title: Localization.string(.pluginsColumnIdentifier, default: "Identifier"),
-            width: 220
-        ))
-        tableView.addTableColumn(column(
-            identifier: "version",
-            title: Localization.string(.pluginsColumnVersion, default: "Version"),
-            width: 80
-        ))
+        pluginColumn.width = 210
+        commandColumn.width = 230
+        identifierColumn.width = 220
+        versionColumn.width = 80
+        tableView.addTableColumn(pluginColumn)
+        tableView.addTableColumn(commandColumn)
+        tableView.addTableColumn(identifierColumn)
+        tableView.addTableColumn(versionColumn)
         tableScrollView.documentView = tableView
 
         let statusScrollView = NSScrollView()
@@ -283,6 +291,46 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         ])
     }
 
+    private func refreshLocalizedStrings() {
+        window?.title = Localization.string(.pluginsPanelTitle, default: "Plugin Admin")
+        nativePluginLabel.stringValue = Localization.string(.pluginsNativePluginLabel, default: "Native plugin:")
+        argumentsLabel.stringValue = Localization.string(.pluginsArgumentsLabel, default: "Arguments:")
+        refreshButton.title = Localization.string(.pluginsRefresh, default: "Rescan")
+        installPluginButton.title = Localization.string(.pluginsInstallOrUpdate, default: "Install/Update...")
+        removePluginButton.title = Localization.string(.pluginsRemove, default: "Remove")
+        openPluginFolderButton.title = Localization.string(.pluginsOpenUserPluginFolder, default: "Open Plugin Folder")
+        pluginColumn.title = Localization.string(.pluginsColumnPlugin, default: "Plugin")
+        commandColumn.title = Localization.string(.pluginsColumnCommand, default: "Command")
+        identifierColumn.title = Localization.string(.pluginsColumnIdentifier, default: "Identifier")
+        versionColumn.title = Localization.string(.pluginsColumnVersion, default: "Version")
+
+        if let selectedIdentifier = selectedNativePluginIdentifier() {
+            reloadNativePluginMenu(preferredIdentifier: selectedIdentifier)
+        } else {
+            reloadNativePluginMenu(preferredIdentifier: nil)
+        }
+
+        if runningTask == nil {
+            summaryField.stringValue = localizedSummary()
+            statusView.string = render(catalog: catalog, directories: directories)
+        }
+
+        updateControls()
+    }
+
+    private func localizedSummary() -> String {
+        let summaryKey: Localization.Key = runnableCommands.count == 1
+            ? .pluginsSummaryRunnableCommand
+            : .pluginsSummaryRunnableCommands
+        let summaryDefault = runnableCommands.count == 1
+            ? "%d runnable native command"
+            : "%d runnable native commands"
+        return String(
+            format: Localization.string(summaryKey, default: summaryDefault),
+            runnableCommands.count
+        )
+    }
+
     private func reload(preferredNativePluginIdentifier: String? = nil) {
         let preferredSelectionKey = selectedCommand()?.selectionKey
         let preferredNativePluginIdentifier = preferredNativePluginIdentifier ?? selectedNativePluginIdentifier()
@@ -301,16 +349,7 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
             }
         }
 
-        let summaryKey: Localization.Key = runnableCommands.count == 1
-            ? .pluginsSummaryRunnableCommand
-            : .pluginsSummaryRunnableCommands
-        let summaryDefault = runnableCommands.count == 1
-            ? "%d runnable native command"
-            : "%d runnable native commands"
-        summaryField.stringValue = String(
-            format: Localization.string(summaryKey, default: summaryDefault),
-            runnableCommands.count
-        )
+        summaryField.stringValue = localizedSummary()
         reloadNativePluginMenu(preferredIdentifier: preferredNativePluginIdentifier)
         tableView.reloadData()
         restoreSelection(preferredSelectionKey)
@@ -396,13 +435,6 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         }
 
         return lines.joined(separator: "\n")
-    }
-
-    private func column(identifier: String, title: String, width: CGFloat) -> NSTableColumn {
-        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(identifier))
-        column.title = title
-        column.width = width
-        return column
     }
 
     private func selectedCommand() -> RunnablePluginCommand? {
@@ -584,6 +616,34 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
             format: Localization.string(.pluginsStatusRescanned, default: "Rescanned plugin folders: %d plugins found."),
             catalog.plugins.count
         ))
+    }
+
+    func importPlugin(from sourceDirectory: URL) {
+        guard let userPluginDirectory = PluginCatalog.userPluginDirectory() else { return }
+        show()
+        do {
+            let result = try PluginCatalog.installNativePlugin(from: sourceDirectory, into: userPluginDirectory)
+            reload(preferredNativePluginIdentifier: result.plugin.identifier)
+            let status: (Localization.Key, String)
+            switch result.action {
+            case .installed:
+                status = (.pluginsStatusInstalledNativePlugin, "Installed native plugin %@ to %@")
+            case .updated:
+                status = (.pluginsStatusUpdatedNativePlugin, "Updated native plugin %@ at %@")
+            case .unchanged:
+                status = (.pluginsStatusNativePluginAlreadyInstalled, "Native plugin %@ is already installed at %@")
+            }
+            appendStatus(String(
+                format: Localization.string(status.0, default: status.1),
+                result.plugin.displayName,
+                result.destinationURL.path
+            ))
+        } catch {
+            appendStatus(String(
+                format: Localization.string(.pluginsStatusInstallFailed, default: "Install/update failed: %@"),
+                error.displayText
+            ))
+        }
     }
 
     @objc private func installOrUpdateNativePlugin(_ sender: Any?) {

@@ -4,43 +4,124 @@ import NotepadMacCore
 @MainActor
 final class PreferencesPanelController: NSWindowController {
     private let preferencesStore: PreferencesStore
+    private let localizationOptions: [AppLocalizationOption]
     private let onChange: (AppPreferences) -> Void
 
+    private let localizationSectionLabel = NSTextField(labelWithString: "")
+    private let localizationChoiceLabel = NSTextField(labelWithString: "")
+    private let editorSectionLabel = NSTextField(labelWithString: "")
+    private let fontSizeLabel = NSTextField(labelWithString: "")
+    private let editorFeaturesSectionLabel = NSTextField(labelWithString: "")
+    private let newDocumentSectionLabel = NSTextField(labelWithString: "")
+    private let newDocEncodingLabel = NSTextField(labelWithString: "")
+    private let newDocLineEndingLabel = NSTextField(labelWithString: "")
+    private let rememberSessionButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let newDocumentOnLaunchButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let useFirstLineAsTabNameButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let recentFilesMaxLabel = NSTextField(labelWithString: "")
+    private let recentFilesMaxField = NSTextField(string: "20")
+    private let recentFilesMaxStepper = NSStepper()
+    private let recentFilesShowFullPathButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let noCheckRecentAtLaunchButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let keepAbsentFilesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoReloadButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let backupOnSaveButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let openDirFollowsDocButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let folderDropAsWorkspaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let defaultLangLabel = NSTextField(labelWithString: "")
+    private let defaultLangPopup = NSPopUpButton()
+    private let additionalEdgeColumnsLabel = NSTextField(labelWithString: "")
+    private let additionalEdgeColumnsField = NSTextField(string: "")
+    private let findDefaultsSectionLabel = NSTextField(labelWithString: "")
+    private let dateTimeSectionLabel = NSTextField(labelWithString: "")
+    private let dateTimeFormatLabel = NSTextField(labelWithString: "")
+    private let searchEngineSectionLabel = NSTextField(labelWithString: "")
+    private let searchEngineChoiceLabel = NSTextField(labelWithString: "")
+    private let searchEngineCustomURLLabel = NSTextField(labelWithString: "")
+
+    private let localizationPopup = NSPopUpButton()
     private let fontSizeField = NSTextField(string: "")
     private let fontSizeStepper = NSStepper()
-    private let wrapsLinesButton = NSButton(
-        checkboxWithTitle: Localization.string(.preferencesWrapLines),
-        target: nil,
-        action: nil
-    )
-    private let searchMatchCaseButton = NSButton(
-        checkboxWithTitle: Localization.string(.preferencesMatchCase),
-        target: nil,
-        action: nil
-    )
-    private let searchWholeWordButton = NSButton(
-        checkboxWithTitle: Localization.string(.preferencesWholeWord),
-        target: nil,
-        action: nil
-    )
+    private let wrapsLinesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let tabSizeLabel = NSTextField(labelWithString: "")
+    private let tabSizeField = NSTextField(string: "")
+    private let tabSizeStepper = NSStepper()
+    private let insertSpacesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoPairButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let xmlTagMatchButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let clickableLinksButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let smartHighlightMatchCaseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let smartHighlightWholeWordButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let caretWidthLabel = NSTextField(labelWithString: "")
+    private let caretWidthSegmented = NSSegmentedControl()
+    private let caretNoBlinkButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let currentLineFrameLabel = NSTextField(labelWithString: "")
+    private let currentLineFrameSegmented = NSSegmentedControl()
+    private let lineWrapIndentLabel = NSTextField(labelWithString: "")
+    private let lineWrapIndentPopup = NSPopUpButton()
+    private let foldMarginStyleLabel = NSTextField(labelWithString: "")
+    private let foldMarginStylePopup = NSPopUpButton()
+    private let virtualSpaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let backspaceUnindentsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoIndentButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let scrollBeyondLastLineButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoCompleteLabel = NSTextField(labelWithString: "")
+    private let autoCompleteField = NSTextField(string: "3")
+    private let autoCompleteStepper = NSStepper()
+    private let linePaddingLabel = NSTextField(labelWithString: "")
+    private let linePaddingSegmented = NSSegmentedControl()
+    private let largeFileSectionLabel = NSTextField(labelWithString: "")
+    private let largeFileMBLabel = NSTextField(labelWithString: "")
+    private let largeFileMBField = NSTextField(string: "50")
+    private let largeFileMBStepper = NSStepper()
+    private let newDocEncodingPopup = NSPopUpButton()
+    private let newDocLineEndingPopup = NSPopUpButton()
+    private let searchMatchCaseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let searchWholeWordButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let dateTimeFormatField = NSTextField(string: "")
+    private let searchEnginePopup = NSPopUpButton()
+    private let searchEngineCustomURLField = NSTextField(string: "")
+    private let extraURLSchemesLabel = NSTextField(labelWithString: "")
+    private let extraURLSchemesField = NSTextField(string: "")
 
-    init(preferencesStore: PreferencesStore, onChange: @escaping (AppPreferences) -> Void) {
+    typealias LanguageEntry = (name: String, displayName: String)
+    private var languageEntries: [LanguageEntry] = []
+
+    init(
+        preferencesStore: PreferencesStore,
+        localizationOptions: [AppLocalizationOption],
+        languageEntries: [LanguageEntry] = [],
+        onChange: @escaping (AppPreferences) -> Void
+    ) {
         self.preferencesStore = preferencesStore
+        self.localizationOptions = localizationOptions
+        self.languageEntries = languageEntries
         self.onChange = onChange
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 190),
-            styleMask: [.titled, .closable, .utilityWindow],
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 680),
+            styleMask: [.titled, .closable, .resizable, .utilityWindow],
             backing: .buffered,
             defer: false
         )
-        panel.title = Localization.string(.preferencesPanelTitle)
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
+        panel.minSize = NSSize(width: 440, height: 480)
 
         super.init(window: panel)
         configureContent()
+        refreshLocalizedStrings()
         loadPreferences()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(localizationDidChange(_:)),
+            name: Localization.localizationDidChangeNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     @available(*, unavailable)
@@ -49,56 +130,250 @@ final class PreferencesPanelController: NSWindowController {
     }
 
     func show() {
+        refreshLocalizedStrings()
         loadPreferences()
         showWindow(nil)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
     }
 
+    func refreshLocalizedStrings() {
+        window?.title = Localization.string(.preferencesPanelTitle)
+
+        localizationSectionLabel.stringValue = Localization.string(.preferencesLocalizationSection)
+        localizationChoiceLabel.stringValue = Localization.string(.preferencesLocalization)
+        editorSectionLabel.stringValue = Localization.string(.preferencesEditorSection)
+        fontSizeLabel.stringValue = Localization.string(.preferencesFontSize)
+        findDefaultsSectionLabel.stringValue = Localization.string(.preferencesFindDefaults)
+        dateTimeSectionLabel.stringValue = Localization.string(.preferencesDateTimeSection)
+        dateTimeFormatLabel.stringValue = Localization.string(.preferencesDateTimeFormat)
+        searchEngineSectionLabel.stringValue = Localization.string(.preferencesSearchEngineSection)
+        searchEngineChoiceLabel.stringValue = Localization.string(.preferencesSearchEngine)
+        searchEngineCustomURLLabel.stringValue = Localization.string(.preferencesSearchEngineCustomURL)
+        extraURLSchemesLabel.stringValue = Localization.string(.preferencesExtraURLSchemes, default: "Extra URL schemes:")
+
+        wrapsLinesButton.title = Localization.string(.preferencesWrapLines)
+        tabSizeLabel.stringValue = Localization.string(.preferencesTabSize)
+        insertSpacesButton.title = Localization.string(.preferencesInsertSpaces)
+        editorFeaturesSectionLabel.stringValue = Localization.string(.preferencesEditorFeaturesSection, default: "Editor Features")
+        autoPairButton.title = Localization.string(.preferencesAutoPair, default: "Auto-insert matching pairs")
+        xmlTagMatchButton.title = Localization.string(.preferencesXmlTagMatch, default: "Highlight matching XML tags")
+        clickableLinksButton.title = Localization.string(.preferencesClickableLinks, default: "Highlight clickable links")
+        smartHighlightMatchCaseButton.title = Localization.string(.preferencesSmartHighlightMatchCase, default: "Smart highlight: match case")
+        smartHighlightWholeWordButton.title = Localization.string(.preferencesSmartHighlightWholeWord, default: "Smart highlight: whole word only")
+        caretWidthLabel.stringValue = Localization.string(.preferencesCaretWidth, default: "Caret width:")
+        if caretWidthSegmented.segmentCount == 3 {
+            caretWidthSegmented.setLabel(Localization.string(.preferencesCaretWidthThin, default: "Thin"), forSegment: 0)
+            caretWidthSegmented.setLabel(Localization.string(.preferencesCaretWidthMedium, default: "Medium"), forSegment: 1)
+            caretWidthSegmented.setLabel(Localization.string(.preferencesCaretWidthThick, default: "Thick"), forSegment: 2)
+        }
+        caretNoBlinkButton.title = Localization.string(.preferencesCaretNoBlink, default: "Disable caret blinking")
+        currentLineFrameLabel.stringValue = Localization.string(.preferencesCurrentLineFrame, default: "Current line highlight:")
+        if currentLineFrameSegmented.segmentCount == 4 {
+            currentLineFrameSegmented.setLabel(Localization.string(.preferencesCurrentLineFrameFill, default: "Fill"), forSegment: 0)
+            currentLineFrameSegmented.setLabel("1px", forSegment: 1)
+            currentLineFrameSegmented.setLabel("2px", forSegment: 2)
+            currentLineFrameSegmented.setLabel("3px", forSegment: 3)
+        }
+        lineWrapIndentLabel.stringValue = Localization.string(.preferencesLineWrapIndent, default: "Wrap indent:")
+        foldMarginStyleLabel.stringValue = Localization.string(.preferencesFoldMarginStyle, default: "Fold margin style:")
+        virtualSpaceButton.title = Localization.string(.preferencesVirtualSpace, default: "Enable virtual space")
+        backspaceUnindentsButton.title = Localization.string(.preferencesBackspaceUnindents, default: "Backspace key unindents")
+        autoIndentButton.title = Localization.string(.preferencesAutoIndent, default: "Auto-indent new lines")
+        scrollBeyondLastLineButton.title = Localization.string(.preferencesScrollBeyondLastLine, default: "Scroll beyond last line")
+        linePaddingLabel.stringValue = Localization.string(.preferencesLinePadding, default: "Line padding:")
+        autoCompleteLabel.stringValue = Localization.string(.preferencesAutoCompleteFrom, default: "Auto-complete from Nth character (0=off):")
+        largeFileSectionLabel.stringValue = Localization.string(.preferencesLargeFileSection, default: "Large File")
+        largeFileMBLabel.stringValue = Localization.string(.preferencesLargeFileMB, default: "Large file threshold (MB):")
+        newDocumentSectionLabel.stringValue = Localization.string(.preferencesNewDocumentSection, default: "New Document")
+        newDocEncodingLabel.stringValue = Localization.string(.preferencesNewDocEncoding, default: "Encoding:")
+        newDocLineEndingLabel.stringValue = Localization.string(.preferencesNewDocLineEnding, default: "Line Ending:")
+        rememberSessionButton.title = Localization.string(.preferencesRememberSession, default: "Remember last session on launch")
+        newDocumentOnLaunchButton.title = "Create a new document on launch when session is empty"
+        useFirstLineAsTabNameButton.title = "Use first line as tab name for untitled files"
+        recentFilesMaxLabel.stringValue = "Max recent files:"
+        noCheckRecentAtLaunchButton.title = "Don't check recent files at launch"
+        keepAbsentFilesButton.title = "Keep absent files in session"
+        autoReloadButton.title = "Auto-reload file when changed externally"
+        backupOnSaveButton.title = "Create .bak backup file when saving"
+        openDirFollowsDocButton.title = Localization.string(.preferencesOpenDirFollowsDoc, default: "Open dialog starts in the current document's directory")
+        folderDropAsWorkspaceButton.title = Localization.string(.preferencesFolderDropAsWorkspace, default: "Open dropped folder as workspace")
+        defaultLangLabel.stringValue = Localization.string(.preferencesDefaultLanguage, default: "Default language for new documents:")
+        additionalEdgeColumnsLabel.stringValue = "Extra vertical edges (columns):"
+        recentFilesShowFullPathButton.title = "Show full path in recent files menu"
+        populateNewDocEncodingPopup(selected: preferencesStore.load().defaultNewDocumentEncoding)
+        populateNewDocLineEndingPopup(selected: preferencesStore.load().defaultNewDocumentLineEnding)
+        populateDefaultLangPopup(selected: preferencesStore.load().defaultNewDocumentLanguageName)
+        searchMatchCaseButton.title = Localization.string(.preferencesMatchCase)
+        searchWholeWordButton.title = Localization.string(.preferencesWholeWord)
+
+        localizationPopup.setAccessibilityLabel(
+            Localization.string(.preferencesLocalizationPopupAccessibilityLabel)
+        )
+        fontSizeField.setAccessibilityLabel(Localization.string(.preferencesFontSizeFieldAccessibilityLabel))
+        fontSizeStepper.setAccessibilityLabel(Localization.string(.preferencesFontSizeStepperAccessibilityLabel))
+        dateTimeFormatField.setAccessibilityLabel(Localization.string(.preferencesDateTimeFormatFieldAccessibilityLabel))
+        searchEnginePopup.setAccessibilityLabel(Localization.string(.preferencesSearchEnginePopupAccessibilityLabel))
+        searchEngineCustomURLField.setAccessibilityLabel(Localization.string(.preferencesSearchEngineCustomURLFieldAccessibilityLabel))
+
+        let selectedSearchEngine = selectedSearchEngineChoice
+        configureSearchEnginePopup()
+        selectSearchEngine(selectedSearchEngine)
+    }
+
+    @objc private func localizationDidChange(_ notification: Notification) {
+        refreshLocalizedStrings()
+        loadPreferences()
+    }
+
     @objc private func controlChanged(_ sender: Any?) {
         savePreferences(sender: sender)
     }
 
-    private func configureContent() {
-        guard let contentView = window?.contentView else { return }
+    private func makeTabScrollContent() -> (NSScrollView, NSView) {
+        let sv = NSScrollView()
+        sv.translatesAutoresizingMaskIntoConstraints = false
+        sv.hasVerticalScroller = true
+        sv.borderType = .noBorder
+        sv.drawsBackground = false
+        let cv = NSView()
+        cv.translatesAutoresizingMaskIntoConstraints = false
+        sv.documentView = cv
+        NSLayoutConstraint.activate([
+            cv.leadingAnchor.constraint(equalTo: sv.contentView.leadingAnchor),
+            cv.trailingAnchor.constraint(equalTo: sv.contentView.trailingAnchor),
+            cv.topAnchor.constraint(equalTo: sv.contentView.topAnchor),
+            cv.widthAnchor.constraint(equalTo: sv.contentView.widthAnchor)
+        ])
+        return (sv, cv)
+    }
 
-        let editorLabel = NSTextField(
-            labelWithString: Localization.string(.preferencesEditorSection)
-        )
-        let fontSizeLabel = NSTextField(
-            labelWithString: Localization.string(.preferencesFontSize)
-        )
-        let searchLabel = NSTextField(
-            labelWithString: Localization.string(.preferencesFindDefaults)
-        )
+    private func configureContent() {
+        guard let outerView = window?.contentView else { return }
+
+        let tabView = NSTabView()
+        tabView.translatesAutoresizingMaskIntoConstraints = false
+        outerView.addSubview(tabView)
+        NSLayoutConstraint.activate([
+            tabView.leadingAnchor.constraint(equalTo: outerView.leadingAnchor),
+            tabView.trailingAnchor.constraint(equalTo: outerView.trailingAnchor),
+            tabView.topAnchor.constraint(equalTo: outerView.topAnchor),
+            tabView.bottomAnchor.constraint(equalTo: outerView.bottomAnchor)
+        ])
+
+        let (editSV, editCV) = makeTabScrollContent()
+        let (sessionSV, sessionCV) = makeTabScrollContent()
+        let (toolsSV, toolsCV) = makeTabScrollContent()
+
+        let editorTab = NSTabViewItem(); editorTab.label = "Editor"; editorTab.view = editSV
+        let sessionTab = NSTabViewItem(); sessionTab.label = "Session & Files"; sessionTab.view = sessionSV
+        let toolsTab = NSTabViewItem(); toolsTab.label = "Find & Tools"; toolsTab.view = toolsSV
+        tabView.addTabViewItem(editorTab)
+        tabView.addTabViewItem(sessionTab)
+        tabView.addTabViewItem(toolsTab)
 
         fontSizeStepper.minValue = AppPreferences.minimumEditorFontSize
         fontSizeStepper.maxValue = AppPreferences.maximumEditorFontSize
         fontSizeStepper.increment = 1
 
-        [fontSizeField, fontSizeStepper, wrapsLinesButton, searchMatchCaseButton, searchWholeWordButton].forEach {
+        tabSizeStepper.minValue = 1
+        tabSizeStepper.maxValue = 8
+        tabSizeStepper.increment = 1
+
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, backupOnSaveButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
+        autoCompleteStepper.minValue = 0
+        autoCompleteStepper.maxValue = 20
+        autoCompleteStepper.increment = 1
+        autoCompleteField.formatter = integerFormatter
+        largeFileMBStepper.minValue = Double(AppPreferences.minimumLargeFileMB)
+        largeFileMBStepper.maxValue = Double(AppPreferences.maximumLargeFileMB)
+        largeFileMBStepper.increment = 10
+        largeFileMBField.formatter = integerFormatter
+        caretWidthSegmented.segmentCount = 3
+        caretWidthSegmented.setLabel("Thin", forSegment: 0)
+        caretWidthSegmented.setLabel("Medium", forSegment: 1)
+        caretWidthSegmented.setLabel("Thick", forSegment: 2)
+        caretWidthSegmented.trackingMode = .selectOne
+
+        currentLineFrameSegmented.segmentCount = 4
+        currentLineFrameSegmented.setLabel("Fill", forSegment: 0)
+        currentLineFrameSegmented.setLabel("1px", forSegment: 1)
+        currentLineFrameSegmented.setLabel("2px", forSegment: 2)
+        currentLineFrameSegmented.setLabel("3px", forSegment: 3)
+        currentLineFrameSegmented.trackingMode = .selectOne
+
+        lineWrapIndentPopup.removeAllItems()
+        lineWrapIndentPopup.addItems(withTitles: ["Fixed", "Same indent", "Indent", "Deep indent"])
+
+        foldMarginStylePopup.removeAllItems()
+        foldMarginStylePopup.addItems(withTitles: ["Simple arrows", "Box tree", "Circle tree"])
+
+        linePaddingSegmented.segmentCount = 6
+        for i in 0...5 { linePaddingSegmented.setLabel("\(i)px", forSegment: i) }
+        linePaddingSegmented.trackingMode = .selectOne
+
+        recentFilesMaxField.formatter = integerFormatter
+        recentFilesMaxStepper.minValue = 1
+        recentFilesMaxStepper.maxValue = 50
+        recentFilesMaxStepper.increment = 1
 
         fontSizeField.formatter = integerFormatter
-        fontSizeField.setAccessibilityLabel(Localization.string(.preferencesFontSizeFieldAccessibilityLabel))
-        fontSizeStepper.setAccessibilityLabel(Localization.string(.preferencesFontSizeStepperAccessibilityLabel))
+        tabSizeField.formatter = tabSizeFormatter
 
-        [editorLabel, fontSizeLabel, fontSizeField, fontSizeStepper, wrapsLinesButton, searchLabel, searchMatchCaseButton, searchWholeWordButton].forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-            contentView.addSubview($0)
+        // Tab 1 – Editor
+        [editorSectionLabel, fontSizeLabel, fontSizeField, fontSizeStepper,
+         wrapsLinesButton, tabSizeLabel, tabSizeField, tabSizeStepper, insertSpacesButton,
+         editorFeaturesSectionLabel,
+         autoPairButton, xmlTagMatchButton, clickableLinksButton,
+         smartHighlightMatchCaseButton, smartHighlightWholeWordButton,
+         caretWidthLabel, caretWidthSegmented, caretNoBlinkButton,
+         currentLineFrameLabel, currentLineFrameSegmented,
+         lineWrapIndentLabel, lineWrapIndentPopup,
+         foldMarginStyleLabel, foldMarginStylePopup,
+         virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton,
+         linePaddingLabel, linePaddingSegmented,
+         autoCompleteLabel, autoCompleteField, autoCompleteStepper,
+         largeFileSectionLabel, largeFileMBLabel, largeFileMBField, largeFileMBStepper,
+         additionalEdgeColumnsLabel, additionalEdgeColumnsField
+        ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; editCV.addSubview($0) }
+
+        // Tab 2 – Session & Files
+        [newDocumentSectionLabel, newDocEncodingLabel, newDocEncodingPopup,
+         newDocLineEndingLabel, newDocLineEndingPopup,
+         rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton,
+         recentFilesMaxLabel, recentFilesMaxField, recentFilesMaxStepper,
+         recentFilesShowFullPathButton, noCheckRecentAtLaunchButton,
+         keepAbsentFilesButton, autoReloadButton, backupOnSaveButton,
+         openDirFollowsDocButton, folderDropAsWorkspaceButton,
+         defaultLangLabel, defaultLangPopup
+        ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; sessionCV.addSubview($0) }
+
+        // Tab 3 – Find & Tools
+        [findDefaultsSectionLabel, searchMatchCaseButton, searchWholeWordButton,
+         dateTimeSectionLabel, dateTimeFormatLabel, dateTimeFormatField,
+         searchEngineSectionLabel, searchEngineChoiceLabel, searchEnginePopup,
+         searchEngineCustomURLLabel, searchEngineCustomURLField,
+         extraURLSchemesLabel, extraURLSchemesField,
+         localizationSectionLabel, localizationChoiceLabel, localizationPopup
+        ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; toolsCV.addSubview($0) }
+
+        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel].forEach {
+            $0.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
         }
+        // Convenience anchors for tabs 2 and 3
+        let lead: CGFloat = 18
+        let indent: CGFloat = 18 + 80 + 12  // matches fontSizeField.leadingAnchor in tab1
 
-        editorLabel.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        searchLabel.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-
+        // ── Tab 1: Editor ──────────────────────────────────────
         NSLayoutConstraint.activate([
-            editorLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 18),
-            editorLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            editorSectionLabel.leadingAnchor.constraint(equalTo: editCV.leadingAnchor, constant: lead),
+            editorSectionLabel.topAnchor.constraint(equalTo: editCV.topAnchor, constant: 20),
 
-            fontSizeLabel.leadingAnchor.constraint(equalTo: editorLabel.leadingAnchor),
-            fontSizeLabel.topAnchor.constraint(equalTo: editorLabel.bottomAnchor, constant: 14),
+            fontSizeLabel.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            fontSizeLabel.topAnchor.constraint(equalTo: editorSectionLabel.bottomAnchor, constant: 14),
             fontSizeLabel.widthAnchor.constraint(equalToConstant: 80),
 
             fontSizeField.leadingAnchor.constraint(equalTo: fontSizeLabel.trailingAnchor, constant: 12),
@@ -111,14 +386,256 @@ final class PreferencesPanelController: NSWindowController {
             wrapsLinesButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             wrapsLinesButton.topAnchor.constraint(equalTo: fontSizeField.bottomAnchor, constant: 14),
 
-            searchLabel.leadingAnchor.constraint(equalTo: editorLabel.leadingAnchor),
-            searchLabel.topAnchor.constraint(equalTo: wrapsLinesButton.bottomAnchor, constant: 20),
+            tabSizeLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            tabSizeLabel.topAnchor.constraint(equalTo: wrapsLinesButton.bottomAnchor, constant: 14),
+            tabSizeLabel.widthAnchor.constraint(equalToConstant: 80),
 
-            searchMatchCaseButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
-            searchMatchCaseButton.centerYAnchor.constraint(equalTo: searchLabel.centerYAnchor),
+            tabSizeField.leadingAnchor.constraint(equalTo: tabSizeLabel.trailingAnchor, constant: 12),
+            tabSizeField.centerYAnchor.constraint(equalTo: tabSizeLabel.centerYAnchor),
+            tabSizeField.widthAnchor.constraint(equalToConstant: 58),
+
+            tabSizeStepper.leadingAnchor.constraint(equalTo: tabSizeField.trailingAnchor, constant: 8),
+            tabSizeStepper.centerYAnchor.constraint(equalTo: tabSizeField.centerYAnchor),
+
+            insertSpacesButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            insertSpacesButton.topAnchor.constraint(equalTo: tabSizeLabel.bottomAnchor, constant: 14),
+
+            editorFeaturesSectionLabel.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            editorFeaturesSectionLabel.topAnchor.constraint(equalTo: insertSpacesButton.bottomAnchor, constant: 20),
+
+            autoPairButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            autoPairButton.topAnchor.constraint(equalTo: editorFeaturesSectionLabel.bottomAnchor, constant: 14),
+
+            xmlTagMatchButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            xmlTagMatchButton.topAnchor.constraint(equalTo: autoPairButton.bottomAnchor, constant: 10),
+
+            clickableLinksButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            clickableLinksButton.topAnchor.constraint(equalTo: xmlTagMatchButton.bottomAnchor, constant: 10),
+
+            smartHighlightMatchCaseButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            smartHighlightMatchCaseButton.topAnchor.constraint(equalTo: clickableLinksButton.bottomAnchor, constant: 10),
+
+            smartHighlightWholeWordButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            smartHighlightWholeWordButton.topAnchor.constraint(equalTo: smartHighlightMatchCaseButton.bottomAnchor, constant: 10),
+
+            caretWidthLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            caretWidthLabel.topAnchor.constraint(equalTo: smartHighlightWholeWordButton.bottomAnchor, constant: 14),
+            caretWidthLabel.widthAnchor.constraint(equalToConstant: 92),
+
+            caretWidthSegmented.leadingAnchor.constraint(equalTo: caretWidthLabel.trailingAnchor, constant: 12),
+            caretWidthSegmented.centerYAnchor.constraint(equalTo: caretWidthLabel.centerYAnchor),
+
+            caretNoBlinkButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            caretNoBlinkButton.topAnchor.constraint(equalTo: caretWidthLabel.bottomAnchor, constant: 10),
+
+            currentLineFrameLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            currentLineFrameLabel.topAnchor.constraint(equalTo: caretNoBlinkButton.bottomAnchor, constant: 10),
+            currentLineFrameLabel.widthAnchor.constraint(equalToConstant: 140),
+
+            currentLineFrameSegmented.leadingAnchor.constraint(equalTo: currentLineFrameLabel.trailingAnchor, constant: 8),
+            currentLineFrameSegmented.centerYAnchor.constraint(equalTo: currentLineFrameLabel.centerYAnchor),
+
+            lineWrapIndentLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            lineWrapIndentLabel.topAnchor.constraint(equalTo: currentLineFrameLabel.bottomAnchor, constant: 10),
+            lineWrapIndentLabel.widthAnchor.constraint(equalToConstant: 140),
+
+            lineWrapIndentPopup.leadingAnchor.constraint(equalTo: lineWrapIndentLabel.trailingAnchor, constant: 8),
+            lineWrapIndentPopup.centerYAnchor.constraint(equalTo: lineWrapIndentLabel.centerYAnchor),
+
+            foldMarginStyleLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            foldMarginStyleLabel.topAnchor.constraint(equalTo: lineWrapIndentLabel.bottomAnchor, constant: 10),
+            foldMarginStyleLabel.widthAnchor.constraint(equalToConstant: 140),
+
+            foldMarginStylePopup.leadingAnchor.constraint(equalTo: foldMarginStyleLabel.trailingAnchor, constant: 8),
+            foldMarginStylePopup.centerYAnchor.constraint(equalTo: foldMarginStyleLabel.centerYAnchor),
+
+            virtualSpaceButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            virtualSpaceButton.topAnchor.constraint(equalTo: foldMarginStyleLabel.bottomAnchor, constant: 10),
+
+            backspaceUnindentsButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            backspaceUnindentsButton.topAnchor.constraint(equalTo: virtualSpaceButton.bottomAnchor, constant: 10),
+
+            autoIndentButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            autoIndentButton.topAnchor.constraint(equalTo: backspaceUnindentsButton.bottomAnchor, constant: 10),
+
+            scrollBeyondLastLineButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            scrollBeyondLastLineButton.topAnchor.constraint(equalTo: autoIndentButton.bottomAnchor, constant: 10),
+
+            linePaddingLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            linePaddingLabel.topAnchor.constraint(equalTo: scrollBeyondLastLineButton.bottomAnchor, constant: 14),
+
+            linePaddingSegmented.leadingAnchor.constraint(equalTo: linePaddingLabel.trailingAnchor, constant: 12),
+            linePaddingSegmented.centerYAnchor.constraint(equalTo: linePaddingLabel.centerYAnchor),
+
+            autoCompleteLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            autoCompleteLabel.topAnchor.constraint(equalTo: linePaddingLabel.bottomAnchor, constant: 14),
+
+            autoCompleteField.leadingAnchor.constraint(equalTo: autoCompleteLabel.trailingAnchor, constant: 12),
+            autoCompleteField.centerYAnchor.constraint(equalTo: autoCompleteLabel.centerYAnchor),
+            autoCompleteField.widthAnchor.constraint(equalToConstant: 50),
+
+            autoCompleteStepper.leadingAnchor.constraint(equalTo: autoCompleteField.trailingAnchor, constant: 8),
+            autoCompleteStepper.centerYAnchor.constraint(equalTo: autoCompleteField.centerYAnchor),
+
+            largeFileSectionLabel.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            largeFileSectionLabel.topAnchor.constraint(equalTo: autoCompleteLabel.bottomAnchor, constant: 20),
+
+            largeFileMBLabel.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            largeFileMBLabel.topAnchor.constraint(equalTo: largeFileSectionLabel.bottomAnchor, constant: 14),
+            largeFileMBLabel.widthAnchor.constraint(equalToConstant: 180),
+
+            largeFileMBField.leadingAnchor.constraint(equalTo: largeFileMBLabel.trailingAnchor, constant: 12),
+            largeFileMBField.centerYAnchor.constraint(equalTo: largeFileMBLabel.centerYAnchor),
+            largeFileMBField.widthAnchor.constraint(equalToConstant: 58),
+
+            largeFileMBStepper.leadingAnchor.constraint(equalTo: largeFileMBField.trailingAnchor, constant: 8),
+            largeFileMBStepper.centerYAnchor.constraint(equalTo: largeFileMBField.centerYAnchor),
+
+            additionalEdgeColumnsLabel.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            additionalEdgeColumnsLabel.topAnchor.constraint(equalTo: largeFileMBLabel.bottomAnchor, constant: 14),
+            additionalEdgeColumnsLabel.widthAnchor.constraint(equalToConstant: 200),
+
+            additionalEdgeColumnsField.leadingAnchor.constraint(equalTo: additionalEdgeColumnsLabel.trailingAnchor, constant: 8),
+            additionalEdgeColumnsField.centerYAnchor.constraint(equalTo: additionalEdgeColumnsLabel.centerYAnchor),
+            additionalEdgeColumnsField.widthAnchor.constraint(equalToConstant: 100),
+
+            // Pin Tab1 content bottom
+            editCV.bottomAnchor.constraint(equalTo: additionalEdgeColumnsLabel.bottomAnchor, constant: 24)
+        ])
+
+        // ── Tab 2: Session & Files ──────────────────────────────
+        NSLayoutConstraint.activate([
+            newDocumentSectionLabel.leadingAnchor.constraint(equalTo: sessionCV.leadingAnchor, constant: lead),
+            newDocumentSectionLabel.topAnchor.constraint(equalTo: sessionCV.topAnchor, constant: 20),
+
+            newDocEncodingLabel.leadingAnchor.constraint(equalTo: newDocumentSectionLabel.leadingAnchor),
+            newDocEncodingLabel.topAnchor.constraint(equalTo: newDocumentSectionLabel.bottomAnchor, constant: 14),
+            newDocEncodingLabel.widthAnchor.constraint(equalToConstant: 92),
+
+            newDocEncodingPopup.leadingAnchor.constraint(equalTo: newDocEncodingLabel.trailingAnchor, constant: 12),
+            newDocEncodingPopup.centerYAnchor.constraint(equalTo: newDocEncodingLabel.centerYAnchor),
+            newDocEncodingPopup.trailingAnchor.constraint(equalTo: sessionCV.trailingAnchor, constant: -18),
+
+            newDocLineEndingLabel.leadingAnchor.constraint(equalTo: newDocumentSectionLabel.leadingAnchor),
+            newDocLineEndingLabel.topAnchor.constraint(equalTo: newDocEncodingLabel.bottomAnchor, constant: 14),
+            newDocLineEndingLabel.widthAnchor.constraint(equalToConstant: 92),
+
+            newDocLineEndingPopup.leadingAnchor.constraint(equalTo: newDocLineEndingLabel.trailingAnchor, constant: 12),
+            newDocLineEndingPopup.centerYAnchor.constraint(equalTo: newDocLineEndingLabel.centerYAnchor),
+            newDocLineEndingPopup.trailingAnchor.constraint(equalTo: sessionCV.trailingAnchor, constant: -18),
+
+            rememberSessionButton.leadingAnchor.constraint(equalTo: sessionCV.leadingAnchor, constant: indent),
+            rememberSessionButton.topAnchor.constraint(equalTo: newDocLineEndingLabel.bottomAnchor, constant: 10),
+
+            newDocumentOnLaunchButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            newDocumentOnLaunchButton.topAnchor.constraint(equalTo: rememberSessionButton.bottomAnchor, constant: 10),
+
+            useFirstLineAsTabNameButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            useFirstLineAsTabNameButton.topAnchor.constraint(equalTo: newDocumentOnLaunchButton.bottomAnchor, constant: 10),
+
+            recentFilesMaxLabel.leadingAnchor.constraint(equalTo: newDocumentSectionLabel.leadingAnchor),
+            recentFilesMaxLabel.topAnchor.constraint(equalTo: useFirstLineAsTabNameButton.bottomAnchor, constant: 10),
+            recentFilesMaxLabel.widthAnchor.constraint(equalToConstant: 120),
+
+            recentFilesMaxField.leadingAnchor.constraint(equalTo: recentFilesMaxLabel.trailingAnchor, constant: 8),
+            recentFilesMaxField.centerYAnchor.constraint(equalTo: recentFilesMaxLabel.centerYAnchor),
+            recentFilesMaxField.widthAnchor.constraint(equalToConstant: 50),
+
+            recentFilesMaxStepper.leadingAnchor.constraint(equalTo: recentFilesMaxField.trailingAnchor, constant: 6),
+            recentFilesMaxStepper.centerYAnchor.constraint(equalTo: recentFilesMaxField.centerYAnchor),
+
+            recentFilesShowFullPathButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            recentFilesShowFullPathButton.topAnchor.constraint(equalTo: recentFilesMaxLabel.bottomAnchor, constant: 10),
+
+            noCheckRecentAtLaunchButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            noCheckRecentAtLaunchButton.topAnchor.constraint(equalTo: recentFilesShowFullPathButton.bottomAnchor, constant: 10),
+
+            keepAbsentFilesButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            keepAbsentFilesButton.topAnchor.constraint(equalTo: noCheckRecentAtLaunchButton.bottomAnchor, constant: 10),
+
+            autoReloadButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            autoReloadButton.topAnchor.constraint(equalTo: keepAbsentFilesButton.bottomAnchor, constant: 10),
+
+            backupOnSaveButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            backupOnSaveButton.topAnchor.constraint(equalTo: autoReloadButton.bottomAnchor, constant: 10),
+
+            openDirFollowsDocButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            openDirFollowsDocButton.topAnchor.constraint(equalTo: backupOnSaveButton.bottomAnchor, constant: 10),
+
+            folderDropAsWorkspaceButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            folderDropAsWorkspaceButton.topAnchor.constraint(equalTo: openDirFollowsDocButton.bottomAnchor, constant: 10),
+
+            defaultLangLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            defaultLangLabel.topAnchor.constraint(equalTo: folderDropAsWorkspaceButton.bottomAnchor, constant: 14),
+
+            defaultLangPopup.leadingAnchor.constraint(equalTo: defaultLangLabel.trailingAnchor, constant: 10),
+            defaultLangPopup.centerYAnchor.constraint(equalTo: defaultLangLabel.centerYAnchor),
+            defaultLangPopup.widthAnchor.constraint(equalToConstant: 160),
+
+            sessionCV.bottomAnchor.constraint(equalTo: defaultLangLabel.bottomAnchor, constant: 24)
+        ])
+
+        // ── Tab 3: Find & Tools ────────────────────────────────
+        NSLayoutConstraint.activate([
+            findDefaultsSectionLabel.leadingAnchor.constraint(equalTo: toolsCV.leadingAnchor, constant: lead),
+            findDefaultsSectionLabel.topAnchor.constraint(equalTo: toolsCV.topAnchor, constant: 20),
+
+            searchMatchCaseButton.leadingAnchor.constraint(equalTo: toolsCV.leadingAnchor, constant: indent),
+            searchMatchCaseButton.centerYAnchor.constraint(equalTo: findDefaultsSectionLabel.centerYAnchor),
 
             searchWholeWordButton.leadingAnchor.constraint(equalTo: searchMatchCaseButton.trailingAnchor, constant: 20),
-            searchWholeWordButton.centerYAnchor.constraint(equalTo: searchMatchCaseButton.centerYAnchor)
+            searchWholeWordButton.centerYAnchor.constraint(equalTo: searchMatchCaseButton.centerYAnchor),
+
+            dateTimeSectionLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            dateTimeSectionLabel.topAnchor.constraint(equalTo: findDefaultsSectionLabel.bottomAnchor, constant: 20),
+
+            dateTimeFormatLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            dateTimeFormatLabel.topAnchor.constraint(equalTo: dateTimeSectionLabel.bottomAnchor, constant: 14),
+            dateTimeFormatLabel.widthAnchor.constraint(equalToConstant: 92),
+
+            dateTimeFormatField.leadingAnchor.constraint(equalTo: dateTimeFormatLabel.trailingAnchor, constant: 12),
+            dateTimeFormatField.centerYAnchor.constraint(equalTo: dateTimeFormatLabel.centerYAnchor),
+            dateTimeFormatField.trailingAnchor.constraint(equalTo: toolsCV.trailingAnchor, constant: -18),
+
+            searchEngineSectionLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            searchEngineSectionLabel.topAnchor.constraint(equalTo: dateTimeFormatLabel.bottomAnchor, constant: 20),
+
+            searchEngineChoiceLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            searchEngineChoiceLabel.topAnchor.constraint(equalTo: searchEngineSectionLabel.bottomAnchor, constant: 14),
+            searchEngineChoiceLabel.widthAnchor.constraint(equalToConstant: 92),
+
+            searchEnginePopup.leadingAnchor.constraint(equalTo: searchEngineChoiceLabel.trailingAnchor, constant: 12),
+            searchEnginePopup.centerYAnchor.constraint(equalTo: searchEngineChoiceLabel.centerYAnchor),
+            searchEnginePopup.trailingAnchor.constraint(equalTo: toolsCV.trailingAnchor, constant: -18),
+
+            searchEngineCustomURLLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            searchEngineCustomURLLabel.topAnchor.constraint(equalTo: searchEngineChoiceLabel.bottomAnchor, constant: 14),
+            searchEngineCustomURLLabel.widthAnchor.constraint(equalToConstant: 92),
+
+            searchEngineCustomURLField.leadingAnchor.constraint(equalTo: searchEngineCustomURLLabel.trailingAnchor, constant: 12),
+            searchEngineCustomURLField.centerYAnchor.constraint(equalTo: searchEngineCustomURLLabel.centerYAnchor),
+            searchEngineCustomURLField.trailingAnchor.constraint(equalTo: toolsCV.trailingAnchor, constant: -18),
+
+            extraURLSchemesLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            extraURLSchemesLabel.topAnchor.constraint(equalTo: searchEngineCustomURLLabel.bottomAnchor, constant: 14),
+            extraURLSchemesLabel.widthAnchor.constraint(equalToConstant: 160),
+
+            extraURLSchemesField.leadingAnchor.constraint(equalTo: extraURLSchemesLabel.trailingAnchor, constant: 12),
+            extraURLSchemesField.centerYAnchor.constraint(equalTo: extraURLSchemesLabel.centerYAnchor),
+            extraURLSchemesField.trailingAnchor.constraint(equalTo: toolsCV.trailingAnchor, constant: -18),
+
+            localizationSectionLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            localizationSectionLabel.topAnchor.constraint(equalTo: extraURLSchemesLabel.bottomAnchor, constant: 20),
+
+            localizationChoiceLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            localizationChoiceLabel.topAnchor.constraint(equalTo: localizationSectionLabel.bottomAnchor, constant: 14),
+            localizationChoiceLabel.widthAnchor.constraint(equalToConstant: 92),
+
+            localizationPopup.leadingAnchor.constraint(equalTo: localizationChoiceLabel.trailingAnchor, constant: 12),
+            localizationPopup.centerYAnchor.constraint(equalTo: localizationChoiceLabel.centerYAnchor),
+            localizationPopup.trailingAnchor.constraint(equalTo: toolsCV.trailingAnchor, constant: -18),
+
+            toolsCV.bottomAnchor.constraint(equalTo: localizationPopup.bottomAnchor, constant: 24)
         ])
     }
 
@@ -127,8 +644,52 @@ final class PreferencesPanelController: NSWindowController {
         fontSizeField.doubleValue = preferences.editorFontSize
         fontSizeStepper.doubleValue = preferences.editorFontSize
         wrapsLinesButton.state = preferences.wrapsLines ? .on : .off
+        tabSizeField.intValue = Int32(preferences.tabSize)
+        tabSizeStepper.intValue = Int32(preferences.tabSize)
+        insertSpacesButton.state = preferences.insertSpacesInsteadOfTabs ? .on : .off
+        autoPairButton.state = preferences.enableAutoPair ? .on : .off
+        xmlTagMatchButton.state = preferences.enableXmlTagMatch ? .on : .off
+        clickableLinksButton.state = preferences.enableClickableLinks ? .on : .off
+        smartHighlightMatchCaseButton.state = preferences.smartHighlightMatchCase ? .on : .off
+        smartHighlightWholeWordButton.state = preferences.smartHighlightWholeWord ? .on : .off
+        caretWidthSegmented.selectedSegment = max(0, min(2, preferences.caretWidth - 1))
+        caretNoBlinkButton.state = preferences.caretNoBlink ? .on : .off
+        currentLineFrameSegmented.selectedSegment = max(0, min(3, preferences.currentLineFrameWidth))
+        lineWrapIndentPopup.selectItem(at: max(0, min(3, preferences.lineWrapIndent)))
+        foldMarginStylePopup.selectItem(at: max(0, min(2, preferences.foldMarginStyle)))
+        useFirstLineAsTabNameButton.state = preferences.useFirstLineAsTabName ? .on : .off
+        recentFilesMaxField.intValue = Int32(preferences.recentFilesMaxCount)
+        recentFilesMaxStepper.intValue = Int32(preferences.recentFilesMaxCount)
+        recentFilesShowFullPathButton.state = preferences.recentFilesShowFullPath ? .on : .off
+        noCheckRecentAtLaunchButton.state = preferences.noCheckRecentAtLaunch ? .on : .off
+        keepAbsentFilesButton.state = preferences.keepAbsentFilesInSession ? .on : .off
+        autoReloadButton.state = preferences.autoReloadOnExternalChange ? .on : .off
+        backupOnSaveButton.state = preferences.backupOnSave ? .on : .off
+        openDirFollowsDocButton.state = preferences.openDirectoryFollowsDocument ? .on : .off
+        folderDropAsWorkspaceButton.state = preferences.folderDropOpensAsWorkspace ? .on : .off
+        populateDefaultLangPopup(selected: preferences.defaultNewDocumentLanguageName)
+        virtualSpaceButton.state = preferences.enableVirtualSpace ? .on : .off
+        backspaceUnindentsButton.state = preferences.backspaceUnindents ? .on : .off
+        autoIndentButton.state = preferences.autoIndent ? .on : .off
+        scrollBeyondLastLineButton.state = preferences.scrollBeyondLastLine ? .on : .off
+        linePaddingSegmented.selectedSegment = max(0, min(5, preferences.linePadding))
+        autoCompleteField.intValue = Int32(preferences.autoCompleteFromNthChar)
+        autoCompleteStepper.intValue = Int32(preferences.autoCompleteFromNthChar)
+        largeFileMBField.intValue = Int32(preferences.largeFileSizeMB)
+        largeFileMBStepper.intValue = Int32(preferences.largeFileSizeMB)
+        additionalEdgeColumnsField.stringValue = preferences.additionalEdgeColumns
+        selectNewDocEncodingPopup(preferences.defaultNewDocumentEncoding)
+        selectNewDocLineEndingPopup(preferences.defaultNewDocumentLineEnding)
+        rememberSessionButton.state = preferences.rememberLastSession ? .on : .off
+        newDocumentOnLaunchButton.state = preferences.newDocumentOnLaunch ? .on : .off
         searchMatchCaseButton.state = preferences.searchMatchCase ? .on : .off
         searchWholeWordButton.state = preferences.searchWholeWord ? .on : .off
+        dateTimeFormatField.stringValue = preferences.customDateTimeFormat
+        populateLocalizationPopup(selectedFileName: preferences.localizationFileName)
+        selectSearchEngine(preferences.searchEngineChoice)
+        searchEngineCustomURLField.stringValue = preferences.customSearchEngineURL
+        extraURLSchemesField.stringValue = preferences.extraURLSchemes
+        updateSearchEngineFieldState()
     }
 
     private func savePreferences(sender: Any?) {
@@ -138,15 +699,143 @@ final class PreferencesPanelController: NSWindowController {
             fontSizeField.doubleValue = fontSizeStepper.doubleValue
         }
 
+        if sender as? NSTextField === tabSizeField {
+            tabSizeStepper.intValue = tabSizeField.intValue
+        } else if tabSizeStepper.intValue != tabSizeField.intValue {
+            tabSizeField.intValue = tabSizeStepper.intValue
+        }
+
+        if sender as? NSTextField === autoCompleteField {
+            autoCompleteStepper.intValue = autoCompleteField.intValue
+        } else if autoCompleteStepper.intValue != autoCompleteField.intValue {
+            autoCompleteField.intValue = autoCompleteStepper.intValue
+        }
+
+        if sender as? NSTextField === largeFileMBField {
+            largeFileMBStepper.intValue = largeFileMBField.intValue
+        } else if largeFileMBStepper.intValue != largeFileMBField.intValue {
+            largeFileMBField.intValue = largeFileMBStepper.intValue
+        }
+
+        if sender as? NSTextField === recentFilesMaxField {
+            recentFilesMaxStepper.intValue = recentFilesMaxField.intValue
+        } else if recentFilesMaxStepper.intValue != recentFilesMaxField.intValue {
+            recentFilesMaxField.intValue = recentFilesMaxStepper.intValue
+        }
+
+        updateSearchEngineFieldState()
+
+        // Load existing preferences to preserve fields not shown in this panel
+        let existing = preferencesStore.load()
         let preferences = AppPreferences(
             editorFontSize: fontSizeField.doubleValue,
             wrapsLines: wrapsLinesButton.state == .on,
             searchMatchCase: searchMatchCaseButton.state == .on,
-            searchWholeWord: searchWholeWordButton.state == .on
+            searchWholeWord: searchWholeWordButton.state == .on,
+            customDateTimeFormat: dateTimeFormatField.stringValue,
+            searchEngineChoice: selectedSearchEngineChoice,
+            customSearchEngineURL: searchEngineCustomURLField.stringValue,
+            localizationFileName: selectedLocalizationFileName,
+            showWhitespace: existing.showWhitespace,
+            showEOL: existing.showEOL,
+            showIndentGuides: existing.showIndentGuides,
+            highlightCurrentLine: existing.highlightCurrentLine,
+            showWrapSymbol: existing.showWrapSymbol,
+            showChangeHistory: existing.showChangeHistory,
+            tabSize: Int(tabSizeField.intValue),
+            insertSpacesInsteadOfTabs: insertSpacesButton.state == .on,
+            showLineNumberMargin: existing.showLineNumberMargin,
+            showEdgeLine: existing.showEdgeLine,
+            edgeLineColumn: existing.edgeLineColumn,
+            enableAutoPair: autoPairButton.state == .on,
+            enableXmlTagMatch: xmlTagMatchButton.state == .on,
+            enableClickableLinks: clickableLinksButton.state == .on,
+            defaultNewDocumentEncoding: selectedNewDocEncoding,
+            defaultNewDocumentLineEnding: selectedNewDocLineEnding,
+            rememberLastSession: rememberSessionButton.state == .on,
+            showNpcCharacters: existing.showNpcCharacters,
+            smartHighlightMatchCase: smartHighlightMatchCaseButton.state == .on,
+            smartHighlightWholeWord: smartHighlightWholeWordButton.state == .on,
+            caretWidth: caretWidthSegmented.selectedSegment + 1,
+            enableVirtualSpace: virtualSpaceButton.state == .on,
+            backspaceUnindents: backspaceUnindentsButton.state == .on,
+            autoIndent: autoIndentButton.state == .on,
+            largeFileSizeMB: Int(largeFileMBField.intValue),
+            scrollBeyondLastLine: scrollBeyondLastLineButton.state == .on,
+            autoCompleteFromNthChar: Int(autoCompleteField.intValue),
+            caretNoBlink: caretNoBlinkButton.state == .on,
+            currentLineFrameWidth: currentLineFrameSegmented.selectedSegment,
+            lineWrapIndent: lineWrapIndentPopup.indexOfSelectedItem,
+            foldMarginStyle: foldMarginStylePopup.indexOfSelectedItem,
+            useFirstLineAsTabName: useFirstLineAsTabNameButton.state == .on,
+            recentFilesMaxCount: Int(recentFilesMaxField.intValue),
+            recentFilesShowFullPath: recentFilesShowFullPathButton.state == .on,
+            noCheckRecentAtLaunch: noCheckRecentAtLaunchButton.state == .on,
+            keepAbsentFilesInSession: keepAbsentFilesButton.state == .on,
+            autoReloadOnExternalChange: autoReloadButton.state == .on,
+            backupOnSave: backupOnSaveButton.state == .on,
+            additionalEdgeColumns: additionalEdgeColumnsField.stringValue,
+            linePadding: linePaddingSegmented.selectedSegment,
+            openDirectoryFollowsDocument: openDirFollowsDocButton.state == .on,
+            defaultNewDocumentLanguageName: selectedDefaultLangName,
+            folderDropOpensAsWorkspace: folderDropAsWorkspaceButton.state == .on,
+            extraURLSchemes: extraURLSchemesField.stringValue,
+            newDocumentOnLaunch: newDocumentOnLaunchButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()
         onChange(preferences)
+    }
+
+    private func populateLocalizationPopup(selectedFileName: String) {
+        localizationPopup.removeAllItems()
+
+        for option in localizationOptions {
+            localizationPopup.addItem(withTitle: option.displayName)
+            localizationPopup.lastItem?.representedObject = option.fileName
+        }
+
+        if let index = localizationPopup.itemArray.firstIndex(where: {
+            ($0.representedObject as? String)?.caseInsensitiveCompare(selectedFileName) == .orderedSame
+        }) {
+            localizationPopup.selectItem(at: index)
+        } else {
+            localizationPopup.selectItem(at: 0)
+        }
+    }
+
+    private func configureSearchEnginePopup() {
+        searchEnginePopup.removeAllItems()
+        searchEnginePopup.addItem(withTitle: Localization.string(.preferencesSearchEngineCustom))
+        searchEnginePopup.addItem(withTitle: Localization.string(.preferencesSearchEngineDuckDuckGo))
+        searchEnginePopup.addItem(withTitle: Localization.string(.preferencesSearchEngineGoogle))
+        searchEnginePopup.addItem(withTitle: Localization.string(.preferencesSearchEngineBing))
+        searchEnginePopup.addItem(withTitle: Localization.string(.preferencesSearchEngineYahoo))
+        searchEnginePopup.addItem(withTitle: Localization.string(.preferencesSearchEngineStackOverflow))
+    }
+
+    private func selectSearchEngine(_ choice: SearchEngineChoice) {
+        searchEnginePopup.selectItem(at: searchEngineChoices.firstIndex(of: choice) ?? 0)
+    }
+
+    private var selectedSearchEngineChoice: SearchEngineChoice {
+        let index = max(0, searchEnginePopup.indexOfSelectedItem)
+        return searchEngineChoices[min(index, searchEngineChoices.count - 1)]
+    }
+
+    private var selectedLocalizationFileName: String {
+        guard let fileName = localizationPopup.selectedItem?.representedObject as? String else {
+            return AppPreferences.defaultValue.localizationFileName
+        }
+        return fileName
+    }
+
+    private func updateSearchEngineFieldState() {
+        searchEngineCustomURLField.isEnabled = selectedSearchEngineChoice == .custom
+    }
+
+    private var searchEngineChoices: [SearchEngineChoice] {
+        [.custom, .duckDuckGo, .google, .bing, .yahoo, .stackOverflow]
     }
 
     private var integerFormatter: NumberFormatter {
@@ -155,5 +844,78 @@ final class PreferencesPanelController: NSWindowController {
         formatter.minimum = NSNumber(value: AppPreferences.minimumEditorFontSize)
         formatter.maximum = NSNumber(value: AppPreferences.maximumEditorFontSize)
         return formatter
+    }
+
+    private var tabSizeFormatter: NumberFormatter {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .none
+        formatter.minimum = 1
+        formatter.maximum = 8
+        return formatter
+    }
+
+    private func populateNewDocEncodingPopup(selected: String) {
+        newDocEncodingPopup.removeAllItems()
+        for option in TextEncodingOption.allCases {
+            newDocEncodingPopup.addItem(withTitle: option.displayName)
+            newDocEncodingPopup.lastItem?.representedObject = option.rawValue
+        }
+        selectNewDocEncodingPopup(selected)
+    }
+
+    private func selectNewDocEncodingPopup(_ rawValue: String) {
+        if let index = newDocEncodingPopup.itemArray.firstIndex(where: {
+            $0.representedObject as? String == rawValue
+        }) {
+            newDocEncodingPopup.selectItem(at: index)
+        } else {
+            newDocEncodingPopup.selectItem(at: 0)
+        }
+    }
+
+    private var selectedNewDocEncoding: String {
+        newDocEncodingPopup.selectedItem?.representedObject as? String ?? "utf8"
+    }
+
+    private func populateNewDocLineEndingPopup(selected: String) {
+        newDocLineEndingPopup.removeAllItems()
+        for lineEnding in LineEnding.allCases {
+            newDocLineEndingPopup.addItem(withTitle: lineEnding.displayName)
+            newDocLineEndingPopup.lastItem?.representedObject = lineEnding.rawValue
+        }
+        selectNewDocLineEndingPopup(selected)
+    }
+
+    private func selectNewDocLineEndingPopup(_ rawValue: String) {
+        if let index = newDocLineEndingPopup.itemArray.firstIndex(where: {
+            $0.representedObject as? String == rawValue
+        }) {
+            newDocLineEndingPopup.selectItem(at: index)
+        } else {
+            newDocLineEndingPopup.selectItem(at: 0)
+        }
+    }
+
+    private func populateDefaultLangPopup(selected: String) {
+        defaultLangPopup.removeAllItems()
+        defaultLangPopup.addItem(withTitle: Localization.string(.preferencesDefaultLanguageNone, default: "(Normal Text)"))
+        defaultLangPopup.lastItem?.representedObject = ""
+        for entry in languageEntries {
+            defaultLangPopup.addItem(withTitle: entry.displayName)
+            defaultLangPopup.lastItem?.representedObject = entry.name
+        }
+        if let index = defaultLangPopup.itemArray.firstIndex(where: { $0.representedObject as? String == selected }) {
+            defaultLangPopup.selectItem(at: index)
+        } else {
+            defaultLangPopup.selectItem(at: 0)
+        }
+    }
+
+    private var selectedDefaultLangName: String {
+        defaultLangPopup.selectedItem?.representedObject as? String ?? ""
+    }
+
+    private var selectedNewDocLineEnding: String {
+        newDocLineEndingPopup.selectedItem?.representedObject as? String ?? "lf"
     }
 }

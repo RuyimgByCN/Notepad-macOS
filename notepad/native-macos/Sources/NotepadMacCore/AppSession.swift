@@ -1,5 +1,16 @@
 import Foundation
 
+public struct SessionCaretRecord: Codable, Equatable, Sendable {
+    public let identity: EditorTabIdentity
+    /// UTF-16 offset of the caret/insertion point.
+    public let caretLocation: Int
+
+    public init(identity: EditorTabIdentity, caretLocation: Int) {
+        self.identity = identity.normalized
+        self.caretLocation = caretLocation
+    }
+}
+
 public struct SessionBookmarkRecord: Codable, Equatable, Sendable {
     public let identity: EditorTabIdentity
     public let bookmarks: BookmarkSet
@@ -29,6 +40,18 @@ public struct SessionSnapshotFileFallback: Equatable, Sendable {
     }
 }
 
+public struct SessionTabStateRecord: Codable, Equatable, Sendable {
+    public let identity: EditorTabIdentity
+    public let isPinned: Bool
+    public let tabColorIndex: Int?
+
+    public init(identity: EditorTabIdentity, isPinned: Bool, tabColorIndex: Int?) {
+        self.identity = identity.normalized
+        self.isPinned = isPinned
+        self.tabColorIndex = tabColorIndex
+    }
+}
+
 public struct AppSession: Codable, Equatable, Sendable {
     public static let empty = AppSession(openFiles: [], activeFile: nil)
 
@@ -38,6 +61,8 @@ public struct AppSession: Codable, Equatable, Sendable {
     public let activeSnapshotID: String?
     public let bookmarks: [SessionBookmarkRecord]
     public let folds: [SessionFoldRecord]
+    public let tabStates: [SessionTabStateRecord]
+    public let caretPositions: [SessionCaretRecord]
 
     public init(
         openFiles: [URL],
@@ -45,7 +70,9 @@ public struct AppSession: Codable, Equatable, Sendable {
         snapshots: [DocumentSnapshot] = [],
         activeSnapshotID: String? = nil,
         bookmarks: [SessionBookmarkRecord] = [],
-        folds: [SessionFoldRecord] = []
+        folds: [SessionFoldRecord] = [],
+        tabStates: [SessionTabStateRecord] = [],
+        caretPositions: [SessionCaretRecord] = []
     ) {
         var seen: Set<URL> = []
         let standardizedOpenFiles = openFiles.compactMap { url -> URL? in
@@ -92,6 +119,8 @@ public struct AppSession: Codable, Equatable, Sendable {
         self.activeSnapshotID = normalizedActiveSnapshotID ?? (standardizedOpenFiles.isEmpty ? normalizedSnapshots.first?.id : nil)
         self.bookmarks = normalizedBookmarks
         self.folds = normalizedFolds
+        self.tabStates = tabStates.filter { validTabIdentities.contains($0.identity) }
+        self.caretPositions = caretPositions.filter { validTabIdentities.contains($0.identity) }
 
         guard let first = standardizedOpenFiles.first else {
             self.activeFile = nil
@@ -113,6 +142,14 @@ public struct AppSession: Codable, Equatable, Sendable {
 
     public func foldState(for identity: EditorTabIdentity) -> FoldState {
         folds.first { $0.identity == identity.normalized }?.folds ?? FoldState()
+    }
+
+    public func tabState(for identity: EditorTabIdentity) -> SessionTabStateRecord? {
+        tabStates.first { $0.identity == identity.normalized }
+    }
+
+    public func caretLocation(for identity: EditorTabIdentity) -> Int? {
+        caretPositions.first { $0.identity == identity.normalized }?.caretLocation
     }
 
     public func snapshotFileFallbacks(missingSnapshotIDs: Set<String>) -> [SessionSnapshotFileFallback] {

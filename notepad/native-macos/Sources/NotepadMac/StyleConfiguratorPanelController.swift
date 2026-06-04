@@ -9,6 +9,12 @@ final class StyleConfiguratorPanelController: NSWindowController {
 
     private var preferences: StylePreferences
     private var isLoadingControls = false
+    private let languageLabel = NSTextField(labelWithString: "")
+    private let styleLabel = NSTextField(labelWithString: "")
+    private let foregroundLabel = NSTextField(labelWithString: "")
+    private let backgroundLabel = NSTextField(labelWithString: "")
+    private let fontLabel = NSTextField(labelWithString: "")
+    private let sizeLabel = NSTextField(labelWithString: "")
 
     private let languagePopup = NSPopUpButton()
     private let stylePopup = NSPopUpButton()
@@ -32,7 +38,6 @@ final class StyleConfiguratorPanelController: NSWindowController {
         target: nil,
         action: nil
     )
-
     init(
         styleCatalog: StyleCatalog,
         preferencesStore: StylePreferencesStore,
@@ -49,14 +54,24 @@ final class StyleConfiguratorPanelController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        panel.title = Localization.string(.styleConfiguratorPanelTitle, default: "Style Configurator")
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
 
         super.init(window: panel)
         configureContent()
+        refreshLocalizedStrings()
         populateLanguages()
         loadSelectedStyle()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(localizationDidChange(_:)),
+            name: Localization.localizationDidChangeNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     @available(*, unavailable)
@@ -77,6 +92,53 @@ final class StyleConfiguratorPanelController: NSWindowController {
         self.styleCatalog = styleCatalog
         populateLanguages()
         loadSelectedStyle()
+    }
+
+    @objc private func localizationDidChange(_ notification: Notification) {
+        refreshLocalizedStrings()
+    }
+
+    private func refreshLocalizedStrings() {
+        window?.title = Localization.string(.styleConfiguratorPanelTitle, default: "Style Configurator")
+        languageLabel.stringValue = Localization.string(.styleConfiguratorLanguage, default: "Language")
+        styleLabel.stringValue = Localization.string(.styleConfiguratorStyle, default: "Style")
+        foregroundLabel.stringValue = Localization.string(.styleConfiguratorForeground, default: "Foreground")
+        backgroundLabel.stringValue = Localization.string(.styleConfiguratorBackground, default: "Background")
+        fontLabel.stringValue = Localization.string(.styleConfiguratorFont, default: "Font")
+        sizeLabel.stringValue = Localization.string(.styleConfiguratorSize, default: "Size")
+        boldButton.title = Localization.string(.styleConfiguratorBold, default: "Bold")
+        italicButton.title = Localization.string(.styleConfiguratorItalic, default: "Italic")
+        resetButton.title = Localization.string(.styleConfiguratorResetStyle, default: "Reset Style")
+        languagePopup.setAccessibilityLabel(
+            Localization.string(.styleConfiguratorLanguagePopupAccessibilityLabel, default: "Language selector")
+        )
+        stylePopup.setAccessibilityLabel(
+            Localization.string(.styleConfiguratorStylePopupAccessibilityLabel, default: "Style selector")
+        )
+        foregroundWell.setAccessibilityLabel(
+            Localization.string(.styleConfiguratorForegroundAccessibilityLabel, default: "Foreground color")
+        )
+        backgroundWell.setAccessibilityLabel(
+            Localization.string(.styleConfiguratorBackgroundAccessibilityLabel, default: "Background color")
+        )
+        fontNameField.setAccessibilityLabel(
+            Localization.string(.styleConfiguratorFontNameAccessibilityLabel, default: "Font name")
+        )
+        fontSizeField.setAccessibilityLabel(
+            Localization.string(.styleConfiguratorFontSizeFieldAccessibilityLabel, default: "Font size")
+        )
+        fontSizeStepper.setAccessibilityLabel(
+            Localization.string(.styleConfiguratorFontSizeStepperAccessibilityLabel, default: "Font size stepper")
+        )
+        boldButton.setAccessibilityLabel(
+            Localization.string(.styleConfiguratorBoldAccessibilityLabel, default: "Bold style")
+        )
+        italicButton.setAccessibilityLabel(
+            Localization.string(.styleConfiguratorItalicAccessibilityLabel, default: "Italic style")
+        )
+        resetButton.setAccessibilityLabel(
+            Localization.string(.styleConfiguratorResetAccessibilityLabel, default: "Reset selected style")
+        )
     }
 
     @objc private func languageChanged(_ sender: Any?) {
@@ -103,51 +165,15 @@ final class StyleConfiguratorPanelController: NSWindowController {
     private func configureContent() {
         guard let contentView = window?.contentView else { return }
 
-        let languageLabel = NSTextField(labelWithString: Localization.string(.styleConfiguratorLanguage, default: "Language"))
-        let styleLabel = NSTextField(labelWithString: Localization.string(.styleConfiguratorStyle, default: "Style"))
-        let foregroundLabel = NSTextField(labelWithString: Localization.string(.styleConfiguratorForeground, default: "Foreground"))
-        let backgroundLabel = NSTextField(labelWithString: Localization.string(.styleConfiguratorBackground, default: "Background"))
-        let fontLabel = NSTextField(labelWithString: Localization.string(.styleConfiguratorFont, default: "Font"))
-        let sizeLabel = NSTextField(labelWithString: Localization.string(.styleConfiguratorSize, default: "Size"))
-
         languagePopup.target = self
         languagePopup.action = #selector(languageChanged(_:))
-        languagePopup.setAccessibilityLabel(
-            Localization.string(.styleConfiguratorLanguagePopupAccessibilityLabel, default: "Language selector")
-        )
         stylePopup.target = self
         stylePopup.action = #selector(styleChanged(_:))
-        stylePopup.setAccessibilityLabel(
-            Localization.string(.styleConfiguratorStylePopupAccessibilityLabel, default: "Style selector")
-        )
-
-        foregroundWell.setAccessibilityLabel(
-            Localization.string(.styleConfiguratorForegroundAccessibilityLabel, default: "Foreground color")
-        )
-        backgroundWell.setAccessibilityLabel(
-            Localization.string(.styleConfiguratorBackgroundAccessibilityLabel, default: "Background color")
-        )
-        fontNameField.setAccessibilityLabel(
-            Localization.string(.styleConfiguratorFontNameAccessibilityLabel, default: "Font name")
-        )
 
         fontSizeField.formatter = integerFormatter
-        fontSizeField.setAccessibilityLabel(
-            Localization.string(.styleConfiguratorFontSizeFieldAccessibilityLabel, default: "Font size")
-        )
         fontSizeStepper.minValue = 6
         fontSizeStepper.maxValue = 48
         fontSizeStepper.increment = 1
-        fontSizeStepper.setAccessibilityLabel(
-            Localization.string(.styleConfiguratorFontSizeStepperAccessibilityLabel, default: "Font size stepper")
-        )
-
-        boldButton.setAccessibilityLabel(
-            Localization.string(.styleConfiguratorBoldAccessibilityLabel, default: "Bold style")
-        )
-        italicButton.setAccessibilityLabel(
-            Localization.string(.styleConfiguratorItalicAccessibilityLabel, default: "Italic style")
-        )
 
         [foregroundWell, backgroundWell, fontNameField, fontSizeField, fontSizeStepper, boldButton, italicButton].forEach {
             $0.target = self
@@ -156,9 +182,6 @@ final class StyleConfiguratorPanelController: NSWindowController {
 
         resetButton.target = self
         resetButton.action = #selector(resetSelectedStyle(_:))
-        resetButton.setAccessibilityLabel(
-            Localization.string(.styleConfiguratorResetAccessibilityLabel, default: "Reset selected style")
-        )
 
         [
             languageLabel,

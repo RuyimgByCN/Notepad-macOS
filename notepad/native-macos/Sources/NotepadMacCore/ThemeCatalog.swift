@@ -62,6 +62,12 @@ public struct ThemeCatalog: Equatable, Sendable {
         (try? scan()) ?? ThemeCatalog(themes: [])
     }
 
+    public static var userThemesDirectory: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(filePath: NSHomeDirectory()).appending(path: "Library/Application Support")
+        return appSupport.appending(path: "NotepadMac/themes")
+    }
+
     public static func defaultThemeDirectories() -> [URL] {
         let sourceURL = URL(filePath: #filePath)
         let projectRoot = sourceURL
@@ -71,6 +77,8 @@ public struct ThemeCatalog: Equatable, Sendable {
             .deletingLastPathComponent()
 
         var urls: [URL] = []
+        // User themes take highest precedence
+        urls.append(userThemesDirectory)
         if let resourceURL = Bundle.main.resourceURL {
             urls.append(resourceURL.appending(path: "themes"))
         }

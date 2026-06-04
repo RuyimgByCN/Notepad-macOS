@@ -77,6 +77,9 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
     private let onChange: () -> Void
     private let tableView = NSTableView()
     private let statusField = NSTextField(labelWithString: "")
+    private let nameColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
+    private let extensionsColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("extensions"))
+    private let keywordsColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("keywords"))
     private let importButton = NSButton(
         title: Localization.string(.udlImport, default: "Import..."),
         target: nil,
@@ -114,6 +117,13 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
 
         super.init(window: panel)
         configureContent()
+        refreshLocalizedStrings()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(localizationDidChange(_:)),
+            name: Localization.localizationDidChangeNotification,
+            object: nil
+        )
     }
 
     @available(*, unavailable)
@@ -121,7 +131,12 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         fatalError("init(coder:) is not supported")
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     func show() {
+        refreshLocalizedStrings()
         reload()
         showWindow(nil)
         window?.center()
@@ -152,6 +167,12 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         updateControls()
     }
 
+    @objc private func localizationDidChange(_ notification: Notification) {
+        let selectedLanguageName = selectedLanguage()?.name
+        refreshLocalizedStrings()
+        reload(selecting: selectedLanguageName)
+    }
+
     private func configureContent() {
         guard let contentView = window?.contentView else { return }
 
@@ -167,21 +188,12 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         tableView.dataSource = self
         tableView.delegate = self
         tableView.setAccessibilityLabel(Localization.string(.udlTableAccessibilityLabel, default: "User-defined languages"))
-        tableView.addTableColumn(column(
-            identifier: "name",
-            title: Localization.string(.udlNameColumn, default: "Name"),
-            width: 230
-        ))
-        tableView.addTableColumn(column(
-            identifier: "extensions",
-            title: Localization.string(.udlExtensionsColumn, default: "Extensions"),
-            width: 260
-        ))
-        tableView.addTableColumn(column(
-            identifier: "keywords",
-            title: Localization.string(.udlKeywordsColumn, default: "Keywords"),
-            width: 90
-        ))
+        nameColumn.width = 230
+        extensionsColumn.width = 260
+        keywordsColumn.width = 90
+        tableView.addTableColumn(nameColumn)
+        tableView.addTableColumn(extensionsColumn)
+        tableView.addTableColumn(keywordsColumn)
         scrollView.documentView = tableView
 
         importButton.target = self
@@ -225,6 +237,23 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             importButton.trailingAnchor.constraint(equalTo: exportButton.leadingAnchor, constant: -8),
             importButton.centerYAnchor.constraint(equalTo: deleteButton.centerYAnchor)
         ])
+    }
+
+    private func refreshLocalizedStrings() {
+        window?.title = Localization.string(.udlPanelTitle, default: "User Defined Languages")
+        tableView.setAccessibilityLabel(Localization.string(.udlTableAccessibilityLabel, default: "User-defined languages"))
+        nameColumn.title = Localization.string(.udlNameColumn, default: "Name")
+        extensionsColumn.title = Localization.string(.udlExtensionsColumn, default: "Extensions")
+        keywordsColumn.title = Localization.string(.udlKeywordsColumn, default: "Keywords")
+        importButton.title = Localization.string(.udlImport, default: "Import...")
+        exportButton.title = Localization.string(.udlExport, default: "Export...")
+        editButton.title = Localization.string(.udlEdit, default: "Edit...")
+        deleteButton.title = Localization.string(.udlDelete, default: "Delete")
+        importButton.setAccessibilityLabel(Localization.string(.udlImportAccessibilityLabel, default: "Import user-defined language"))
+        exportButton.setAccessibilityLabel(Localization.string(.udlExportAccessibilityLabel, default: "Export selected language"))
+        editButton.setAccessibilityLabel(Localization.string(.udlEditAccessibilityLabel, default: "Edit selected language"))
+        deleteButton.setAccessibilityLabel(Localization.string(.udlDeleteAccessibilityLabel, default: "Delete selected language"))
+        statusField.setAccessibilityLabel(Localization.string(.udlStatusAccessibilityLabel, default: "User-defined language status"))
     }
 
     private func reload(selecting languageName: String? = nil) {
@@ -295,11 +324,20 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         let failedFiles = result.failedFiles
 
         if failedFiles.isEmpty {
-            statusField.stringValue = localizedStatus(
-                .udlImportedStatus,
-                default: "Imported %d language(s).",
-                importedCount
-            )
+            if importedCount == 1 {
+                let localizedMessage = Localization.messageBox(
+                    tag: "UDL_importSuccessful",
+                    defaultTitle: "User Defined Language",
+                    defaultMessage: "Import successful."
+                )
+                statusField.stringValue = localizedMessage.message
+            } else {
+                statusField.stringValue = localizedStatus(
+                    .udlImportedStatus,
+                    default: "Imported %d language(s).",
+                    importedCount
+                )
+            }
         } else {
             statusField.stringValue = localizedStatus(
                 .udlImportFailedStatus,
@@ -342,11 +380,12 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             statusField.stringValue = Localization.string(.udlExportFailedStatus, default: "Export failed.")
             presentPanelError(error.underlying)
         } else {
-            statusField.stringValue = localizedStatus(
-                .udlExportedStatus,
-                default: "Exported %@.",
-                language.displayName
+            statusField.stringValue = Localization.messageBox(
+                tag: "UDL_exportSuccessful",
+                defaultTitle: "User Defined Language",
+                defaultMessage: "Export successful."
             )
+            .message
         }
     }
 
@@ -580,13 +619,6 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             locale: Locale.current,
             arguments: [styleName, fieldName]
         )
-    }
-
-    private func column(identifier: String, title: String, width: CGFloat) -> NSTableColumn {
-        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(identifier))
-        column.title = title
-        column.width = width
-        return column
     }
 
     private func localizedStatus(_ key: Localization.Key, default defaultValue: String, _ arguments: CVarArg...) -> String {

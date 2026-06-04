@@ -12,14 +12,25 @@ final class AutoCompletionPanelController: NSObject {
     private let prefixField = NSTextField(labelWithString: "")
     private let popup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let detailView = NSTextView()
+    private let insertButton = NSButton(title: "", target: nil, action: nil)
     private var completions: [AutoCompletionKeyword] = []
     private var onInsert: ((AutoCompletionKeyword) -> Void)?
 
     override init() {
         super.init()
-        panel.title = Localization.string(.autoCompletionPanelTitle, default: "Auto Completion")
         panel.isReleasedWhenClosed = false
         configureContent()
+        refreshLocalizedStrings()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(localizationDidChange(_:)),
+            name: Localization.localizationDidChangeNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func show(
@@ -81,13 +92,10 @@ final class AutoCompletionPanelController: NSObject {
         )
         scrollView.documentView = detailView
 
-        let insertButton = NSButton(
-            title: Localization.string(.autoCompletionInsert, default: "Insert"),
-            target: self,
-            action: #selector(insertSelected(_:))
-        )
         insertButton.translatesAutoresizingMaskIntoConstraints = false
         insertButton.bezelStyle = .rounded
+        insertButton.target = self
+        insertButton.action = #selector(insertSelected(_:))
 
         root.addSubview(prefixField)
         root.addSubview(popup)
@@ -113,13 +121,36 @@ final class AutoCompletionPanelController: NSObject {
         ])
     }
 
+    private func refreshLocalizedStrings() {
+        panel.title = Localization.string(.autoCompletionPanelTitle, default: "Auto Completion")
+        prefixField.setAccessibilityLabel(
+            Localization.string(.autoCompletionSummaryAccessibilityLabel, default: "Auto-completion summary")
+        )
+        popup.setAccessibilityLabel(
+            Localization.string(.autoCompletionSuggestionsAccessibilityLabel, default: "Completion suggestions")
+        )
+        detailView.setAccessibilityLabel(
+            Localization.string(.autoCompletionDetailAccessibilityLabel, default: "Completion details")
+        )
+        insertButton.title = Localization.string(.autoCompletionInsert, default: "Insert")
+    }
+
     @objc private func selectionChanged(_ sender: Any?) {
         updateDetail()
     }
 
+    @objc private func localizationDidChange(_ notification: Notification) {
+        refreshLocalizedStrings()
+        updateDetail()
+    }
+
     @objc private func insertSelected(_ sender: Any?) {
-        guard popup.indexOfSelectedItem >= 0, popup.indexOfSelectedItem < completions.count else { return }
-        onInsert?(completions[popup.indexOfSelectedItem])
+        let index = max(0, popup.indexOfSelectedItem)
+        if !completions.isEmpty && index < completions.count {
+            onInsert?(completions[index])
+        } else if !wordCompletions.isEmpty && index < wordCompletions.count {
+            onWordInsert?(wordCompletions[index])
+        }
     }
 
     private func updateDetail() {
@@ -153,5 +184,47 @@ final class AutoCompletionPanelController: NSObject {
         }
 
         detailView.string = lines.joined(separator: "\n")
+    }
+
+    // MARK: - Current File / Path Completions
+
+    private var wordCompletions: [String] = []
+    private var onWordInsert: ((String) -> Void)?
+
+    func showCurrentFileCompletions(
+        words: [String],
+        prefix: String,
+        documentName: String,
+        onInsert: @escaping (String) -> Void
+    ) {
+        self.wordCompletions = words
+        self.onWordInsert = onInsert
+        self.onInsert = nil
+        self.completions = []
+
+        let prefixDisplay = prefix.isEmpty ? "(all)" : prefix
+        prefixField.stringValue = String(
+            format: Localization.string(.autoCompletionSummary, default: "%@ suggestions for %@: %@"),
+            documentName,
+            documentName,
+            prefixDisplay
+        )
+        popup.removeAllItems()
+        for word in wordCompletions {
+            popup.addItem(withTitle: word)
+        }
+        popup.isEnabled = !wordCompletions.isEmpty
+        detailView.string = wordCompletions.isEmpty
+            ? Localization.string(.autoCompletionNoCompletions, default: "No completions found.")
+            : wordCompletions.joined(separator: "\n")
+
+        panel.center()
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func insertWordSelected(_ sender: Any?) {
+        guard popup.indexOfSelectedItem >= 0, popup.indexOfSelectedItem < wordCompletions.count else { return }
+        onWordInsert?(wordCompletions[popup.indexOfSelectedItem])
     }
 }

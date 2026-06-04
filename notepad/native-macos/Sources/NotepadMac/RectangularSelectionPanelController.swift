@@ -14,6 +14,8 @@ final class RectangularSelectionPanelController: NSObject {
         defer: false
     )
     private let rangeField = NSTextField(labelWithString: "")
+    private let blockLabel = NSTextField(labelWithString: "")
+    private let endColumnLabel = NSTextField(labelWithString: "")
     private let insertModeButton = NSButton(radioButtonWithTitle: "", target: nil, action: nil)
     private let replaceModeButton = NSButton(radioButtonWithTitle: "", target: nil, action: nil)
     private let blockTextView = NSTextView()
@@ -21,15 +23,26 @@ final class RectangularSelectionPanelController: NSObject {
     private let endColumnStepper = NSStepper()
     private let statusField = NSTextField(labelWithString: "")
     private let applyButton = NSButton(title: "", target: nil, action: nil)
+    private let cancelButton = NSButton(title: "", target: nil, action: nil)
     private var startColumn = 1
     private var onApply: ((RectangularSelectionPanelOperation) -> Void)?
 
     override init() {
         super.init()
-        panel.title = Localization.string(.rectangularSelectionPanelTitle, default: "Rectangular Selection")
         panel.isReleasedWhenClosed = false
         configureContent()
+        refreshLocalizedStrings()
         updateModeControls()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(localizationDidChange(_:)),
+            name: Localization.localizationDidChangeNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func show(
@@ -68,27 +81,19 @@ final class RectangularSelectionPanelController: NSObject {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func configureContent() {
-        let root = NSView()
-        root.translatesAutoresizingMaskIntoConstraints = false
-        panel.contentView = root
+    @objc private func localizationDidChange(_ notification: Notification) {
+        refreshLocalizedStrings()
+        updateModeControls()
+    }
+
+    private func refreshLocalizedStrings() {
+        panel.title = Localization.string(.rectangularSelectionPanelTitle, default: "Rectangular Selection")
         rangeField.setAccessibilityLabel(
             Localization.string(.rectangularSelectionRangeAccessibilityLabel, default: "Selection range")
         )
-
-        let blockLabel = NSTextField(
-            labelWithString: Localization.string(.rectangularSelectionBlockTextLabel, default: "Block Text")
-        )
-        let endColumnLabel = NSTextField(
-            labelWithString: Localization.string(.rectangularSelectionEndColumnLabel, default: "Through Column")
-        )
-        let scrollView = NSScrollView()
-        let cancelButton = NSButton(
-            title: Localization.string(.rectangularSelectionCancel, default: "Cancel"),
-            target: self,
-            action: #selector(cancel(_:))
-        )
-
+        blockLabel.stringValue = Localization.string(.rectangularSelectionBlockTextLabel, default: "Block Text")
+        endColumnLabel.stringValue = Localization.string(.rectangularSelectionEndColumnLabel, default: "Through Column")
+        cancelButton.title = Localization.string(.rectangularSelectionCancel, default: "Cancel")
         insertModeButton.title = Localization.string(.rectangularSelectionInsertMode, default: "Insert at column")
         replaceModeButton.title = Localization.string(.rectangularSelectionReplaceMode, default: "Replace column range")
         insertModeButton.setAccessibilityLabel(
@@ -97,6 +102,28 @@ final class RectangularSelectionPanelController: NSObject {
         replaceModeButton.setAccessibilityLabel(
             Localization.string(.rectangularSelectionReplaceModeAccessibilityLabel, default: "Replace column range mode")
         )
+        blockTextView.setAccessibilityLabel(
+            Localization.string(.rectangularSelectionBlockTextAccessibilityLabel, default: "Block text")
+        )
+        endColumnField.setAccessibilityLabel(
+            Localization.string(.rectangularSelectionEndColumnFieldAccessibilityLabel, default: "Through column")
+        )
+        endColumnStepper.setAccessibilityLabel(
+            Localization.string(.rectangularSelectionEndColumnStepperAccessibilityLabel, default: "Through column stepper")
+        )
+        statusField.setAccessibilityLabel(
+            Localization.string(.rectangularSelectionStatusAccessibilityLabel, default: "Rectangular selection status")
+        )
+        applyButton.setAccessibilityLabel(
+            Localization.string(.rectangularSelectionApplyAccessibilityLabel, default: "Apply rectangular selection")
+        )
+    }
+
+    private func configureContent() {
+        let root = NSView()
+        root.translatesAutoresizingMaskIntoConstraints = false
+        panel.contentView = root
+        let scrollView = NSScrollView()
 
         insertModeButton.target = self
         insertModeButton.action = #selector(modeChanged(_:))
@@ -119,9 +146,6 @@ final class RectangularSelectionPanelController: NSObject {
             height: CGFloat.greatestFiniteMagnitude
         )
         blockTextView.textContainer?.widthTracksTextView = false
-        blockTextView.setAccessibilityLabel(
-            Localization.string(.rectangularSelectionBlockTextAccessibilityLabel, default: "Block text")
-        )
 
         scrollView.borderType = .bezelBorder
         scrollView.hasVerticalScroller = true
@@ -129,29 +153,19 @@ final class RectangularSelectionPanelController: NSObject {
         scrollView.documentView = blockTextView
 
         endColumnField.formatter = integerFormatter
-        endColumnField.setAccessibilityLabel(
-            Localization.string(.rectangularSelectionEndColumnFieldAccessibilityLabel, default: "Through column")
-        )
         endColumnStepper.minValue = 1
         endColumnStepper.maxValue = 9999
         endColumnStepper.increment = 1
         endColumnStepper.target = self
         endColumnStepper.action = #selector(stepperChanged(_:))
-        endColumnStepper.setAccessibilityLabel(
-            Localization.string(.rectangularSelectionEndColumnStepperAccessibilityLabel, default: "Through column stepper")
-        )
 
         statusField.textColor = .secondaryLabelColor
-        statusField.setAccessibilityLabel(
-            Localization.string(.rectangularSelectionStatusAccessibilityLabel, default: "Rectangular selection status")
-        )
         applyButton.target = self
         applyButton.action = #selector(apply(_:))
         applyButton.bezelStyle = .rounded
         applyButton.keyEquivalent = "\r"
-        applyButton.setAccessibilityLabel(
-            Localization.string(.rectangularSelectionApplyAccessibilityLabel, default: "Apply rectangular selection")
-        )
+        cancelButton.target = self
+        cancelButton.action = #selector(cancel(_:))
         cancelButton.bezelStyle = .rounded
 
         let views: [NSView] = [

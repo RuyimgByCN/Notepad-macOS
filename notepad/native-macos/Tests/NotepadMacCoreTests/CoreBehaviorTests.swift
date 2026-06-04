@@ -145,6 +145,34 @@ import Testing
     #expect(try catalog.loadStyleCatalog(for: monokai).lexer(named: "rust") != nil)
 }
 
+@Test func themeCatalogUserDirectoryIsUnderApplicationSupport() {
+    let userDir = ThemeCatalog.userThemesDirectory
+    #expect(userDir.path.contains("Application Support"))
+    #expect(userDir.lastPathComponent == "themes")
+    #expect(userDir.deletingLastPathComponent().lastPathComponent == "NotepadMac")
+}
+
+@Test func themeCatalogScansUserDirectoryFirst() throws {
+    let tmp = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: tmp) }
+    try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+
+    // Write a minimal valid XML theme
+    let xml = """
+    <?xml version="1.0"?>
+    <NotepadPlus><LexerStyles><LexerType name="normal" desc="Normal Text"><WordsStyle name="DEFAULT" styleID="0" fgColor="000000" bgColor="FFFFFF"/></LexerType></LexerStyles><GlobalStyles/></NotepadPlus>
+    """
+    let themeURL = tmp.appending(path: "MyCustomTheme.xml")
+    try xml.write(to: themeURL, atomically: true, encoding: .utf8)
+
+    // Scan tmp dir first, then upstream
+    let catalog = try ThemeCatalog.scan(directories: [tmp, upstreamThemesDirectoryURL()])
+    let custom = try #require(catalog.theme(named: "MyCustomTheme"))
+    #expect(custom.displayName == "MyCustomTheme")
+    // User theme should be accessible (its URL points to tmp)
+    #expect(custom.url.deletingLastPathComponent().path == tmp.path)
+}
+
 @Test func storesAndLoadsSelectedThemePreference() throws {
     let suiteName = "NotepadMacCoreTests.\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -361,7 +389,23 @@ import Testing
         "ASCII",
         "ISO Latin-1",
         "Windows CP1252",
-        "Mac OS Roman"
+        "Mac OS Roman",
+        "GBK (Simplified Chinese)",
+        "Big5 (Traditional Chinese)",
+        "Shift-JIS (Japanese)",
+        "EUC-KR (Korean)",
+        "EUC-JP (Japanese)",
+        "Windows-1250 (Central European)",
+        "Windows-1251 (Cyrillic)",
+        "Windows-1253 (Greek)",
+        "Windows-1254 (Turkish)",
+        "Windows-1255 (Hebrew)",
+        "Windows-1256 (Arabic)",
+        "Windows-1257 (Baltic)",
+        "Windows-1258 (Vietnamese)",
+        "ISO 8859-2 (Central European)",
+        "ISO 8859-15 (Western European)",
+        "KOI8-R (Russian)"
     ])
     #expect(TextEncodingOption(encoding: .utf16LittleEndian) == .utf16LittleEndian)
     #expect(TextEncodingOption(encoding: .ascii)?.displayName == "ASCII")
@@ -964,13 +1008,27 @@ import Testing
 }
 
 @Test func appPreferencesClampEditorFontSizeAndExposeSearchOptions() {
-    let tooSmall = AppPreferences(editorFontSize: 4, wrapsLines: true, searchMatchCase: true, searchWholeWord: true)
+    let tooSmall = AppPreferences(
+        editorFontSize: 4,
+        wrapsLines: true,
+        searchMatchCase: true,
+        searchWholeWord: true,
+        customDateTimeFormat: "yyyy-MM-dd"
+    )
     let tooLarge = AppPreferences(editorFontSize: 40, wrapsLines: false, searchMatchCase: false, searchWholeWord: false)
 
     #expect(AppPreferences.defaultValue.editorFontSize == 13)
     #expect(tooSmall.editorFontSize == 9)
     #expect(tooLarge.editorFontSize == 32)
     #expect(tooSmall.searchOptions == TextSearch.Options(matchCase: true, wholeWord: true))
+    #expect(tooSmall.customDateTimeFormat == "yyyy-MM-dd")
+    #expect(AppPreferences.defaultValue.searchEngineChoice == .google)
+    #expect(AppPreferences.defaultValue.localizationFileName == "english.xml")
+    #expect(AppPreferences.defaultValue.showWhitespace == false)
+    #expect(AppPreferences.defaultValue.showEOL == false)
+    #expect(AppPreferences.defaultValue.showIndentGuides == false)
+    #expect(AppPreferences.defaultValue.highlightCurrentLine == false)
+    #expect(AppPreferences.defaultValue.showWrapSymbol == false)
 }
 
 @Test func storesAndLoadsAppPreferences() throws {
@@ -981,7 +1039,21 @@ import Testing
     let store = PreferencesStore(defaults: defaults)
     #expect(store.load() == .defaultValue)
 
-    let saved = AppPreferences(editorFontSize: 18, wrapsLines: true, searchMatchCase: true, searchWholeWord: false)
+    let saved = AppPreferences(
+        editorFontSize: 18,
+        wrapsLines: true,
+        searchMatchCase: true,
+        searchWholeWord: false,
+        customDateTimeFormat: "yyyy-MM-dd HH:mm",
+        searchEngineChoice: .stackOverflow,
+        customSearchEngineURL: "https://example.com/?q=$(CURRENT_WORD)",
+        localizationFileName: "chineseSimplified.xml",
+        showWhitespace: true,
+        showEOL: true,
+        showIndentGuides: true,
+        highlightCurrentLine: true,
+        showWrapSymbol: true
+    )
     store.save(saved)
     #expect(store.load() == saved)
 }
@@ -1388,4 +1460,75 @@ private func upstreamThemesDirectoryURL() -> URL {
         .deletingLastPathComponent()
         .deletingLastPathComponent()
         .appending(path: "notepad-plus-plus/PowerEditor/installer/themes")
+}
+
+// MARK: - Search Extension Tests
+
+@Test func findAllReturnsAllMatchRanges() {
+    let text = "abc abc xyz abc"
+    let options = TextSearch.Options(matchCase: true, wholeWord: false, wraps: false, direction: .down)
+    let matches = TextSearch.findAll("abc", in: text, options: options)
+    #expect(matches.count == 3)
+    #expect(matches[0] == NSRange(location: 0, length: 3))
+    #expect(matches[1] == NSRange(location: 4, length: 3))
+    #expect(matches[2] == NSRange(location: 12, length: 3))
+}
+
+@Test func findAllRespectsCaseAndWholeWord() {
+    let text = "Abc abc AbcABC"
+    let caseSensitive = TextSearch.Options(matchCase: true, wholeWord: false, wraps: false, direction: .down)
+    let insensitive = TextSearch.Options(matchCase: false, wholeWord: false, wraps: false, direction: .down)
+    let wholeWord = TextSearch.Options(matchCase: false, wholeWord: true, wraps: false, direction: .down)
+
+    #expect(TextSearch.findAll("abc", in: text, options: caseSensitive).count == 1)
+    #expect(TextSearch.findAll("abc", in: text, options: insensitive).count == 4)
+    #expect(TextSearch.findAll("abc", in: text, options: wholeWord).count == 2)
+}
+
+@Test func findNextSelectsSelectionTextAsQuery() {
+    // Simulates "Select and Find Next": use selected text as query
+    let text = "hello world hello world"
+    let selection = NSRange(location: 0, length: 5) // "hello"
+    let query = (text as NSString).substring(with: selection)
+    #expect(query == "hello")
+
+    let options = TextSearch.Options(matchCase: true, wholeWord: false, wraps: true, direction: .down)
+    let fromRange = NSRange(location: NSMaxRange(selection), length: 0)
+    let nextMatch = TextSearch.findNext(query, in: text, from: fromRange, options: options)
+    #expect(nextMatch == NSRange(location: 12, length: 5))
+}
+
+@Test func findCharactersInRangeFindsUnicodeScalar() {
+    let text = "Hello \u{03B1} World \u{03B2} End" // α and β
+    let scalars = text.unicodeScalars
+
+    // Find Greek letters (U+0370–U+03FF)
+    var found = false
+    var searchIndex = scalars.startIndex
+    while searchIndex < scalars.endIndex {
+        let value = scalars[searchIndex].value
+        if value >= 0x0370 && value <= 0x03FF {
+            found = true
+            break
+        }
+        searchIndex = scalars.index(after: searchIndex)
+    }
+    #expect(found)
+    #expect(scalars[searchIndex] == "\u{03B1}") // α
+}
+
+@Test func searchMarkStyleEnumCoversAllFiveStyles() {
+    let styles = SearchMarkStyle.allCases
+    #expect(styles.count == 5)
+    #expect(styles[0].rawValue == 1)
+    #expect(styles[4].rawValue == 5)
+    for (index, style) in styles.enumerated() {
+        #expect(style.displayName == "Style \(index + 1)")
+    }
+}
+
+@Test func searchMarkStyleDefaultColorsAreDistinct() {
+    let colors = SearchMarkStyle.allCases.map(\.defaultColor)
+    let uniqueCount = Set(colors.map { "\($0.red),\($0.green),\($0.blue)" }).count
+    #expect(uniqueCount == 5)
 }

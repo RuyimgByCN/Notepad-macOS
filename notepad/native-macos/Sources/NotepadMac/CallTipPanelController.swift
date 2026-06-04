@@ -14,9 +14,19 @@ final class CallTipPanelController: NSObject {
 
     override init() {
         super.init()
-        panel.title = Localization.string(.callTipPanelTitle, default: "Function Call Tip")
         panel.isReleasedWhenClosed = false
         configureContent()
+        refreshLocalizedStrings()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(localizationDidChange(_:)),
+            name: Localization.localizationDidChangeNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func show(callTip: AutoCompletionCallTip, languageDisplayName: String, documentName: String) {
@@ -69,6 +79,20 @@ final class CallTipPanelController: NSObject {
             scrollView.topAnchor.constraint(equalTo: summaryField.bottomAnchor, constant: 10),
             scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -14)
         ])
+    }
+
+    @objc private func localizationDidChange(_ notification: Notification) {
+        refreshLocalizedStrings()
+    }
+
+    private func refreshLocalizedStrings() {
+        panel.title = Localization.string(.callTipPanelTitle, default: "Function Call Tip")
+        summaryField.setAccessibilityLabel(
+            Localization.string(.callTipSummaryAccessibilityLabel, default: "Call-tip summary")
+        )
+        detailView.setAccessibilityLabel(
+            Localization.string(.callTipDetailAccessibilityLabel, default: "Call-tip details")
+        )
     }
 
     private func detailText(for callTip: AutoCompletionCallTip) -> String {

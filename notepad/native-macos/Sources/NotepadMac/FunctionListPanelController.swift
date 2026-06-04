@@ -11,14 +11,30 @@ final class FunctionListPanelController: NSObject, NSTableViewDataSource, NSTabl
     )
     private let titleField = NSTextField(labelWithString: "")
     private let tableView = NSTableView()
+    private let lineColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("line"))
+    private let kindColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("kind"))
+    private let nameColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
+    private let goButton = NSButton(title: "", target: nil, action: nil)
     private var symbols: [FunctionListSymbol] = []
     private var onSelect: ((FunctionListSymbol) -> Void)?
+    private var currentLanguageDisplayName = ""
+    private var currentDocumentName = ""
 
     override init() {
         super.init()
-        panel.title = Localization.string(.functionListPanelTitle, default: "Function List")
         panel.isReleasedWhenClosed = false
         configureContent()
+        refreshLocalizedStrings()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(localizationDidChange(_:)),
+            name: Localization.localizationDidChangeNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func show(
@@ -29,12 +45,9 @@ final class FunctionListPanelController: NSObject, NSTableViewDataSource, NSTabl
     ) {
         self.symbols = symbols
         self.onSelect = onSelect
-        titleField.stringValue = String(
-            format: Localization.string(.functionListSummary, default: "%@    %@    %d symbols"),
-            documentName,
-            languageDisplayName,
-            symbols.count
-        )
+        currentDocumentName = documentName
+        currentLanguageDisplayName = languageDisplayName
+        refreshLocalizedStrings()
         tableView.reloadData()
         if !symbols.isEmpty {
             tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
@@ -62,6 +75,10 @@ final class FunctionListPanelController: NSObject, NSTableViewDataSource, NSTabl
         }
     }
 
+    @objc private func localizationDidChange(_ notification: Notification) {
+        refreshLocalizedStrings()
+    }
+
     private func configureContent() {
         let root = NSView()
         root.translatesAutoresizingMaskIntoConstraints = false
@@ -87,33 +104,18 @@ final class FunctionListPanelController: NSObject, NSTableViewDataSource, NSTabl
         tableView.delegate = self
         tableView.doubleAction = #selector(selectCurrentSymbol(_:))
         tableView.target = self
-        tableView.addTableColumn(column(
-            identifier: "line",
-            title: Localization.string(.functionListColumnLine, default: "Line"),
-            width: 62
-        ))
-        tableView.addTableColumn(column(
-            identifier: "kind",
-            title: Localization.string(.functionListColumnKind, default: "Kind"),
-            width: 88
-        ))
-        tableView.addTableColumn(column(
-            identifier: "name",
-            title: Localization.string(.functionListColumnName, default: "Name"),
-            width: 220
-        ))
+        lineColumn.width = 62
+        kindColumn.width = 88
+        nameColumn.width = 220
+        tableView.addTableColumn(lineColumn)
+        tableView.addTableColumn(kindColumn)
+        tableView.addTableColumn(nameColumn)
         scrollView.documentView = tableView
 
-        let goButton = NSButton(
-            title: Localization.string(.functionListGoTo, default: "Go To"),
-            target: self,
-            action: #selector(selectCurrentSymbol(_:))
-        )
         goButton.translatesAutoresizingMaskIntoConstraints = false
         goButton.bezelStyle = .rounded
-        goButton.setAccessibilityLabel(
-            Localization.string(.functionListGoToAccessibilityLabel, default: "Go to selected symbol")
-        )
+        goButton.target = self
+        goButton.action = #selector(selectCurrentSymbol(_:))
 
         root.addSubview(titleField)
         root.addSubview(scrollView)
@@ -132,6 +134,29 @@ final class FunctionListPanelController: NSObject, NSTableViewDataSource, NSTabl
             goButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -14),
             goButton.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -14)
         ])
+    }
+
+    private func refreshLocalizedStrings() {
+        panel.title = Localization.string(.functionListPanelTitle, default: "Function List")
+        titleField.setAccessibilityLabel(
+            Localization.string(.functionListSummaryAccessibilityLabel, default: "Function-list summary")
+        )
+        titleField.stringValue = String(
+            format: Localization.string(.functionListSummary, default: "%@    %@    %d symbols"),
+            currentDocumentName,
+            currentLanguageDisplayName,
+            symbols.count
+        )
+        tableView.setAccessibilityLabel(
+            Localization.string(.functionListTableAccessibilityLabel, default: "Function symbols")
+        )
+        lineColumn.title = Localization.string(.functionListColumnLine, default: "Line")
+        kindColumn.title = Localization.string(.functionListColumnKind, default: "Kind")
+        nameColumn.title = Localization.string(.functionListColumnName, default: "Name")
+        goButton.title = Localization.string(.functionListGoTo, default: "Go To")
+        goButton.setAccessibilityLabel(
+            Localization.string(.functionListGoToAccessibilityLabel, default: "Go to selected symbol")
+        )
     }
 
     private func column(identifier: String, title: String, width: CGFloat) -> NSTableColumn {

@@ -20,10 +20,26 @@ public enum EditorTabIdentity: Codable, Equatable, Hashable, Sendable {
 public struct EditorTabItem: Codable, Equatable, Sendable {
     public let identity: EditorTabIdentity
     public let title: String
+    public let isDirty: Bool
+    public let isPinned: Bool
+    public let tabColorIndex: Int?
 
-    public init(identity: EditorTabIdentity, title: String) {
+    public let isMonitoring: Bool
+
+    public init(
+        identity: EditorTabIdentity,
+        title: String,
+        isDirty: Bool = false,
+        isPinned: Bool = false,
+        tabColorIndex: Int? = nil,
+        isMonitoring: Bool = false
+    ) {
         self.identity = identity.normalized
         self.title = title
+        self.isDirty = isDirty
+        self.isPinned = isPinned
+        self.tabColorIndex = tabColorIndex
+        self.isMonitoring = isMonitoring
     }
 }
 
