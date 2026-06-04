@@ -982,7 +982,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let insertAt = min(newIndex, windows.count)
         windows.insert(controller, at: insertAt)
         rebuildTabState(activeIdentity: controller.tabIdentity)
-        controller.window?.makeKeyAndOrderFront(nil)
     }
 
     // MARK: - Print Now
@@ -1045,13 +1044,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func show(_ controller: EditorWindowController, persistSession: Bool) {
         controller.onClose = { [weak self, weak controller] in
-            guard let controller else { return }
-            self?.windows.removeAll { $0 === controller }
-            self?.removeMRU(controller)
-            self?.rebuildTabState()
-            self?.saveSession()
-            self?.rememberClosedDocument(controller)
-            self?.consumeCloseCompletions(for: controller)
+            guard let self, let controller else { return }
+            let wasVisible = controller.window?.isVisible == true
+            self.windows.removeAll { $0 === controller }
+            self.removeMRU(controller)
+            self.rebuildTabState()
+            self.saveSession()
+            self.rememberClosedDocument(controller)
+            self.consumeCloseCompletions(for: controller)
+            // If this tab's window was the visible one, show the new active tab's window.
+            if wasVisible {
+                let activeId = self.tabState.activeIdentity
+                let next = self.windows.first { $0.tabIdentity == activeId } ?? self.windows.first
+                if let next { self.activate(next) }
+            }
         }
         controller.onContentChange = { [weak self] in
             self?.scheduleSnapshotSave()
@@ -1090,7 +1096,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         windows.append(controller)
         rebuildTabState(activeIdentity: controller.tabIdentity)
-        controller.window?.makeKeyAndOrderFront(nil)
+        // Switch to the new tab; activate() handles showing/hiding windows atomically.
+        activate(controller)
 
         if persistSession {
             saveSession()
@@ -1103,15 +1110,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func activate(_ controller: EditorWindowController) {
-        // Align to current visible window position before switching
-        if let currentFrame = NSApp.keyWindow?.frame,
-           let newWindow = controller.window,
-           newWindow !== NSApp.keyWindow {
-            newWindow.setFrame(currentFrame, display: false)
-        }
+        guard let newWindow = controller.window else { return }
+        let alreadyVisible = newWindow === NSApp.keyWindow
+        guard !alreadyVisible else { return }
+
+        // Align to the currently visible editor window's frame.
+        let sourceFrame = windows.first(where: { $0.window?.isVisible == true })?.window?.frame
+            ?? NSApp.keyWindow?.frame
+        if let sourceFrame { newWindow.setFrame(sourceFrame, display: false) }
+
         trackMRU(controller)
         rebuildTabState(activeIdentity: controller.tabIdentity)
-        controller.window?.makeKeyAndOrderFront(nil)
+
+        // Show new window and hide all others atomically to avoid any flash.
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0
+            newWindow.makeKeyAndOrderFront(nil)
+            windows.forEach { if $0 !== controller { $0.window?.orderOut(nil) } }
+        }
     }
 
     private func activateTab(identity: EditorTabIdentity) {

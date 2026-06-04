@@ -269,7 +269,10 @@ final class EditorTabButton: NSView {
     private let onContextAction: (TabContextAction) -> Void
 
     private let titleLabel = NSTextField(labelWithString: "")
+    private let pinBtn = NSButton()
     private let closeBtn = NSButton()
+    private static let pinSize: CGFloat = 12
+    private static let pinGap: CGFloat = 3
     private var trackingArea: NSTrackingArea?
     private var isHovered = false
 
@@ -295,6 +298,26 @@ final class EditorTabButton: NSView {
         titleLabel.lineBreakMode = .byTruncatingMiddle
         addSubview(titleLabel)
 
+        // Pin button — shows a filled pin when pinned, outline pin when unpinned (on hover).
+        let pinSymbol = item.isPinned ? "pin.fill" : "pin"
+        if let img = NSImage(systemSymbolName: pinSymbol, accessibilityDescription: nil) {
+            pinBtn.image = img
+            pinBtn.imageScaling = .scaleProportionallyDown
+            pinBtn.imagePosition = .imageOnly
+        }
+        pinBtn.bezelStyle = .inline
+        pinBtn.isBordered = false
+        pinBtn.contentTintColor = item.isPinned ? .controlAccentColor : .secondaryLabelColor
+        pinBtn.alphaValue = item.isPinned ? 0.8 : 0.55
+        // Always visible when pinned; shown on hover for unpinned (handled in mouseEntered/Exited)
+        pinBtn.isHidden = !item.isPinned
+        pinBtn.target = self
+        pinBtn.action = #selector(pinTapped)
+        pinBtn.toolTip = item.isPinned
+            ? Localization.string(.windowUnpinTab, default: "取消固定")
+            : Localization.string(.windowPinTab, default: "固定标签页")
+        addSubview(pinBtn)
+
         if let img = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil) {
             closeBtn.image = img
             closeBtn.imageScaling = .scaleProportionallyDown
@@ -316,9 +339,9 @@ final class EditorTabButton: NSView {
         let text = prefix + item.title
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12)]
         let textW = (text as NSString).size(withAttributes: attrs).width
-        // +12: NSTextField has ~2px inset each side (4px total) + 4px gap before close btn
-        // + 4px safety for CJK subpixel rendering; label width = raw - hPad - gap - close area
-        let raw = Self.hPad + textW + 12 + Self.closeSize + Self.closeRightPad
+        let pinExtra = item.isPinned ? Self.pinSize + Self.pinGap : 0
+        // +12: NSTextField insets (4px) + gap before buttons (4px) + CJK rendering safety (4px)
+        let raw = Self.hPad + textW + 12 + pinExtra + Self.closeSize + Self.closeRightPad
         return max(Self.minWidth, min(dynamicMaxWidth, ceil(raw)))
     }
 
@@ -330,16 +353,30 @@ final class EditorTabButton: NSView {
         let closeY = (h - closeSz) / 2
         closeBtn.frame = CGRect(x: closeX, y: closeY, width: closeSz, height: closeSz)
 
+        // Pin button sits to the left of the close button.
+        let pinSz = Self.pinSize
+        let pinX = closeX - pinSz - Self.pinGap
+        let pinY = (h - pinSz) / 2
+        pinBtn.frame = CGRect(x: pinX, y: pinY, width: pinSz, height: pinSz)
+
         let titleX = Self.hPad
-        // When the close button is hidden (inactive tab), extend title to the right edge.
-        let titleMaxX = closeBtn.isHidden ? bounds.maxX - Self.hPad : closeX - 2
+        let rightEdge: CGFloat
+        if !closeBtn.isHidden {
+            rightEdge = pinBtn.isHidden ? closeX - 2 : pinX - 2
+        } else {
+            rightEdge = bounds.maxX - Self.hPad
+        }
         let titleH: CGFloat = 17
         let titleY = (h - titleH) / 2
-        titleLabel.frame = CGRect(x: titleX, y: titleY, width: max(0, titleMaxX - titleX), height: titleH)
+        titleLabel.frame = CGRect(x: titleX, y: titleY, width: max(0, rightEdge - titleX), height: titleH)
     }
 
     @objc private func closeTapped() {
         onClose()
+    }
+
+    @objc private func pinTapped() {
+        onContextAction(.togglePin)
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -352,13 +389,18 @@ final class EditorTabButton: NSView {
     override func mouseEntered(with event: NSEvent) {
         isHovered = true
         closeBtn.isHidden = false
+        // Show pin button on hover even for unpinned tabs so users can discover the feature.
+        pinBtn.isHidden = false
         needsDisplay = true
+        needsLayout = true
     }
 
     override func mouseExited(with event: NSEvent) {
         isHovered = false
         closeBtn.isHidden = !isActive
+        pinBtn.isHidden = !item.isPinned
         needsDisplay = true
+        needsLayout = true
     }
 
     override func updateTrackingAreas() {
