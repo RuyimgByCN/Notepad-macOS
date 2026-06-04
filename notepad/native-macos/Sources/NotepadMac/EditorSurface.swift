@@ -144,6 +144,11 @@ protocol EditorSurface: AnyObject {
 
     // MARK: - Text direction (bidirectional)
     func applyBidirectional(_ mode: Int)  // 0=disabled, 1=L2R, 2=R2L
+
+    // MARK: - Lifecycle
+    /// Called before the surface is released (e.g. window closing) to allow the
+    /// implementation to sever any unretained back-references (e.g. Scintilla delegate).
+    func teardown()
 }
 
 @MainActor
@@ -366,6 +371,7 @@ final class TextViewEditorSurface: EditorSurface {
     func scrollToSelection() {
         textView.scrollRangeToVisible(textView.selectedRange())
     }
+    func teardown() {}
 }
 
 @MainActor
@@ -573,9 +579,16 @@ final class ScintillaEditorSurface: EditorSurface {
         // Set up ObjC notification delegate eagerly so that the ObjC runtime realizes
         // ScintillaEditorSurface (and any UIFoundation classes it transitively references)
         // at init time rather than during the first paint cycle.
+        // Note: setDelegate stores an unretained reference; deinit clears it to prevent
+        // ScintillaView from sending notification: to a deallocated delegate during
+        // any pending CA display passes after this surface is gone.
         // Realizing classes during drawRect triggers KERN_PROTECTION_FAILURE on macOS 26+
         // because UIFoundation's class metadata lives in hardware-protected __AUTH_CONST.
         configureNotificationDelegateIfAvailable()
+    }
+
+    func teardown() {
+        _ = bridge.setDelegate(nil)
     }
 
     static func load() -> ScintillaEditorSurface? {
@@ -1672,7 +1685,12 @@ final class ScintillaEditorSurface: EditorSurface {
             as: Int32.self
         )
         guard modificationType & ScintillaModificationType.textChanged != 0 else { return }
-        NotificationCenter.default.post(name: NSText.didChangeNotification, object: scintillaView)
+        // Defer to next run-loop iteration to avoid re-entering Swift Observation tracking
+        // while Scintilla is in the middle of a drawRect/paint cycle (macOS 26+ SIGSEGV fix).
+        let view = scintillaView
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: NSText.didChangeNotification, object: view)
+        }
     }
 
     private func handleMarginClick(from rawNotification: UnsafeMutableRawPointer) {

@@ -362,6 +362,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     func windowWillClose(_ notification: Notification) {
+        editorSurface.teardown()
         stopFileMonitoring()
         onClose?()
     }

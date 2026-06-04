@@ -87,15 +87,16 @@ final class EditorTabBarView: NSView {
         onNewTab?()
     }
 
-    // Double-click on the empty area after tabs also creates a new tab
+    // Double-click on the empty area after tabs creates a new tab; single click is absorbed
+    // to prevent AppKit from generating a spurious redraw that causes visible flickering.
     override func mouseDown(with event: NSEvent) {
-        if event.clickCount == 2 {
-            let loc = documentView.convert(event.locationInWindow, from: nil)
-            let tabsEnd = tabButtons.last?.frame.maxX ?? 0
-            if loc.x > tabsEnd {
+        let loc = documentView.convert(event.locationInWindow, from: nil)
+        let tabsEnd = tabButtons.last?.frame.maxX ?? 0
+        if loc.x > tabsEnd {
+            if event.clickCount == 2 {
                 onNewTab?()
-                return
             }
+            return
         }
         // Detect drag start on a tab button
         let docLoc = documentView.convert(event.locationInWindow, from: nil)
@@ -157,6 +158,10 @@ final class EditorTabBarView: NSView {
         tabButtons.forEach { $0.removeFromSuperview() }
         tabButtons.removeAll()
 
+        // Only truncate filenames that exceed half the visible bar width.
+        let halfBarWidth = max(EditorTabButton.minWidth, scrollView.bounds.width / 2)
+        let tabMaxWidth = min(EditorTabButton.absoluteMaxWidth, halfBarWidth)
+
         var x: CGFloat = 0
         for item in state.items {
             let isActive = item.identity == state.activeIdentity
@@ -167,6 +172,7 @@ final class EditorTabBarView: NSView {
                 onClose: { [weak self] in self?.onCloseTab?(item.identity) },
                 onContextAction: { [weak self] action in self?.onTabContextAction?(item.identity, action) }
             )
+            btn.dynamicMaxWidth = tabMaxWidth
             let w = btn.preferredWidth
             btn.frame = CGRect(x: x, y: 0, width: w, height: Self.barHeight)
             documentView.addSubview(btn)
@@ -218,8 +224,10 @@ final class EditorTabButton: NSView {
     private static let hPad: CGFloat = 8
     private static let closeSize: CGFloat = 13
     private static let closeRightPad: CGFloat = 5
-    private static let minWidth: CGFloat = 60
-    private static let maxWidth: CGFloat = 200
+    static let minWidth: CGFloat = 60
+    static let absoluteMaxWidth: CGFloat = 400
+    // Set by the tab bar to half its visible width; tabs only truncate when the title exceeds that.
+    var dynamicMaxWidth: CGFloat = 300
 
     let item: EditorTabItem
     private let isActive: Bool
@@ -276,7 +284,7 @@ final class EditorTabButton: NSView {
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12)]
         let textW = (text as NSString).size(withAttributes: attrs).width
         let raw = Self.hPad + textW + 4 + Self.closeSize + Self.closeRightPad
-        return max(Self.minWidth, min(Self.maxWidth, ceil(raw)))
+        return max(Self.minWidth, min(dynamicMaxWidth, ceil(raw)))
     }
 
     override func layout() {
