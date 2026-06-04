@@ -141,4 +141,54 @@ final class PreferencesEnhancementTests: XCTestCase {
         let read = store.load()
         XCTAssertEqual(read.postItAlpha, 0.5, accuracy: 0.001, "postItAlpha should persist via UserDefaults")
     }
+
+    // MARK: - Per-Language Tab Overrides
+
+    func testParsedLanguageTabOverridesEmptyString() {
+        let prefs = AppPreferences(languageTabOverrides: "")
+        XCTAssertTrue(prefs.parsedLanguageTabOverrides().isEmpty)
+    }
+
+    func testParsedLanguageTabOverridesSpaces() {
+        let prefs = AppPreferences(languageTabOverrides: "python:4s")
+        let overrides = prefs.parsedLanguageTabOverrides()
+        XCTAssertEqual(overrides["python"]?.tabSize, 4)
+        XCTAssertEqual(overrides["python"]?.insertSpaces, true)
+    }
+
+    func testParsedLanguageTabOverridesTabs() {
+        let prefs = AppPreferences(languageTabOverrides: "c:8t")
+        let overrides = prefs.parsedLanguageTabOverrides()
+        XCTAssertEqual(overrides["c"]?.tabSize, 8)
+        XCTAssertEqual(overrides["c"]?.insertSpaces, false)
+    }
+
+    func testParsedLanguageTabOverridesMultiple() {
+        let prefs = AppPreferences(languageTabOverrides: "python:4s, html:2s, c:8t")
+        let overrides = prefs.parsedLanguageTabOverrides()
+        XCTAssertEqual(overrides.count, 3)
+        XCTAssertEqual(overrides["html"]?.tabSize, 2)
+        XCTAssertEqual(overrides["html"]?.insertSpaces, true)
+    }
+
+    func testParsedLanguageTabOverridesIgnoresInvalidEntries() {
+        let prefs = AppPreferences(languageTabOverrides: "python:4s, invalid, bad:xs, java:2")
+        let overrides = prefs.parsedLanguageTabOverrides()
+        XCTAssertEqual(overrides.count, 1)
+        XCTAssertNotNil(overrides["python"])
+    }
+
+    func testParsedLanguageTabOverridesCaseInsensitive() {
+        let prefs = AppPreferences(languageTabOverrides: "PYTHON:4s")
+        let overrides = prefs.parsedLanguageTabOverrides()
+        XCTAssertNotNil(overrides["python"])
+    }
+
+    // MARK: - URL Indicator Style
+
+    func testUrlIndicatorStyleClamped() {
+        XCTAssertEqual(AppPreferences(urlIndicatorStyle: -1).urlIndicatorStyle, 0)
+        XCTAssertEqual(AppPreferences(urlIndicatorStyle: 3).urlIndicatorStyle, 2)
+        XCTAssertEqual(AppPreferences(urlIndicatorStyle: 1).urlIndicatorStyle, 1)
+    }
 }
