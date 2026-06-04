@@ -441,9 +441,14 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             tabbarDoubleClickClose: tabbarDoubleClickClose,
             tabbarMaxLabelLength: tabbarMaxLabelLength,
             keepFindDialogOpen: keepFindDialogOpen,
+            findDialogTransparency: findDialogTransparency,
             printSettings: printSettings,
             delimiterLeft: delimiterLeft,
-            delimiterRight: delimiterRight
+            delimiterRight: delimiterRight,
+            statusBarVisible: statusBarVisible,
+            shortTitle: shortTitle,
+            saveAllConfirm: saveAllConfirm,
+            autoCompleteIgnoreNumbers: autoCompleteIgnoreNumbers
         )
     }
 
@@ -529,7 +534,15 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             inSelectionThreshold: inSelectionThreshold,
             tabbarDoubleClickClose: tabbarDoubleClickClose,
             tabbarMaxLabelLength: tabbarMaxLabelLength,
-            keepFindDialogOpen: keepFindDialogOpen
+            keepFindDialogOpen: keepFindDialogOpen,
+            findDialogTransparency: findDialogTransparency,
+            printSettings: printSettings,
+            delimiterLeft: delimiterLeft,
+            delimiterRight: delimiterRight,
+            statusBarVisible: statusBarVisible,
+            shortTitle: shortTitle,
+            saveAllConfirm: saveAllConfirm,
+            autoCompleteIgnoreNumbers: autoCompleteIgnoreNumbers
         )
     }
 
