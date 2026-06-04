@@ -257,7 +257,8 @@ final class EditorTabButton: NSView {
     private static let hPad: CGFloat = 8
     private static let closeSize: CGFloat = 13
     private static let closeRightPad: CGFloat = 5
-    static let minWidth: CGFloat = 60
+    // minWidth must fit: hPad + some text + pin + gap + close + closeRightPad
+    static let minWidth: CGFloat = 90
     static let absoluteMaxWidth: CGFloat = 400
     // Set by the tab bar to half its visible width; tabs only truncate when the title exceeds that.
     var dynamicMaxWidth: CGFloat = 300
@@ -339,9 +340,9 @@ final class EditorTabButton: NSView {
         let text = prefix + item.title
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12)]
         let textW = (text as NSString).size(withAttributes: attrs).width
-        let pinExtra = item.isPinned ? Self.pinSize + Self.pinGap : 0
+        // Always reserve space for pin button because it appears on hover even when unpinned.
         // +12: NSTextField insets (4px) + gap before buttons (4px) + CJK rendering safety (4px)
-        let raw = Self.hPad + textW + 12 + pinExtra + Self.closeSize + Self.closeRightPad
+        let raw = Self.hPad + textW + 12 + Self.pinSize + Self.pinGap + Self.closeSize + Self.closeRightPad
         return max(Self.minWidth, min(dynamicMaxWidth, ceil(raw)))
     }
 
@@ -362,7 +363,8 @@ final class EditorTabButton: NSView {
         let titleX = Self.hPad
         let rightEdge: CGFloat
         if !closeBtn.isHidden {
-            rightEdge = pinBtn.isHidden ? closeX - 2 : pinX - 2
+            // Always leave room for pin button even when hidden, so title doesn't jump on hover.
+            rightEdge = pinX - 2
         } else {
             rightEdge = bounds.maxX - Self.hPad
         }
