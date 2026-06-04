@@ -93,6 +93,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var fileMonitor: FileMonitor?
     private var isPresentingFileChangeAlert = false
     private var isMonitoringMode = false
+    private var documentMapUpdateTimer: Timer?
     private var activeMacroRecording: MacroRecording?
     private var macroBaselineText: String?
     private var isReplayingMacro = false
@@ -382,7 +383,23 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         updateXmlTagHighlight()
         updateSmartHighlight()
         scheduleUrlHighlightUpdate()
+        scheduleDocumentMapUpdate()
         onContentChange?()
+    }
+
+    private func scheduleDocumentMapUpdate() {
+        guard documentMapPanel.isVisible else { return }
+        documentMapUpdateTimer?.invalidate()
+        documentMapUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.documentMapPanel.update(
+                    documentName: self.displayName,
+                    text: self.editorSurface.text,
+                    currentLine: self.caretLocation().line
+                )
+            }
+        }
     }
 
     @objc private func editorSelectionDidChange(_ notification: Notification) {
@@ -390,6 +407,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         updateXmlTagHighlight()
         updateSmartHighlight()
         updateBraceHighlight()
+        if documentMapPanel.isVisible {
+            let line = caretLocation().line
+            documentMapPanel.update(documentName: displayName, text: editorSurface.text, currentLine: line)
+        }
     }
 
     @objc func saveDocument(_ sender: Any?) {
@@ -1097,6 +1118,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         showsStatusBar.toggle()
         saveCurrentEditorPreferences()
         applyStatusBarVisibility()
+    }
+
+    @objc private func statusBarDoubleClicked(_ sender: Any?) {
+        showGoToLinePanel(sender)
     }
 
     @objc func toggleReadOnly(_ sender: Any?) {
@@ -3547,6 +3572,35 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             #selector(generateSHA256SelectionIntoClipboard(_:)),
             #selector(generateSHA512SelectionIntoClipboard(_:)):
             return editorSurface.selectedRange.length > 0
+        case #selector(uppercaseSelection(_:)),
+            #selector(lowercaseSelection(_:)),
+            #selector(invertSelectionCase(_:)),
+            #selector(properCaseSelection(_:)),
+            #selector(sentenceCaseSelection(_:)),
+            #selector(randomCaseSelection(_:)):
+            return editorSurface.selectedRange.length > 0 && !editorSurface.isReadOnly
+        case #selector(sortLinesAscending(_:)),
+            #selector(sortLinesDescending(_:)),
+            #selector(sortLinesCaseInsensitiveAscending(_:)),
+            #selector(sortLinesCaseInsensitiveDescending(_:)),
+            #selector(sortLinesLocaleAscending(_:)),
+            #selector(sortLinesLocaleDescending(_:)),
+            #selector(sortLinesLengthAscending(_:)),
+            #selector(sortLinesLengthDescending(_:)),
+            #selector(sortLinesIntegerAscending(_:)),
+            #selector(sortLinesIntegerDescending(_:)),
+            #selector(sortLinesDecimalCommaAscending(_:)),
+            #selector(sortLinesDecimalCommaDescending(_:)),
+            #selector(sortLinesDecimalDotAscending(_:)),
+            #selector(sortLinesDecimalDotDescending(_:)),
+            #selector(randomizeLineOrder(_:)),
+            #selector(reverseLineOrder(_:)):
+            return documentLineCount() > 1 && !editorSurface.isReadOnly
+        case #selector(removeBlankLines(_:)),
+            #selector(removeEmptyLines(_:)),
+            #selector(removeDuplicateLines(_:)),
+            #selector(removeConsecutiveDuplicateLines(_:)):
+            return documentLineCount() > 1 && !editorSurface.isReadOnly
         case #selector(startMacroRecording(_:)):
             menuItem.state = activeMacroRecording == nil ? .off : .on
             return activeMacroRecording == nil
@@ -3617,6 +3671,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         statusField.setAccessibilityLabel(
             Localization.string(.editorStatusBarAccessibilityLabel, default: "Editor status bar")
         )
+        // Double-click status bar → Go To Line panel
+        let statusClick = NSClickGestureRecognizer(target: self, action: #selector(statusBarDoubleClicked(_:)))
+        statusClick.numberOfClicksRequired = 2
+        statusField.addGestureRecognizer(statusClick)
 
         rootView.addSubview(tabBarView)
         rootView.addSubview(editorSurface.view)

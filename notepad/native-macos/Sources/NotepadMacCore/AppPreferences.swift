@@ -59,7 +59,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         openDirectoryFollowsDocument: false,
         defaultNewDocumentLanguageName: "",
         folderDropOpensAsWorkspace: false,
-        extraURLSchemes: ""
+        extraURLSchemes: "",
+        newDocumentOnLaunch: true,
+        postItAlpha: 0.75
     )
 
     public let editorFontSize: Double
@@ -252,15 +254,53 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     }
 
     public func withEditorFontSize(_ editorFontSize: Double) -> AppPreferences {
+        copy(editorFontSize: editorFontSize)
+    }
+
+    public func withWrapsLines(_ wrapsLines: Bool) -> AppPreferences {
+        copy(wrapsLines: wrapsLines)
+    }
+
+    /// Returns a copy of this AppPreferences with only searchMatchCase and searchWholeWord changed.
+    public func withSearchOptions(_ options: TextSearch.Options) -> AppPreferences {
+        copy(searchMatchCase: options.matchCase, searchWholeWord: options.wholeWord)
+    }
+
+    public func withCustomDateTimeFormat(_ customDateTimeFormat: String) -> AppPreferences {
+        copy(customDateTimeFormat: customDateTimeFormat)
+    }
+
+    public func withSearchEngineChoice(_ searchEngineChoice: SearchEngineChoice) -> AppPreferences {
+        copy(searchEngineChoice: searchEngineChoice)
+    }
+
+    public func withCustomSearchEngineURL(_ customSearchEngineURL: String) -> AppPreferences {
+        copy(customSearchEngineURL: customSearchEngineURL)
+    }
+
+    public func withLocalizationFileName(_ localizationFileName: String) -> AppPreferences {
+        copy(localizationFileName: localizationFileName)
+    }
+
+    private func copy(
+        editorFontSize: Double? = nil,
+        wrapsLines: Bool? = nil,
+        searchMatchCase: Bool? = nil,
+        searchWholeWord: Bool? = nil,
+        customDateTimeFormat: String? = nil,
+        searchEngineChoice: SearchEngineChoice? = nil,
+        customSearchEngineURL: String? = nil,
+        localizationFileName: String? = nil
+    ) -> AppPreferences {
         AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase,
-            searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
+            editorFontSize: editorFontSize ?? self.editorFontSize,
+            wrapsLines: wrapsLines ?? self.wrapsLines,
+            searchMatchCase: searchMatchCase ?? self.searchMatchCase,
+            searchWholeWord: searchWholeWord ?? self.searchWholeWord,
+            customDateTimeFormat: customDateTimeFormat ?? self.customDateTimeFormat,
+            searchEngineChoice: searchEngineChoice ?? self.searchEngineChoice,
+            customSearchEngineURL: customSearchEngineURL ?? self.customSearchEngineURL,
+            localizationFileName: localizationFileName ?? self.localizationFileName,
             showWhitespace: showWhitespace,
             showEOL: showEOL,
             showIndentGuides: showIndentGuides,
@@ -271,115 +311,42 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             insertSpacesInsteadOfTabs: insertSpacesInsteadOfTabs,
             showLineNumberMargin: showLineNumberMargin,
             showEdgeLine: showEdgeLine,
-            edgeLineColumn: edgeLineColumn
-        )
-    }
-
-    public func withWrapsLines(_ wrapsLines: Bool) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase,
-            searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace,
-            showEOL: showEOL,
-            showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine,
-            showWrapSymbol: showWrapSymbol
-        )
-    }
-
-    public func withSearchOptions(_ options: TextSearch.Options) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: options.matchCase,
-            searchWholeWord: options.wholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace,
-            showEOL: showEOL,
-            showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine,
-            showWrapSymbol: showWrapSymbol
-        )
-    }
-
-    public func withCustomDateTimeFormat(_ customDateTimeFormat: String) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase,
-            searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace,
-            showEOL: showEOL,
-            showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine,
-            showWrapSymbol: showWrapSymbol
-        )
-    }
-
-    public func withSearchEngineChoice(_ searchEngineChoice: SearchEngineChoice) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase,
-            searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace,
-            showEOL: showEOL,
-            showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine,
-            showWrapSymbol: showWrapSymbol
-        )
-    }
-
-    public func withCustomSearchEngineURL(_ customSearchEngineURL: String) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase,
-            searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace,
-            showEOL: showEOL,
-            showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine,
-            showWrapSymbol: showWrapSymbol
-        )
-    }
-
-    public func withLocalizationFileName(_ localizationFileName: String) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase,
-            searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace,
-            showEOL: showEOL,
-            showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine,
-            showWrapSymbol: showWrapSymbol
+            edgeLineColumn: edgeLineColumn,
+            enableAutoPair: enableAutoPair,
+            enableXmlTagMatch: enableXmlTagMatch,
+            enableClickableLinks: enableClickableLinks,
+            defaultNewDocumentEncoding: defaultNewDocumentEncoding,
+            defaultNewDocumentLineEnding: defaultNewDocumentLineEnding,
+            rememberLastSession: rememberLastSession,
+            showNpcCharacters: showNpcCharacters,
+            smartHighlightMatchCase: smartHighlightMatchCase,
+            smartHighlightWholeWord: smartHighlightWholeWord,
+            caretWidth: caretWidth,
+            enableVirtualSpace: enableVirtualSpace,
+            backspaceUnindents: backspaceUnindents,
+            autoIndent: autoIndent,
+            largeFileSizeMB: largeFileSizeMB,
+            scrollBeyondLastLine: scrollBeyondLastLine,
+            autoCompleteFromNthChar: autoCompleteFromNthChar,
+            caretNoBlink: caretNoBlink,
+            currentLineFrameWidth: currentLineFrameWidth,
+            lineWrapIndent: lineWrapIndent,
+            foldMarginStyle: foldMarginStyle,
+            useFirstLineAsTabName: useFirstLineAsTabName,
+            recentFilesMaxCount: recentFilesMaxCount,
+            recentFilesShowFullPath: recentFilesShowFullPath,
+            noCheckRecentAtLaunch: noCheckRecentAtLaunch,
+            keepAbsentFilesInSession: keepAbsentFilesInSession,
+            autoReloadOnExternalChange: autoReloadOnExternalChange,
+            backupOnSave: backupOnSave,
+            additionalEdgeColumns: additionalEdgeColumns,
+            linePadding: linePadding,
+            openDirectoryFollowsDocument: openDirectoryFollowsDocument,
+            defaultNewDocumentLanguageName: defaultNewDocumentLanguageName,
+            folderDropOpensAsWorkspace: folderDropOpensAsWorkspace,
+            extraURLSchemes: extraURLSchemes,
+            newDocumentOnLaunch: newDocumentOnLaunch,
+            postItAlpha: postItAlpha
         )
     }
 

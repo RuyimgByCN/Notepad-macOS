@@ -87,10 +87,20 @@ final class DocumentMapPanelController: NSObject, NSTableViewDataSource, NSTable
         NotificationCenter.default.removeObserver(self)
     }
 
+    var isVisible: Bool { panel.isVisible }
+
     func show(documentName: String, text: String, currentLine: Int, onSelect: @escaping (DocumentMapEntry) -> Void) {
         currentDocumentName = documentName
-        self.entries = DocumentMapEntry.entries(in: text)
         self.onSelect = onSelect
+        update(documentName: documentName, text: text, currentLine: currentLine)
+        panel.center()
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func update(documentName: String, text: String, currentLine: Int) {
+        currentDocumentName = documentName
+        self.entries = DocumentMapEntry.entries(in: text)
         refreshLocalizedStrings()
         tableView.reloadData()
         let selectedIndex = max(0, min(entries.count - 1, currentLine - 1))
@@ -98,9 +108,6 @@ final class DocumentMapPanelController: NSObject, NSTableViewDataSource, NSTable
             tableView.selectRowIndexes(IndexSet(integer: selectedIndex), byExtendingSelection: false)
             tableView.scrollRowToVisible(selectedIndex)
         }
-        panel.center()
-        panel.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int {

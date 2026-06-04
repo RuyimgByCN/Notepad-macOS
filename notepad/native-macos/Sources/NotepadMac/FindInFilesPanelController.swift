@@ -466,7 +466,15 @@ final class FindInFilesPanelController: NSWindowController {
                 continue
             }
 
-            guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else { continue }
+            // Try auto-detecting encoding via TextFileCodec, fall back to UTF-8
+            let content: String
+            if let loaded = try? TextFileCodec.read(fileURL) {
+                content = loaded.text
+            } else if let s = try? String(contentsOf: fileURL, encoding: .utf8) {
+                content = s
+            } else {
+                continue
+            }
 
             let fileResults = searchInContent(content, query: query, options: options, filePath: fileURL.path)
             allResults.append(contentsOf: fileResults)
