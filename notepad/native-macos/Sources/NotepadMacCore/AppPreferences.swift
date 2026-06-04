@@ -161,6 +161,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let saveAllConfirm: Bool
     /// Exclude words starting with a digit from inline auto-complete suggestions
     public let autoCompleteIgnoreNumbers: Bool
+    /// After Replace, keep caret at original position instead of moving to replaced range
+    public let replaceDoesNotMove: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -240,7 +242,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         statusBarVisible: Bool = true,
         shortTitle: Bool = false,
         saveAllConfirm: Bool = false,
-        autoCompleteIgnoreNumbers: Bool = true
+        autoCompleteIgnoreNumbers: Bool = true,
+        replaceDoesNotMove: Bool = false
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -320,6 +323,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.shortTitle = shortTitle
         self.saveAllConfirm = saveAllConfirm
         self.autoCompleteIgnoreNumbers = autoCompleteIgnoreNumbers
+        self.replaceDoesNotMove = replaceDoesNotMove
     }
 
     /// Combined URL schemes: defaults + user-configured extras
@@ -448,7 +452,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             statusBarVisible: statusBarVisible,
             shortTitle: shortTitle,
             saveAllConfirm: saveAllConfirm,
-            autoCompleteIgnoreNumbers: autoCompleteIgnoreNumbers
+            autoCompleteIgnoreNumbers: autoCompleteIgnoreNumbers,
+            replaceDoesNotMove: replaceDoesNotMove
         )
     }
 
@@ -542,7 +547,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             statusBarVisible: statusBarVisible,
             shortTitle: shortTitle,
             saveAllConfirm: saveAllConfirm,
-            autoCompleteIgnoreNumbers: autoCompleteIgnoreNumbers
+            autoCompleteIgnoreNumbers: autoCompleteIgnoreNumbers,
+            replaceDoesNotMove: replaceDoesNotMove
         )
     }
 
@@ -640,6 +646,7 @@ public final class PreferencesStore {
         static let shortTitle = "notepadMac.shortTitle"
         static let saveAllConfirm = "notepadMac.saveAllConfirm"
         static let autoCompleteIgnoreNumbers = "notepadMac.autoCompleteIgnoreNumbers"
+        static let replaceDoesNotMove = "notepadMac.replaceDoesNotMove"
         static let disabledNativePluginIdentifiers = "notepadMac.disabledNativePluginIdentifiers"
         static let findHistory = "notepadMac.findHistory"
         static let replaceHistory = "notepadMac.replaceHistory"
@@ -729,7 +736,8 @@ public final class PreferencesStore {
             statusBarVisible: defaults.object(forKey: Key.statusBarVisible) as? Bool ?? true,
             shortTitle: defaults.object(forKey: Key.shortTitle) as? Bool ?? false,
             saveAllConfirm: defaults.object(forKey: Key.saveAllConfirm) as? Bool ?? false,
-            autoCompleteIgnoreNumbers: defaults.object(forKey: Key.autoCompleteIgnoreNumbers) as? Bool ?? true
+            autoCompleteIgnoreNumbers: defaults.object(forKey: Key.autoCompleteIgnoreNumbers) as? Bool ?? true,
+            replaceDoesNotMove: defaults.object(forKey: Key.replaceDoesNotMove) as? Bool ?? false
         )
     }
 
@@ -819,6 +827,7 @@ public final class PreferencesStore {
         defaults.set(preferences.shortTitle, forKey: Key.shortTitle)
         defaults.set(preferences.saveAllConfirm, forKey: Key.saveAllConfirm)
         defaults.set(preferences.autoCompleteIgnoreNumbers, forKey: Key.autoCompleteIgnoreNumbers)
+        defaults.set(preferences.replaceDoesNotMove, forKey: Key.replaceDoesNotMove)
         defaults.synchronize()
     }
 

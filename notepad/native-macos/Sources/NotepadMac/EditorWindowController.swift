@@ -3269,10 +3269,20 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     func performReplace(query: String, replacement: String, options: TextSearch.Options) -> Bool {
-        guard let result = TextSearch.replaceNext(query, with: replacement, in: editorSurface.text, from: editorSurface.selectedRange, options: options) else {
+        let currentSelection = editorSurface.selectedRange
+        guard let result = TextSearch.replaceNext(query, with: replacement, in: editorSurface.text, from: currentSelection, options: options) else {
             return false
         }
-        applyEditedText(result.text, selectedRange: result.replacedRange)
+        let postSelection: NSRange
+        if preferencesStore.load().replaceDoesNotMove {
+            // Keep caret at the original position (adjusted for text length change)
+            let delta = replacement.utf16.count - result.replacedRange.length + result.replacedRange.length
+            let adjustedLoc = min(currentSelection.location, (result.text as NSString).length)
+            postSelection = NSRange(location: adjustedLoc, length: 0)
+        } else {
+            postSelection = result.replacedRange
+        }
+        applyEditedText(result.text, selectedRange: postSelection)
         return true
     }
 
