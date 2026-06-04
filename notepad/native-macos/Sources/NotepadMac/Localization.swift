@@ -169,6 +169,7 @@ enum Localization {
         case callTipSummaryAccessibilityLabel = "callTip.accessibility.summary"
         case callTipDetailAccessibilityLabel = "callTip.accessibility.detail"
         case editorUntitledDocumentName = "editor.untitledDocumentName"
+        case editorNewDocumentPrefix = "editor.newDocumentPrefix"
         case editorUntitledFileName = "editor.untitledFileName"
         case editorWindowTitleFormat = "editor.windowTitleFormat"
         case editorResourceNotAvailable = "editor.resourceNotAvailable"

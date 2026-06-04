@@ -164,6 +164,7 @@
 "callTip.accessibility.summary" = "Call-tip summary";
 "callTip.accessibility.detail" = "Call-tip details";
 "editor.untitledDocumentName" = "Untitled";
+"editor.newDocumentPrefix" = "new ";
 "editor.accessibility.statusBar" = "Editor status bar";
 "editor.untitledFileName" = "Untitled.txt";
 "editor.windowTitleFormat" = "%@ - Notepad++ Mac";

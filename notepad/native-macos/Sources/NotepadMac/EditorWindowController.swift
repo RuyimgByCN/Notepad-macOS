@@ -280,6 +280,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     init(
+        untitledDisplayName: String? = nil,
         languageCatalog: LanguageCatalog = .fallback,
         styleCatalog: StyleCatalog = .empty,
         preferencesStore: PreferencesStore = PreferencesStore(),
@@ -289,7 +290,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.styleCatalog = styleCatalog
         let displayStrings = EditorDisplayStrings.localized()
         self.displayStrings = displayStrings
-        self.untitledDisplayName = displayStrings.untitledDocumentName
+        self.untitledDisplayName = untitledDisplayName ?? displayStrings.untitledDocumentName
         self.preferencesStore = preferencesStore
         self.stylePreferencesStore = stylePreferencesStore
         self.language = languageCatalog.defaultLanguage
@@ -337,7 +338,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         )
         super.init(window: window)
 
-        window.title = displayStrings.windowTitle(displayName: untitledDisplayName, isDirty: false)
+        window.title = displayStrings.windowTitle(displayName: self.untitledDisplayName, isDirty: false)
         window.delegate = self
         window.nextResponder = self
         window.tabbingMode = .disallowed

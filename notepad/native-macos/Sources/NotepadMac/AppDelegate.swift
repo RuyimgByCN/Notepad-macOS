@@ -12,6 +12,7 @@ private struct ThemeResourceLoadResult: Sendable {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windows: [EditorWindowController] = []
+    private var newDocumentCounter = 0
     private var windowSortMode = AppMenu.WindowSortMode.none
     private var tabState = EditorTabState()
     private var languageCatalog = LanguageCatalog.loadDefault()
@@ -236,7 +237,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func newDocument(_ sender: Any?) {
+        newDocumentCounter += 1
+        let prefix = Localization.string(.editorNewDocumentPrefix, default: "新文件")
         let controller = EditorWindowController(
+            untitledDisplayName: "\(prefix)\(newDocumentCounter)",
             languageCatalog: languageCatalog,
             styleCatalog: styleCatalog,
             preferencesStore: preferencesStore,

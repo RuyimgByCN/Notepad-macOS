@@ -23,7 +23,7 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
     func makeToolbar() -> NSToolbar {
         let toolbar = NSToolbar(identifier: .editorWindow)
         toolbar.delegate = self
-        toolbar.displayMode = .iconAndLabel
+        toolbar.displayMode = .iconOnly
         toolbar.sizeMode = .small
         toolbar.allowsUserCustomization = true
         toolbar.autosavesConfiguration = false

@@ -164,6 +164,7 @@
 "callTip.accessibility.summary" = "调用提示摘要";
 "callTip.accessibility.detail" = "调用提示详情";
 "editor.untitledDocumentName" = "未命名";
+"editor.newDocumentPrefix" = "新文件";
 "editor.accessibility.statusBar" = "编辑器状态栏";
 "editor.untitledFileName" = "未命名.txt";
 "editor.windowTitleFormat" = "%@ - Notepad++ Mac";
