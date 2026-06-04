@@ -153,6 +153,14 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let delimiterLeft: String
     /// Delimiter for "Select between delimiters": right char (empty = whitespace)
     public let delimiterRight: String
+    /// Show status bar at bottom of editor window
+    public let statusBarVisible: Bool
+    /// Show only the filename (not full path) in the window title bar
+    public let shortTitle: Bool
+    /// Prompt before "Save All" operation
+    public let saveAllConfirm: Bool
+    /// Exclude words starting with a digit from inline auto-complete suggestions
+    public let autoCompleteIgnoreNumbers: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -228,7 +236,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         findDialogTransparency: Double = 0,
         printSettings: PrintSettings = .defaultValue,
         delimiterLeft: String = "",
-        delimiterRight: String = ""
+        delimiterRight: String = "",
+        statusBarVisible: Bool = true,
+        shortTitle: Bool = false,
+        saveAllConfirm: Bool = false,
+        autoCompleteIgnoreNumbers: Bool = true
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -304,6 +316,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.printSettings = printSettings
         self.delimiterLeft = delimiterLeft
         self.delimiterRight = delimiterRight
+        self.statusBarVisible = statusBarVisible
+        self.shortTitle = shortTitle
+        self.saveAllConfirm = saveAllConfirm
+        self.autoCompleteIgnoreNumbers = autoCompleteIgnoreNumbers
     }
 
     /// Combined URL schemes: defaults + user-configured extras
@@ -607,6 +623,10 @@ public final class PreferencesStore {
         static let printSettings = "notepadMac.printSettings"
         static let delimiterLeft = "notepadMac.delimiterLeft"
         static let delimiterRight = "notepadMac.delimiterRight"
+        static let statusBarVisible = "notepadMac.statusBarVisible"
+        static let shortTitle = "notepadMac.shortTitle"
+        static let saveAllConfirm = "notepadMac.saveAllConfirm"
+        static let autoCompleteIgnoreNumbers = "notepadMac.autoCompleteIgnoreNumbers"
         static let disabledNativePluginIdentifiers = "notepadMac.disabledNativePluginIdentifiers"
         static let findHistory = "notepadMac.findHistory"
         static let replaceHistory = "notepadMac.replaceHistory"
@@ -692,7 +712,11 @@ public final class PreferencesStore {
             findDialogTransparency: defaults.object(forKey: Key.findDialogTransparency) as? Double ?? 0,
             printSettings: Self.loadPrintSettings(from: defaults),
             delimiterLeft: defaults.string(forKey: Key.delimiterLeft) ?? "",
-            delimiterRight: defaults.string(forKey: Key.delimiterRight) ?? ""
+            delimiterRight: defaults.string(forKey: Key.delimiterRight) ?? "",
+            statusBarVisible: defaults.object(forKey: Key.statusBarVisible) as? Bool ?? true,
+            shortTitle: defaults.object(forKey: Key.shortTitle) as? Bool ?? false,
+            saveAllConfirm: defaults.object(forKey: Key.saveAllConfirm) as? Bool ?? false,
+            autoCompleteIgnoreNumbers: defaults.object(forKey: Key.autoCompleteIgnoreNumbers) as? Bool ?? true
         )
     }
 
@@ -778,6 +802,10 @@ public final class PreferencesStore {
         }
         defaults.set(preferences.delimiterLeft, forKey: Key.delimiterLeft)
         defaults.set(preferences.delimiterRight, forKey: Key.delimiterRight)
+        defaults.set(preferences.statusBarVisible, forKey: Key.statusBarVisible)
+        defaults.set(preferences.shortTitle, forKey: Key.shortTitle)
+        defaults.set(preferences.saveAllConfirm, forKey: Key.saveAllConfirm)
+        defaults.set(preferences.autoCompleteIgnoreNumbers, forKey: Key.autoCompleteIgnoreNumbers)
         defaults.synchronize()
     }
 

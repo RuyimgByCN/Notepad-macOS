@@ -3331,7 +3331,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         smartHighlightMatchCase = preferences.smartHighlightMatchCase
         smartHighlightWholeWord = preferences.smartHighlightWholeWord
         presentationState.postItAlpha = CGFloat(preferences.postItAlpha)
-        showsStatusBar = true  // Default to showing status bar
+        showsStatusBar = preferences.statusBarVisible
         applyFont()
         applyLineWrapping()
         applyTabSettings(preferences.tabSize, insertSpaces: preferences.insertSpacesInsteadOfTabs)
@@ -3751,7 +3751,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func handleCharAddedForAutoComplete(_ char: Character) {
         let threshold = autoCompleteFromNthChar
-        guard threshold > 0, autoCompleteMode > 0, char.isLetter || char == "_" else { return }
+        guard threshold > 0, autoCompleteMode > 0, char.isLetter || char == "_" || char.isNumber else { return }
+        // If ignoring numbers-only char additions when autoCompleteIgnoreNumbers is on
+        let ignoreNumbers = preferencesStore.load().autoCompleteIgnoreNumbers
+        if ignoreNumbers && char.isNumber { return }
         // Get word prefix under caret
         let text = editorSurface.text as NSString
         let caretPos = editorSurface.selectedRange.location
@@ -3792,7 +3795,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
 
         if words.isEmpty { return }
-        editorSurface.showInlineAutoComplete(prefix: prefix, words: Array(words))
+        var finalWords = Array(words)
+        if ignoreNumbers {
+            finalWords = finalWords.filter { !($0.first?.isNumber == true) }
+        }
+        if finalWords.isEmpty { return }
+        editorSurface.showInlineAutoComplete(prefix: prefix, words: finalWords)
     }
 
     private func resolveAutoCompletionCatalog() -> AutoCompletionCatalog? {
@@ -4195,7 +4203,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func updateTitle() {
-        window?.title = displayStrings.windowTitle(displayName: displayName, isDirty: isDirty)
+        window?.title = displayStrings.windowTitle(displayName: titleBarDisplayName, isDirty: isDirty)
         window?.representedURL = fileURL
     }
 
@@ -4724,6 +4732,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private var displayName: String {
         displayStrings.displayName(fileURL: fileURL, fallbackDisplayName: untitledDisplayName)
+    }
+
+    /// Title shown in the window title bar (full path or filename-only based on shortTitle preference)
+    private var titleBarDisplayName: String {
+        if !preferencesStore.load().shortTitle, let url = fileURL {
+            return url.path
+        }
+        return displayName
     }
 }
 

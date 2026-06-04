@@ -56,6 +56,12 @@ final class PreferencesPanelController: NSWindowController {
     private let delimiterLeftField = NSTextField(string: "")
     private let delimiterRightLabel = NSTextField(labelWithString: "")
     private let delimiterRightField = NSTextField(string: "")
+    // General section (in Window tab)
+    private let generalSectionLabel = NSTextField(labelWithString: "")
+    private let statusBarVisibleButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let shortTitleButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let saveAllConfirmButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoCompleteIgnoreNumbersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let openDirFollowsDocButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let folderDropAsWorkspaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let defaultLangLabel = NSTextField(labelWithString: "")
@@ -267,6 +273,11 @@ final class PreferencesPanelController: NSWindowController {
         delimiterSectionLabel.stringValue = "Delimiter"
         delimiterLeftLabel.stringValue = "Left char (empty=whitespace):"
         delimiterRightLabel.stringValue = "Right char:"
+        generalSectionLabel.stringValue = "General"
+        statusBarVisibleButton.title = "Show status bar"
+        shortTitleButton.title = "Short title (filename only in title bar)"
+        saveAllConfirmButton.title = "Confirm before Save All"
+        autoCompleteIgnoreNumbersButton.title = "Auto-complete: ignore words starting with digits"
         printLineNumbersButton.title = "Print line numbers"
         openDirFollowsDocButton.title = Localization.string(.preferencesOpenDirFollowsDoc, default: "Open dialog starts in the current document's directory")
         folderDropAsWorkspaceButton.title = Localization.string(.preferencesFolderDropAsWorkspace, default: "Open dropped folder as workspace")
@@ -355,7 +366,7 @@ final class PreferencesPanelController: NSWindowController {
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, findTransparencySlider, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, findTransparencySlider, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -482,10 +493,12 @@ final class PreferencesPanelController: NSWindowController {
         [tabbarSectionLabel, tabbarDoubleClickCloseButton,
          tabbarMaxLabelLengthLabel, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper,
          delimiterSectionLabel, delimiterLeftLabel, delimiterLeftField,
-         delimiterRightLabel, delimiterRightField
+         delimiterRightLabel, delimiterRightField,
+         generalSectionLabel, statusBarVisibleButton, shortTitleButton,
+         saveAllConfirmButton, autoCompleteIgnoreNumbersButton
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; windowCV.addSubview($0) }
 
-        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel, inSelectionSectionLabel, tabbarSectionLabel, printSectionLabel, delimiterSectionLabel].forEach {
+        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel, inSelectionSectionLabel, tabbarSectionLabel, printSectionLabel, delimiterSectionLabel, generalSectionLabel].forEach {
             $0.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
         }
         // Convenience anchors for tabs 2 and 3
@@ -921,7 +934,22 @@ final class PreferencesPanelController: NSWindowController {
             delimiterRightField.centerYAnchor.constraint(equalTo: delimiterRightLabel.centerYAnchor),
             delimiterRightField.widthAnchor.constraint(equalToConstant: 60),
 
-            windowCV.bottomAnchor.constraint(equalTo: delimiterRightLabel.bottomAnchor, constant: 24)
+            generalSectionLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            generalSectionLabel.topAnchor.constraint(equalTo: delimiterRightLabel.bottomAnchor, constant: 20),
+
+            statusBarVisibleButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            statusBarVisibleButton.topAnchor.constraint(equalTo: generalSectionLabel.bottomAnchor, constant: 10),
+
+            shortTitleButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            shortTitleButton.topAnchor.constraint(equalTo: statusBarVisibleButton.bottomAnchor, constant: 10),
+
+            saveAllConfirmButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            saveAllConfirmButton.topAnchor.constraint(equalTo: shortTitleButton.bottomAnchor, constant: 10),
+
+            autoCompleteIgnoreNumbersButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            autoCompleteIgnoreNumbersButton.topAnchor.constraint(equalTo: saveAllConfirmButton.bottomAnchor, constant: 10),
+
+            windowCV.bottomAnchor.constraint(equalTo: autoCompleteIgnoreNumbersButton.bottomAnchor, constant: 24)
         ])
     }
 
@@ -990,6 +1018,10 @@ final class PreferencesPanelController: NSWindowController {
         printFontSizeStepper.intValue = Int32(ps.fontSize)
         delimiterLeftField.stringValue = preferences.delimiterLeft
         delimiterRightField.stringValue = preferences.delimiterRight
+        statusBarVisibleButton.state = preferences.statusBarVisible ? .on : .off
+        shortTitleButton.state = preferences.shortTitle ? .on : .off
+        saveAllConfirmButton.state = preferences.saveAllConfirm ? .on : .off
+        autoCompleteIgnoreNumbersButton.state = preferences.autoCompleteIgnoreNumbers ? .on : .off
         largeFileMBField.intValue = Int32(preferences.largeFileSizeMB)
         largeFileMBStepper.intValue = Int32(preferences.largeFileSizeMB)
         additionalEdgeColumnsField.stringValue = preferences.additionalEdgeColumns
@@ -1158,7 +1190,11 @@ final class PreferencesPanelController: NSWindowController {
                 marginRight: existing.printSettings.marginRight
             ),
             delimiterLeft: delimiterLeftField.stringValue,
-            delimiterRight: delimiterRightField.stringValue
+            delimiterRight: delimiterRightField.stringValue,
+            statusBarVisible: statusBarVisibleButton.state == .on,
+            shortTitle: shortTitleButton.state == .on,
+            saveAllConfirm: saveAllConfirmButton.state == .on,
+            autoCompleteIgnoreNumbers: autoCompleteIgnoreNumbersButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()

@@ -287,6 +287,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func saveAllDocuments(_ sender: Any?) {
+        let prefs = preferencesStore.load()
+        let dirtyCount = windows.filter { $0.window?.isDocumentEdited == true }.count
+        if prefs.saveAllConfirm && dirtyCount > 0 {
+            let alert = NSAlert()
+            alert.messageText = String(
+                format: "Save %d modified file(s)?",
+                dirtyCount
+            )
+            alert.informativeText = "All unsaved changes will be written to disk."
+            alert.addButton(withTitle: "Save All")
+            alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
         windows.forEach { $0.saveDocument(sender) }
     }
 
