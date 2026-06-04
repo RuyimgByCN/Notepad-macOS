@@ -326,14 +326,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if preferencesStore.load().openDirectoryFollowsDocument {
             panel.directoryURL = activeEditorController()?.sessionFileURL?.deletingLastPathComponent()
         }
+        // Add "Open as Read-Only" accessory checkbox
+        let readOnlyBox = NSButton(checkboxWithTitle: "Open as Read Only", target: nil, action: nil)
+        readOnlyBox.state = .off
+        panel.accessoryView = readOnlyBox
+
         panel.begin { [weak self] response in
-            guard response == .OK else { return }
-            self?.openURLs(panel.urls)
+            guard response == .OK, let self else { return }
+            let isReadOnly = readOnlyBox.state == .on
+            self.openURLs(panel.urls, readOnly: isReadOnly)
         }
     }
 
     /// Open a list of URLs, prompting the user first if there are more than the batch threshold.
-    func openURLs(_ urls: [URL], batchThreshold: Int = 200) {
+    func openURLs(_ urls: [URL], batchThreshold: Int = 200, readOnly: Bool = false) {
         guard !urls.isEmpty else { return }
         if urls.count > batchThreshold {
             let alert = NSAlert()
@@ -343,7 +349,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
             guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
-        urls.forEach { openFile($0) }
+        for url in urls {
+            if let controller = openFile(url, persistSession: true), readOnly {
+                controller.editorSurface.isReadOnly = true
+            }
+        }
     }
 
     @objc func saveAllDocuments(_ sender: Any?) {
