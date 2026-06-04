@@ -253,7 +253,8 @@ public struct UserDefinedLanguage: Codable, Equatable, Identifiable, Sendable {
     public func updating(
         extensionsText: String,
         keywordsText: String,
-        wordStylesText: String
+        wordStylesText: String,
+        additionalKeywordLists: [String: String]? = nil
     ) -> Self? {
         guard let wordStyles = Self.parseEditableWordStylesText(wordStylesText) else {
             return nil
@@ -264,7 +265,8 @@ public struct UserDefinedLanguage: Codable, Equatable, Identifiable, Sendable {
             displayName: displayName,
             extensions: Self.splitEditorList(extensionsText),
             keywords: Self.splitEditorList(keywordsText),
-            wordStyles: wordStyles
+            wordStyles: wordStyles,
+            additionalKeywordLists: additionalKeywordLists ?? self.additionalKeywordLists
         )
     }
 

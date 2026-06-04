@@ -418,8 +418,11 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         )
         let keywordsField = NSTextField(string: language.editableKeywordsText)
         keywordsField.setAccessibilityLabel(
-            Localization.string(.udlKeywordsFieldAccessibilityLabel, default: "Language keywords")
+            Localization.string(.udlKeywordsFieldAccessibilityLabel, default: "Language keywords (Keywords1)")
         )
+        let keywords2Field = NSTextField(string: language.additionalKeywordLists["Keywords2"] ?? "")
+        keywords2Field.placeholderString = "Optional second keyword list"
+        keywords2Field.setAccessibilityLabel("Keywords2")
         let styleFieldSets = Self.structuredStyleDescriptors.map { descriptor in
             Self.structuredStyleFields(for: descriptor, language: language)
         }
@@ -454,7 +457,8 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
 
         let labels = [
             Localization.string(.udlExtensionsColumn, default: "Extensions"),
-            Localization.string(.udlKeywordsColumn, default: "Keywords"),
+            Localization.string(.udlKeywordsColumn, default: "Keywords 1"),
+            "Keywords 2",
             Localization.string(.udlStructuredWordsStyle, default: "Structured WordsStyle"),
             Localization.string(.udlWordsStyleRaw, default: "Raw WordsStyle")
         ].map { label -> NSTextField in
@@ -466,20 +470,21 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         let grid = NSGridView(views: [
             [labels[0], extensionsField],
             [labels[1], keywordsField],
-            [labels[2], styleGrid],
-            [labels[3], wordStylesScrollView]
+            [labels[2], keywords2Field],
+            [labels[3], styleGrid],
+            [labels[4], wordStylesScrollView]
         ])
         grid.translatesAutoresizingMaskIntoConstraints = false
         grid.rowSpacing = 8
         grid.columnSpacing = 10
         grid.xPlacement = .fill
-        for rowIndex in 0..<2 {
+        for rowIndex in 0..<3 {
             grid.row(at: rowIndex).yPlacement = .center
         }
-        grid.row(at: 2).yPlacement = .top
         grid.row(at: 3).yPlacement = .top
+        grid.row(at: 4).yPlacement = .top
 
-        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 650, height: 430))
+        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 650, height: 460))
         accessoryView.addSubview(grid)
         NSLayoutConstraint.activate([
             grid.leadingAnchor.constraint(equalTo: accessoryView.leadingAnchor),
@@ -498,10 +503,18 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         alert.addButton(withTitle: Localization.string(.udlEditCancel, default: "Cancel"))
 
         let saveEdit = {
+            var newAdditionalLists = language.additionalKeywordLists
+            let k2text = keywords2Field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if k2text.isEmpty {
+                newAdditionalLists.removeValue(forKey: "Keywords2")
+            } else {
+                newAdditionalLists["Keywords2"] = k2text
+            }
             guard let editedBase = language.updating(
                 extensionsText: extensionsField.stringValue,
                 keywordsText: keywordsField.stringValue,
-                wordStylesText: wordStylesTextView.string
+                wordStylesText: wordStylesTextView.string,
+                additionalKeywordLists: newAdditionalLists
             ) else {
                 self.statusField.stringValue = Localization.string(
                     .udlSaveFailedStatus,
