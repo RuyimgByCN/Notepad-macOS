@@ -48,6 +48,10 @@ final class EditorTabBarView: NSView {
     private let documentView = NSView()
     private var tabButtons: [EditorTabButton] = []
     private let newTabButton = NSButton()
+    /// Overflow/droplist button — shows all tabs in a popup menu
+    private let overflowButton = NSButton()
+    /// Width constraint for the overflow button (0 when hidden, 22 when visible)
+    private var overflowWidthConstraint: NSLayoutConstraint!
     // Last valid bar width seen in layout(); used by rebuildTabs() so that
     // calls from update(state:) always get the correct width even when
     // scrollView.bounds hasn't been set yet (e.g. before first layout pass).
@@ -87,15 +91,34 @@ final class EditorTabBarView: NSView {
         newTabButton.toolTip = "New Tab"
         addSubview(newTabButton)
 
+        overflowButton.translatesAutoresizingMaskIntoConstraints = false
+        overflowButton.title = "▾"
+        overflowButton.font = .systemFont(ofSize: 10, weight: .regular)
+        overflowButton.bezelStyle = .inline
+        overflowButton.isBordered = false
+        overflowButton.contentTintColor = .secondaryLabelColor
+        overflowButton.target = self
+        overflowButton.action = #selector(overflowButtonClicked(_:))
+        overflowButton.setAccessibilityLabel("All Tabs")
+        overflowButton.toolTip = "Show all open tabs"
+        overflowButton.isHidden = true   // shown only when tabs overflow
+        addSubview(overflowButton)
+
         let newTabWidth: CGFloat = 28
+        overflowWidthConstraint = overflowButton.widthAnchor.constraint(equalToConstant: 0)
         NSLayoutConstraint.activate([
             newTabButton.trailingAnchor.constraint(equalTo: trailingAnchor),
             newTabButton.topAnchor.constraint(equalTo: topAnchor),
             newTabButton.bottomAnchor.constraint(equalTo: bottomAnchor),
             newTabButton.widthAnchor.constraint(equalToConstant: newTabWidth),
 
+            overflowButton.trailingAnchor.constraint(equalTo: newTabButton.leadingAnchor),
+            overflowButton.topAnchor.constraint(equalTo: topAnchor),
+            overflowButton.bottomAnchor.constraint(equalTo: bottomAnchor),
+            overflowWidthConstraint,
+
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: newTabButton.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: overflowButton.leadingAnchor),
             scrollView.topAnchor.constraint(equalTo: topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
@@ -103,6 +126,22 @@ final class EditorTabBarView: NSView {
 
     @objc private func newTabButtonClicked(_ sender: Any?) {
         onNewTab?()
+    }
+
+    @objc private func overflowButtonClicked(_ sender: Any?) {
+        guard !state.items.isEmpty else { return }
+        let menu = NSMenu(title: "")
+        for item in state.items {
+            let prefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
+            let it = ClosureMenuItem(title: prefix + item.title) { [weak self] in
+                self?.onSelectTab?(item.identity)
+            }
+            if item.identity == state.activeIdentity { it.state = .on }
+            menu.addItem(it)
+        }
+        if let button = sender as? NSButton {
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height), in: button)
+        }
     }
 
     // Double-click on the empty area after tabs creates a new tab; single click is absorbed
@@ -207,6 +246,15 @@ final class EditorTabBarView: NSView {
 
         let totalWidth = max(x, scrollView.bounds.width)
         documentView.frame = CGRect(x: 0, y: 0, width: totalWidth, height: Self.barHeight)
+
+        // Show overflow button when tabs exceed the visible scroll area.
+        let needsOverflow = x > validBarWidth
+        if needsOverflow != !overflowButton.isHidden {
+            overflowButton.isHidden = !needsOverflow
+            overflowWidthConstraint.constant = needsOverflow ? 22 : 0
+            needsLayout = true
+        }
+
         scrollToActiveTab(animated: false)
     }
 
@@ -225,8 +273,9 @@ final class EditorTabBarView: NSView {
 
     override func layout() {
         super.layout()
-        // Use our own bounds minus the newTabButton so we don't depend on scrollView layout order.
-        let w = bounds.width - 28
+        // Subtract newTabButton (28) and overflow button (0 or 22) from available scroll area.
+        let overflowW: CGFloat = overflowButton.isHidden ? 0 : 22
+        let w = bounds.width - 28 - overflowW
         guard w > 0 else { return }
 
         let widthChanged = abs(w - validBarWidth) > 0.5
