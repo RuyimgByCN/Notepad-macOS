@@ -1067,7 +1067,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     @objc func zoomRestore(_ sender: Any?) {
-        fontSize = 13
+        fontSize = CGFloat(preferencesStore.load().editorFontSize)
         saveCurrentEditorPreferences()
         applyFont()
     }
