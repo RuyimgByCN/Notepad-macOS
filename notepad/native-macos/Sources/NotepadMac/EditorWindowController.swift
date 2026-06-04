@@ -84,6 +84,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var autoIndent = true
     private var scrollBeyondLastLine = false
     private var autoCompleteFromNthChar = 3
+    private var autoCompleteMode = 3
+    private var autoCompleteChooseSingle = true
+    private var autoCompleteTABFillup = false
+    private var cachedAutoCompletionCatalog: AutoCompletionCatalog?
+    private var cachedAutoCompletionCatalogLanguage: String?
     private var enablesSmartHighlight = false
     private var smartHighlightMatchCase = false
     private var smartHighlightWholeWord = true
@@ -322,6 +327,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.scrollBeyondLastLine = preferences.scrollBeyondLastLine
         self.linePadding = preferences.linePadding
         self.autoCompleteFromNthChar = preferences.autoCompleteFromNthChar
+        self.autoCompleteMode = preferences.autoCompleteMode
+        self.autoCompleteChooseSingle = preferences.autoCompleteChooseSingle
+        self.autoCompleteTABFillup = preferences.autoCompleteTABFillup
+        tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
+        tabBarView.tabMaxLabelLength = preferences.tabbarMaxLabelLength
         self.enablesAutoPair = preferences.enableAutoPair
         self.enablesXmlTagMatch = preferences.enableXmlTagMatch
         self.enablesClickableLinks = preferences.enableClickableLinks
@@ -2091,6 +2101,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return
         }
         language = nextLanguage
+        cachedAutoCompletionCatalog = nil
+        cachedAutoCompletionCatalogLanguage = nil
         highlight()
         updateStatus()
     }
@@ -3344,6 +3356,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         autoIndent = preferences.autoIndent
         scrollBeyondLastLine = preferences.scrollBeyondLastLine
         autoCompleteFromNthChar = preferences.autoCompleteFromNthChar
+        autoCompleteMode = preferences.autoCompleteMode
+        autoCompleteChooseSingle = preferences.autoCompleteChooseSingle
+        autoCompleteTABFillup = preferences.autoCompleteTABFillup
+        if cachedAutoCompletionCatalogLanguage != language.name {
+            cachedAutoCompletionCatalog = nil
+            cachedAutoCompletionCatalogLanguage = nil
+        }
         smartHighlightMatchCase = preferences.smartHighlightMatchCase
         smartHighlightWholeWord = preferences.smartHighlightWholeWord
         presentationState.postItAlpha = CGFloat(preferences.postItAlpha)
@@ -3354,6 +3373,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         applyAdvancedViewOptions()
         editorSurface.applyLineNumberMargin(showsLineNumberMargin)
         editorSurface.applyEdgeLine(showsEdgeLine, column: edgeLineColumn)
+        editorSurface.applyAutoCompleteChooseSingle(autoCompleteChooseSingle)
+        editorSurface.applyAutoCompleteTABFillup(autoCompleteTABFillup)
+        tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
+        tabBarView.tabMaxLabelLength = preferences.tabbarMaxLabelLength
         configureAutoPair()
         configureUrlHighlight()
     }
@@ -3763,7 +3786,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func handleCharAddedForAutoComplete(_ char: Character) {
         let threshold = autoCompleteFromNthChar
-        guard threshold > 0, char.isLetter || char == "_" else { return }
+        guard threshold > 0, autoCompleteMode > 0, char.isLetter || char == "_" else { return }
         // Get word prefix under caret
         let text = editorSurface.text as NSString
         let caretPos = editorSurface.selectedRange.location
@@ -3777,18 +3800,44 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let prefixLen = caretPos - start
         guard prefixLen >= threshold else { return }
         let prefix = text.substring(with: NSRange(location: start, length: prefixLen))
-        // Collect unique words from current document matching prefix
-        let allText = editorSurface.text
+
         var words = Set<String>()
-        let pattern = try? NSRegularExpression(pattern: "\\b[A-Za-z_][A-Za-z0-9_]{" + String(threshold - 1) + ",}\\b")
-        pattern?.enumerateMatches(in: allText, range: NSRange(allText.startIndex..., in: allText)) { match, _, _ in
-            guard let range = match?.range, let swRange = Range(range, in: allText) else { return }
-            let word = String(allText[swRange])
-            if word != prefix { words.insert(word) }
+
+        // Mode 1 or 3: include API catalog function/keyword names
+        if autoCompleteMode == 1 || autoCompleteMode == 3 {
+            let catalog = resolveAutoCompletionCatalog()
+            if let catalog {
+                let lc = prefix.lowercased()
+                for kw in catalog.keywords where kw.name.lowercased().hasPrefix(lc) && kw.name != prefix {
+                    words.insert(kw.name)
+                }
+            }
         }
-        let filtered = words.filter { $0.lowercased().hasPrefix(prefix.lowercased()) }
-        if filtered.isEmpty { return }
-        editorSurface.showInlineAutoComplete(prefix: prefix, words: Array(filtered))
+
+        // Mode 2 or 3: include document words
+        if autoCompleteMode == 2 || autoCompleteMode == 3 {
+            let allText = editorSurface.text
+            let pattern = try? NSRegularExpression(pattern: "\\b[A-Za-z_][A-Za-z0-9_]{" + String(threshold - 1) + ",}\\b")
+            pattern?.enumerateMatches(in: allText, range: NSRange(allText.startIndex..., in: allText)) { match, _, _ in
+                guard let range = match?.range, let swRange = Range(range, in: allText) else { return }
+                let word = String(allText[swRange])
+                if word != prefix { words.insert(word) }
+            }
+            words = Set(words.filter { $0.lowercased().hasPrefix(prefix.lowercased()) })
+        }
+
+        if words.isEmpty { return }
+        editorSurface.showInlineAutoComplete(prefix: prefix, words: Array(words))
+    }
+
+    private func resolveAutoCompletionCatalog() -> AutoCompletionCatalog? {
+        if cachedAutoCompletionCatalogLanguage == language.name, let cached = cachedAutoCompletionCatalog {
+            return cached
+        }
+        let catalog = AutoCompletionCatalog.loadDefault(languageName: language.name)
+        cachedAutoCompletionCatalog = catalog
+        cachedAutoCompletionCatalogLanguage = language.name
+        return catalog
     }
 
     private func configureDragAndDrop() {

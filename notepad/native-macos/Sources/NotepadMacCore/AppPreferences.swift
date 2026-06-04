@@ -131,6 +131,20 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let postItAlpha: Double
     /// Print line numbers alongside document content
     public let printLineNumbers: Bool
+    /// Auto-complete mode: 0=off, 1=function API only, 2=document words only, 3=both (default)
+    public let autoCompleteMode: Int
+    /// Automatically accept the only available auto-complete item without showing the list
+    public let autoCompleteChooseSingle: Bool
+    /// Use Tab key as a fill-up character to commit the selected auto-complete item
+    public let autoCompleteTABFillup: Bool
+    /// Selection length threshold (chars) for auto-checking "In Selection" in Find dialog
+    public let inSelectionThreshold: Int
+    /// Double-clicking a tab closes it
+    public let tabbarDoubleClickClose: Bool
+    /// Max characters to show in a tab label (0 = no limit)
+    public let tabbarMaxLabelLength: Int
+    /// Keep the Find dialog open after Replace All
+    public let keepFindDialogOpen: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -195,7 +209,14 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         extraURLSchemes: String = "",
         newDocumentOnLaunch: Bool = true,
         postItAlpha: Double = 0.75,
-        printLineNumbers: Bool = true
+        printLineNumbers: Bool = true,
+        autoCompleteMode: Int = 3,
+        autoCompleteChooseSingle: Bool = true,
+        autoCompleteTABFillup: Bool = false,
+        inSelectionThreshold: Int = 1024,
+        tabbarDoubleClickClose: Bool = false,
+        tabbarMaxLabelLength: Int = 0,
+        keepFindDialogOpen: Bool = true
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -260,6 +281,13 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.newDocumentOnLaunch = newDocumentOnLaunch
         self.postItAlpha = max(0.2, min(1.0, postItAlpha))
         self.printLineNumbers = printLineNumbers
+        self.autoCompleteMode = max(0, min(3, autoCompleteMode))
+        self.autoCompleteChooseSingle = autoCompleteChooseSingle
+        self.autoCompleteTABFillup = autoCompleteTABFillup
+        self.inSelectionThreshold = max(1, inSelectionThreshold)
+        self.tabbarDoubleClickClose = tabbarDoubleClickClose
+        self.tabbarMaxLabelLength = max(0, tabbarMaxLabelLength)
+        self.keepFindDialogOpen = keepFindDialogOpen
     }
 
     /// Combined URL schemes: defaults + user-configured extras
@@ -373,7 +401,14 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             extraURLSchemes: extraURLSchemes,
             newDocumentOnLaunch: newDocumentOnLaunch,
             postItAlpha: postItAlpha,
-            printLineNumbers: printLineNumbers
+            printLineNumbers: printLineNumbers,
+            autoCompleteMode: autoCompleteMode,
+            autoCompleteChooseSingle: autoCompleteChooseSingle,
+            autoCompleteTABFillup: autoCompleteTABFillup,
+            inSelectionThreshold: inSelectionThreshold,
+            tabbarDoubleClickClose: tabbarDoubleClickClose,
+            tabbarMaxLabelLength: tabbarMaxLabelLength,
+            keepFindDialogOpen: keepFindDialogOpen
         )
     }
 
@@ -452,7 +487,14 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             extraURLSchemes: extraURLSchemes,
             newDocumentOnLaunch: newDocumentOnLaunch,
             postItAlpha: postItAlpha,
-            printLineNumbers: printLineNumbers
+            printLineNumbers: printLineNumbers,
+            autoCompleteMode: autoCompleteMode,
+            autoCompleteChooseSingle: autoCompleteChooseSingle,
+            autoCompleteTABFillup: autoCompleteTABFillup,
+            inSelectionThreshold: inSelectionThreshold,
+            tabbarDoubleClickClose: tabbarDoubleClickClose,
+            tabbarMaxLabelLength: tabbarMaxLabelLength,
+            keepFindDialogOpen: keepFindDialogOpen
         )
     }
 
@@ -532,6 +574,16 @@ public final class PreferencesStore {
         static let defaultNewDocumentLanguageName = "notepadMac.defaultNewDocumentLanguageName"
         static let folderDropOpensAsWorkspace = "notepadMac.folderDropOpensAsWorkspace"
         static let extraURLSchemes = "notepadMac.extraURLSchemes"
+        static let newDocumentOnLaunch = "notepadMac.newDocumentOnLaunch"
+        static let postItAlpha = "notepadMac.postItAlpha"
+        static let printLineNumbers = "notepadMac.printLineNumbers"
+        static let autoCompleteMode = "notepadMac.autoCompleteMode"
+        static let autoCompleteChooseSingle = "notepadMac.autoCompleteChooseSingle"
+        static let autoCompleteTABFillup = "notepadMac.autoCompleteTABFillup"
+        static let inSelectionThreshold = "notepadMac.inSelectionThreshold"
+        static let tabbarDoubleClickClose = "notepadMac.tabbarDoubleClickClose"
+        static let tabbarMaxLabelLength = "notepadMac.tabbarMaxLabelLength"
+        static let keepFindDialogOpen = "notepadMac.keepFindDialogOpen"
         static let disabledNativePluginIdentifiers = "notepadMac.disabledNativePluginIdentifiers"
         static let findHistory = "notepadMac.findHistory"
         static let replaceHistory = "notepadMac.replaceHistory"
@@ -603,7 +655,17 @@ public final class PreferencesStore {
             openDirectoryFollowsDocument: defaults.object(forKey: Key.openDirectoryFollowsDocument) as? Bool ?? false,
             defaultNewDocumentLanguageName: defaults.string(forKey: Key.defaultNewDocumentLanguageName) ?? "",
             folderDropOpensAsWorkspace: defaults.object(forKey: Key.folderDropOpensAsWorkspace) as? Bool ?? false,
-            extraURLSchemes: defaults.string(forKey: Key.extraURLSchemes) ?? ""
+            extraURLSchemes: defaults.string(forKey: Key.extraURLSchemes) ?? "",
+            newDocumentOnLaunch: defaults.object(forKey: Key.newDocumentOnLaunch) as? Bool ?? true,
+            postItAlpha: defaults.object(forKey: Key.postItAlpha) as? Double ?? 0.75,
+            printLineNumbers: defaults.object(forKey: Key.printLineNumbers) as? Bool ?? true,
+            autoCompleteMode: defaults.object(forKey: Key.autoCompleteMode) as? Int ?? 3,
+            autoCompleteChooseSingle: defaults.object(forKey: Key.autoCompleteChooseSingle) as? Bool ?? true,
+            autoCompleteTABFillup: defaults.object(forKey: Key.autoCompleteTABFillup) as? Bool ?? false,
+            inSelectionThreshold: defaults.object(forKey: Key.inSelectionThreshold) as? Int ?? 1024,
+            tabbarDoubleClickClose: defaults.object(forKey: Key.tabbarDoubleClickClose) as? Bool ?? false,
+            tabbarMaxLabelLength: defaults.object(forKey: Key.tabbarMaxLabelLength) as? Int ?? 0,
+            keepFindDialogOpen: defaults.object(forKey: Key.keepFindDialogOpen) as? Bool ?? true
         )
     }
 
@@ -665,6 +727,16 @@ public final class PreferencesStore {
         defaults.set(preferences.defaultNewDocumentLanguageName, forKey: Key.defaultNewDocumentLanguageName)
         defaults.set(preferences.folderDropOpensAsWorkspace, forKey: Key.folderDropOpensAsWorkspace)
         defaults.set(preferences.extraURLSchemes, forKey: Key.extraURLSchemes)
+        defaults.set(preferences.newDocumentOnLaunch, forKey: Key.newDocumentOnLaunch)
+        defaults.set(preferences.postItAlpha, forKey: Key.postItAlpha)
+        defaults.set(preferences.printLineNumbers, forKey: Key.printLineNumbers)
+        defaults.set(preferences.autoCompleteMode, forKey: Key.autoCompleteMode)
+        defaults.set(preferences.autoCompleteChooseSingle, forKey: Key.autoCompleteChooseSingle)
+        defaults.set(preferences.autoCompleteTABFillup, forKey: Key.autoCompleteTABFillup)
+        defaults.set(preferences.inSelectionThreshold, forKey: Key.inSelectionThreshold)
+        defaults.set(preferences.tabbarDoubleClickClose, forKey: Key.tabbarDoubleClickClose)
+        defaults.set(preferences.tabbarMaxLabelLength, forKey: Key.tabbarMaxLabelLength)
+        defaults.set(preferences.keepFindDialogOpen, forKey: Key.keepFindDialogOpen)
         defaults.synchronize()
     }
 

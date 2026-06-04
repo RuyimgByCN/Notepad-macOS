@@ -38,6 +38,10 @@ final class EditorTabBarView: NSView {
     var onNewTab: (() -> Void)?
     /// Called when user drags a tab to a new position. Args: identity, target index.
     var onReorderTab: ((EditorTabIdentity, Int) -> Void)?
+    /// When true, double-clicking a tab closes it
+    var doubleClickClosesTab = false
+    /// Max characters to show in a tab label (0 = no limit)
+    var tabMaxLabelLength = 0
 
     private var state = EditorTabState()
     private let scrollView = NSScrollView()
@@ -191,6 +195,8 @@ final class EditorTabBarView: NSView {
                 onClose: { [weak self] in self?.onCloseTab?(item.identity) },
                 onContextAction: { [weak self] action in self?.onTabContextAction?(item.identity, action) }
             )
+            btn.doubleClickClosesTab = doubleClickClosesTab
+            btn.maxLabelLength = tabMaxLabelLength
             btn.dynamicMaxWidth = tabMaxWidth
             let w = btn.preferredWidth
             btn.frame = CGRect(x: x, y: 0, width: w, height: Self.barHeight)
@@ -276,6 +282,10 @@ final class EditorTabButton: NSView {
     private static let pinGap: CGFloat = 3
     private var trackingArea: NSTrackingArea?
     private var isHovered = false
+    /// When true, double-clicking the tab closes it
+    var doubleClickClosesTab = false
+    /// Max characters to display in the tab label (0 = no limit)
+    var maxLabelLength = 0
 
     init(item: EditorTabItem, isActive: Bool, onSelect: @escaping () -> Void, onClose: @escaping () -> Void, onContextAction: @escaping (TabContextAction) -> Void) {
         self.item = item
@@ -292,7 +302,11 @@ final class EditorTabButton: NSView {
 
     private func setupViews() {
         let prefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
-        let displayTitle = prefix + item.title
+        let rawTitle = item.title
+        let truncatedTitle = maxLabelLength > 0 && rawTitle.count > maxLabelLength
+            ? String(rawTitle.prefix(maxLabelLength)) + "…"
+            : rawTitle
+        let displayTitle = prefix + truncatedTitle
         titleLabel.stringValue = displayTitle
         titleLabel.font = .systemFont(ofSize: 12)
         titleLabel.textColor = isActive ? .labelColor : .secondaryLabelColor
@@ -383,9 +397,12 @@ final class EditorTabButton: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let loc = convert(event.locationInWindow, from: nil)
-        if !closeBtn.frame.insetBy(dx: -4, dy: -4).contains(loc) {
-            onSelect()
+        if closeBtn.frame.insetBy(dx: -4, dy: -4).contains(loc) { return }
+        if event.clickCount == 2 && doubleClickClosesTab {
+            onClose()
+            return
         }
+        onSelect()
     }
 
     override func mouseEntered(with event: NSEvent) {

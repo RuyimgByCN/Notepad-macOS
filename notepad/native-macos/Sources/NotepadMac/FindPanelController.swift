@@ -86,11 +86,12 @@ final class FindPanelController: NSWindowController {
             let surface = editor.editorSurface
             let selection = surface.selectedRange
             let text = surface.text as NSString
-            // Auto-check "In Selection" when selection spans multiple lines or is large (>= 4 chars)
+            // Auto-check "In Selection" when selection spans multiple lines or meets the configured threshold
+            let threshold = preferencesStore.load().inSelectionThreshold
             let selText = selection.length > 0 && NSMaxRange(selection) <= text.length
                 ? text.substring(with: selection) : ""
             let selHasNewline = selText.contains("\n") || selText.contains("\r")
-            if selHasNewline || selection.length >= 4 {
+            if selHasNewline || selection.length >= threshold {
                 inSelectionButton.state = .on
                 inSelectionAnchor = selection
             } else {
@@ -280,6 +281,9 @@ final class FindPanelController: NSWindowController {
             default: "%d replacement(s).",
             count
         )
+        if !preferencesStore.load().keepFindDialogOpen {
+            close()
+        }
     }
 
     @objc private func replaceAllInAll(_ sender: Any?) {

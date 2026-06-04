@@ -77,6 +77,10 @@ final class PreferencesPanelController: NSWindowController {
     private let autoCompleteLabel = NSTextField(labelWithString: "")
     private let autoCompleteField = NSTextField(string: "3")
     private let autoCompleteStepper = NSStepper()
+    private let autoCompleteModeLabel = NSTextField(labelWithString: "")
+    private let autoCompleteModePopup = NSPopUpButton()
+    private let autoCompleteChooseSingleButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoCompleteTABFillupButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let linePaddingLabel = NSTextField(labelWithString: "")
     private let linePaddingSegmented = NSSegmentedControl()
     private let largeFileSectionLabel = NSTextField(labelWithString: "")
@@ -92,6 +96,18 @@ final class PreferencesPanelController: NSWindowController {
     private let searchEngineCustomURLField = NSTextField(string: "")
     private let extraURLSchemesLabel = NSTextField(labelWithString: "")
     private let extraURLSchemesField = NSTextField(string: "")
+    // Find & Tools tab extras
+    private let inSelectionSectionLabel = NSTextField(labelWithString: "")
+    private let inSelectionThresholdLabel = NSTextField(labelWithString: "")
+    private let inSelectionThresholdField = NSTextField(string: "1024")
+    private let inSelectionThresholdStepper = NSStepper()
+    private let keepFindDialogOpenButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    // Tabbar section (in Window tab)
+    private let tabbarSectionLabel = NSTextField(labelWithString: "")
+    private let tabbarDoubleClickCloseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let tabbarMaxLabelLengthLabel = NSTextField(labelWithString: "")
+    private let tabbarMaxLabelLengthField = NSTextField(string: "0")
+    private let tabbarMaxLabelLengthStepper = NSStepper()
 
     typealias LanguageEntry = (name: String, displayName: String)
     private var languageEntries: [LanguageEntry] = []
@@ -210,6 +226,15 @@ final class PreferencesPanelController: NSWindowController {
         useCustomBackupDirButton.title = "Use custom backup directory"
         customBackupDirBrowseButton.title = Localization.string(.findInFilesBrowse, default: "Browse...")
         populateBackupOnSavePopup()
+        autoCompleteModeLabel.stringValue = "Auto-complete source:"
+        autoCompleteChooseSingleButton.title = "Auto-accept when only one match"
+        autoCompleteTABFillupButton.title = "Tab key commits auto-complete selection"
+        inSelectionSectionLabel.stringValue = "In-Selection Search"
+        inSelectionThresholdLabel.stringValue = "Auto-check In Selection threshold (chars):"
+        keepFindDialogOpenButton.title = "Keep Find dialog open after Replace All"
+        tabbarSectionLabel.stringValue = "Tab Bar"
+        tabbarDoubleClickCloseButton.title = "Double-click tab to close"
+        tabbarMaxLabelLengthLabel.stringValue = "Max tab label length (0 = unlimited):"
         printLineNumbersButton.title = "Print line numbers"
         openDirFollowsDocButton.title = Localization.string(.preferencesOpenDirFollowsDoc, default: "Open dialog starts in the current document's directory")
         folderDropAsWorkspaceButton.title = Localization.string(.preferencesFolderDropAsWorkspace, default: "Open dropped folder as workspace")
@@ -279,13 +304,16 @@ final class PreferencesPanelController: NSWindowController {
         let (editSV, editCV) = makeTabScrollContent()
         let (sessionSV, sessionCV) = makeTabScrollContent()
         let (toolsSV, toolsCV) = makeTabScrollContent()
+        let (windowSV, windowCV) = makeTabScrollContent()  // windowCV used in Tab 4 layout
 
         let editorTab = NSTabViewItem(); editorTab.label = "Editor"; editorTab.view = editSV
         let sessionTab = NSTabViewItem(); sessionTab.label = "Session & Files"; sessionTab.view = sessionSV
         let toolsTab = NSTabViewItem(); toolsTab.label = "Find & Tools"; toolsTab.view = toolsSV
+        let windowTab = NSTabViewItem(); windowTab.label = "Window"; windowTab.view = windowSV
         tabView.addTabViewItem(editorTab)
         tabView.addTabViewItem(sessionTab)
         tabView.addTabViewItem(toolsTab)
+        tabView.addTabViewItem(windowTab)
 
         fontSizeStepper.minValue = AppPreferences.minimumEditorFontSize
         fontSizeStepper.maxValue = AppPreferences.maximumEditorFontSize
@@ -295,7 +323,7 @@ final class PreferencesPanelController: NSWindowController {
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField].forEach {
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -303,6 +331,16 @@ final class PreferencesPanelController: NSWindowController {
         autoCompleteStepper.maxValue = 20
         autoCompleteStepper.increment = 1
         autoCompleteField.formatter = integerFormatter
+        autoCompleteModePopup.removeAllItems()
+        autoCompleteModePopup.addItems(withTitles: ["Disabled", "Function API only", "Document words only", "Function + words (default)"])
+        inSelectionThresholdStepper.minValue = 1
+        inSelectionThresholdStepper.maxValue = 10000
+        inSelectionThresholdStepper.increment = 64
+        inSelectionThresholdField.formatter = integerFormatter
+        tabbarMaxLabelLengthStepper.minValue = 0
+        tabbarMaxLabelLengthStepper.maxValue = 200
+        tabbarMaxLabelLengthStepper.increment = 5
+        tabbarMaxLabelLengthField.formatter = integerFormatter
         largeFileMBStepper.minValue = Double(AppPreferences.minimumLargeFileMB)
         largeFileMBStepper.maxValue = Double(AppPreferences.maximumLargeFileMB)
         largeFileMBStepper.increment = 10
@@ -364,7 +402,9 @@ final class PreferencesPanelController: NSWindowController {
          linePaddingLabel, linePaddingSegmented,
          autoCompleteLabel, autoCompleteField, autoCompleteStepper,
          largeFileSectionLabel, largeFileMBLabel, largeFileMBField, largeFileMBStepper,
-         additionalEdgeColumnsLabel, additionalEdgeColumnsField
+         additionalEdgeColumnsLabel, additionalEdgeColumnsField,
+         autoCompleteModeLabel, autoCompleteModePopup,
+         autoCompleteChooseSingleButton, autoCompleteTABFillupButton
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; editCV.addSubview($0) }
 
         // Tab 2 – Session & Files
@@ -387,10 +427,18 @@ final class PreferencesPanelController: NSWindowController {
          searchEngineSectionLabel, searchEngineChoiceLabel, searchEnginePopup,
          searchEngineCustomURLLabel, searchEngineCustomURLField,
          extraURLSchemesLabel, extraURLSchemesField,
-         localizationSectionLabel, localizationChoiceLabel, localizationPopup
+         localizationSectionLabel, localizationChoiceLabel, localizationPopup,
+         inSelectionSectionLabel, inSelectionThresholdLabel,
+         inSelectionThresholdField, inSelectionThresholdStepper,
+         keepFindDialogOpenButton
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; toolsCV.addSubview($0) }
 
-        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel].forEach {
+        // Tab 4 – Window
+        [tabbarSectionLabel, tabbarDoubleClickCloseButton,
+         tabbarMaxLabelLengthLabel, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper
+        ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; windowCV.addSubview($0) }
+
+        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel, inSelectionSectionLabel, tabbarSectionLabel].forEach {
             $0.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
         }
         // Convenience anchors for tabs 2 and 3
@@ -529,8 +577,22 @@ final class PreferencesPanelController: NSWindowController {
             additionalEdgeColumnsField.centerYAnchor.constraint(equalTo: additionalEdgeColumnsLabel.centerYAnchor),
             additionalEdgeColumnsField.widthAnchor.constraint(equalToConstant: 100),
 
+            autoCompleteModeLabel.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            autoCompleteModeLabel.topAnchor.constraint(equalTo: additionalEdgeColumnsLabel.bottomAnchor, constant: 14),
+            autoCompleteModeLabel.widthAnchor.constraint(equalToConstant: 180),
+
+            autoCompleteModePopup.leadingAnchor.constraint(equalTo: autoCompleteModeLabel.trailingAnchor, constant: 8),
+            autoCompleteModePopup.centerYAnchor.constraint(equalTo: autoCompleteModeLabel.centerYAnchor),
+            autoCompleteModePopup.trailingAnchor.constraint(equalTo: editCV.trailingAnchor, constant: -18),
+
+            autoCompleteChooseSingleButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            autoCompleteChooseSingleButton.topAnchor.constraint(equalTo: autoCompleteModeLabel.bottomAnchor, constant: 10),
+
+            autoCompleteTABFillupButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            autoCompleteTABFillupButton.topAnchor.constraint(equalTo: autoCompleteChooseSingleButton.bottomAnchor, constant: 10),
+
             // Pin Tab1 content bottom
-            editCV.bottomAnchor.constraint(equalTo: additionalEdgeColumnsLabel.bottomAnchor, constant: 24)
+            editCV.bottomAnchor.constraint(equalTo: autoCompleteTABFillupButton.bottomAnchor, constant: 24)
         ])
 
         // ── Tab 2: Session & Files ──────────────────────────────
@@ -694,7 +756,46 @@ final class PreferencesPanelController: NSWindowController {
             localizationPopup.centerYAnchor.constraint(equalTo: localizationChoiceLabel.centerYAnchor),
             localizationPopup.trailingAnchor.constraint(equalTo: toolsCV.trailingAnchor, constant: -18),
 
-            toolsCV.bottomAnchor.constraint(equalTo: localizationPopup.bottomAnchor, constant: 24)
+            inSelectionSectionLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            inSelectionSectionLabel.topAnchor.constraint(equalTo: localizationPopup.bottomAnchor, constant: 20),
+
+            inSelectionThresholdLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            inSelectionThresholdLabel.topAnchor.constraint(equalTo: inSelectionSectionLabel.bottomAnchor, constant: 14),
+            inSelectionThresholdLabel.widthAnchor.constraint(equalToConstant: 220),
+
+            inSelectionThresholdField.leadingAnchor.constraint(equalTo: inSelectionThresholdLabel.trailingAnchor, constant: 8),
+            inSelectionThresholdField.centerYAnchor.constraint(equalTo: inSelectionThresholdLabel.centerYAnchor),
+            inSelectionThresholdField.widthAnchor.constraint(equalToConstant: 70),
+
+            inSelectionThresholdStepper.leadingAnchor.constraint(equalTo: inSelectionThresholdField.trailingAnchor, constant: 6),
+            inSelectionThresholdStepper.centerYAnchor.constraint(equalTo: inSelectionThresholdField.centerYAnchor),
+
+            keepFindDialogOpenButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            keepFindDialogOpenButton.topAnchor.constraint(equalTo: inSelectionThresholdLabel.bottomAnchor, constant: 10),
+
+            toolsCV.bottomAnchor.constraint(equalTo: keepFindDialogOpenButton.bottomAnchor, constant: 24)
+        ])
+
+        // ── Tab 4: Window ──────────────────────────────────────
+        NSLayoutConstraint.activate([
+            tabbarSectionLabel.leadingAnchor.constraint(equalTo: windowCV.leadingAnchor, constant: lead),
+            tabbarSectionLabel.topAnchor.constraint(equalTo: windowCV.topAnchor, constant: 20),
+
+            tabbarDoubleClickCloseButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            tabbarDoubleClickCloseButton.topAnchor.constraint(equalTo: tabbarSectionLabel.bottomAnchor, constant: 14),
+
+            tabbarMaxLabelLengthLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            tabbarMaxLabelLengthLabel.topAnchor.constraint(equalTo: tabbarDoubleClickCloseButton.bottomAnchor, constant: 14),
+            tabbarMaxLabelLengthLabel.widthAnchor.constraint(equalToConstant: 200),
+
+            tabbarMaxLabelLengthField.leadingAnchor.constraint(equalTo: tabbarMaxLabelLengthLabel.trailingAnchor, constant: 8),
+            tabbarMaxLabelLengthField.centerYAnchor.constraint(equalTo: tabbarMaxLabelLengthLabel.centerYAnchor),
+            tabbarMaxLabelLengthField.widthAnchor.constraint(equalToConstant: 60),
+
+            tabbarMaxLabelLengthStepper.leadingAnchor.constraint(equalTo: tabbarMaxLabelLengthField.trailingAnchor, constant: 6),
+            tabbarMaxLabelLengthStepper.centerYAnchor.constraint(equalTo: tabbarMaxLabelLengthField.centerYAnchor),
+
+            windowCV.bottomAnchor.constraint(equalTo: tabbarMaxLabelLengthLabel.bottomAnchor, constant: 24)
         ])
     }
 
@@ -741,6 +842,15 @@ final class PreferencesPanelController: NSWindowController {
         linePaddingSegmented.selectedSegment = max(0, min(5, preferences.linePadding))
         autoCompleteField.intValue = Int32(preferences.autoCompleteFromNthChar)
         autoCompleteStepper.intValue = Int32(preferences.autoCompleteFromNthChar)
+        autoCompleteModePopup.selectItem(at: max(0, min(3, preferences.autoCompleteMode)))
+        autoCompleteChooseSingleButton.state = preferences.autoCompleteChooseSingle ? .on : .off
+        autoCompleteTABFillupButton.state = preferences.autoCompleteTABFillup ? .on : .off
+        inSelectionThresholdField.intValue = Int32(preferences.inSelectionThreshold)
+        inSelectionThresholdStepper.intValue = Int32(preferences.inSelectionThreshold)
+        keepFindDialogOpenButton.state = preferences.keepFindDialogOpen ? .on : .off
+        tabbarDoubleClickCloseButton.state = preferences.tabbarDoubleClickClose ? .on : .off
+        tabbarMaxLabelLengthField.intValue = Int32(preferences.tabbarMaxLabelLength)
+        tabbarMaxLabelLengthStepper.intValue = Int32(preferences.tabbarMaxLabelLength)
         largeFileMBField.intValue = Int32(preferences.largeFileSizeMB)
         largeFileMBStepper.intValue = Int32(preferences.largeFileSizeMB)
         additionalEdgeColumnsField.stringValue = preferences.additionalEdgeColumns
@@ -795,6 +905,18 @@ final class PreferencesPanelController: NSWindowController {
             periodicBackupField.intValue = periodicBackupStepper.intValue
         } else if periodicBackupStepper.intValue != periodicBackupField.intValue {
             periodicBackupStepper.intValue = periodicBackupField.intValue
+        }
+
+        if sender as? NSTextField === inSelectionThresholdField {
+            inSelectionThresholdStepper.intValue = inSelectionThresholdField.intValue
+        } else if inSelectionThresholdStepper.intValue != inSelectionThresholdField.intValue {
+            inSelectionThresholdField.intValue = inSelectionThresholdStepper.intValue
+        }
+
+        if sender as? NSTextField === tabbarMaxLabelLengthField {
+            tabbarMaxLabelLengthStepper.intValue = tabbarMaxLabelLengthField.intValue
+        } else if tabbarMaxLabelLengthStepper.intValue != tabbarMaxLabelLengthField.intValue {
+            tabbarMaxLabelLengthField.intValue = tabbarMaxLabelLengthStepper.intValue
         }
 
         if sender as? NSButton === useCustomBackupDirButton {
@@ -863,7 +985,14 @@ final class PreferencesPanelController: NSWindowController {
             folderDropOpensAsWorkspace: folderDropAsWorkspaceButton.state == .on,
             extraURLSchemes: extraURLSchemesField.stringValue,
             newDocumentOnLaunch: newDocumentOnLaunchButton.state == .on,
-            printLineNumbers: printLineNumbersButton.state == .on
+            printLineNumbers: printLineNumbersButton.state == .on,
+            autoCompleteMode: autoCompleteModePopup.indexOfSelectedItem,
+            autoCompleteChooseSingle: autoCompleteChooseSingleButton.state == .on,
+            autoCompleteTABFillup: autoCompleteTABFillupButton.state == .on,
+            inSelectionThreshold: Int(inSelectionThresholdField.intValue),
+            tabbarDoubleClickClose: tabbarDoubleClickCloseButton.state == .on,
+            tabbarMaxLabelLength: Int(tabbarMaxLabelLengthField.intValue),
+            keepFindDialogOpen: keepFindDialogOpenButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()

@@ -44,6 +44,8 @@ protocol EditorSurface: AnyObject {
     func applyScrollBeyondLastLine(_ enabled: Bool)
     func showInlineAutoComplete(prefix: String, words: [String])
     func cancelInlineAutoComplete()
+    func applyAutoCompleteChooseSingle(_ on: Bool)
+    func applyAutoCompleteTABFillup(_ on: Bool)
     func applyShowWhitespace(_ visible: Bool)
     func applyShowWhitespace(mode: Int)
     func applyShowEOL(_ visible: Bool)
@@ -231,6 +233,8 @@ final class TextViewEditorSurface: EditorSurface {
     func applyScrollBeyondLastLine(_ enabled: Bool) {}
     func showInlineAutoComplete(prefix: String, words: [String]) {}
     func cancelInlineAutoComplete() {}
+    func applyAutoCompleteChooseSingle(_ on: Bool) {}
+    func applyAutoCompleteTABFillup(_ on: Bool) {}
 
     func applyLineWrapping(_ wraps: Bool, width: CGFloat) {
         guard let textContainer = textView.textContainer else { return }
@@ -711,6 +715,19 @@ final class ScintillaEditorSurface: EditorSurface {
 
     func cancelInlineAutoComplete() {
         bridge.setGeneralProperty(ScintillaMessage.autoCCancel, parameter: 0, value: 0)
+    }
+
+    func applyAutoCompleteChooseSingle(_ on: Bool) {
+        // SCI_AUTOCSETCHOOSESINGLE = 2113: auto-accept if only one item in list
+        bridge.setGeneralProperty(2113, parameter: on ? 1 : 0, value: 0)
+    }
+
+    func applyAutoCompleteTABFillup(_ on: Bool) {
+        // SCI_AUTOCSETFILLUPS = 2112: characters that immediately commit the selection
+        let fillups = on ? "\t" : ""
+        fillups.withCString { ptr in
+            bridge.setReferenceProperty(2112, parameter: 0, value: UnsafeRawPointer(ptr))
+        }
     }
 
     func applyShowWhitespace(_ visible: Bool) {
