@@ -37,7 +37,8 @@ enum HelpSupport {
         documentLineEnding: String? = nil,
         documentLanguage: String? = nil,
         activePluginCount: Int = 0,
-        savedCommandCount: Int = 0
+        savedCommandCount: Int = 0,
+        namedMacroCount: Int = 0
     ) -> String {
         let bundle = Bundle.main
         let appVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Dev"
@@ -65,14 +66,25 @@ enum HelpSupport {
 
         let cmdLine = CommandLine.arguments.dropFirst().joined(separator: " ")
 
+        // User data directory
+        let userDataDir: String = {
+            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            return appSupport?.appendingPathComponent("NotepadMac").path ?? "(unknown)"
+        }()
+
+        // System locale
+        let locale = Locale.current.identifier
+
         var lines = [
             "Notepad++ Mac \(appVersion) (build \(buildVersion))",
             "Bundle ID: \(bundleID)",
             "",
             "OS: macOS \(osVersion)",
             "Architecture: \(arch)",
+            "Locale: \(locale)",
             "Compiler: \(swiftVersion)",
             "Editor backend: \(editorBackend)",
+            "User data: \(userDataDir)",
             "",
             "Current document: \(documentName)",
             "Path: \(documentPath ?? "Unsaved (new document)")",
@@ -85,6 +97,7 @@ enum HelpSupport {
             "",
             "Active plugins: \(activePluginCount)",
             "Saved run commands: \(savedCommandCount)",
+            "Saved macros: \(namedMacroCount)",
             "Command line: \(cmdLine.isEmpty ? "(none)" : cmdLine)",
         ]
         return lines.joined(separator: "\n")

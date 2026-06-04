@@ -1094,7 +1094,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             documentLineEnding: active?.lineEndingDisplayName,
             documentLanguage: active?.languageDisplayName,
             activePluginCount: 0,
-            savedCommandCount: savedRunCommandStore.load().count
+            savedCommandCount: savedRunCommandStore.load().count,
+            namedMacroCount: active?.namedMacros().count ?? 0
         )
         let alert = NSAlert()
         alert.messageText = Localization.string(.helpDebugInfoPanelTitle, default: "Debug Info")
