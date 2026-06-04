@@ -361,6 +361,15 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
         searchModeControl.selectedSegment = extended.searchMode
         dotMatchesNewlineButton.state = extended.dotMatchesNewline ? .on : .off
         wrapAroundButton.state = extended.wrapAround ? .on : .off
+        applyMonospaceFont(preferences.findDialogMonospace)
+    }
+
+    func applyMonospaceFont(_ enabled: Bool) {
+        let font: NSFont = enabled
+            ? NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+            : .systemFont(ofSize: NSFont.systemFontSize)
+        findField.font = font
+        replaceField.font = font
     }
 
     private func saveSearchPreferences() {

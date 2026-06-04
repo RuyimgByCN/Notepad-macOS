@@ -72,6 +72,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var foldMarginStyle = 0
     private var useFirstLineAsTabName = false
     private var autoReloadOnExternalChange = false
+    private var fileChangeDetectionEnabled = true
     private var backupOnSaveMode: BackupOnSaveMode = .none
     private var useCustomBackupDirectory = false
     private var customBackupDirectory = ""
@@ -3348,6 +3349,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         foldMarginStyle = preferences.foldMarginStyle
         useFirstLineAsTabName = preferences.useFirstLineAsTabName
         autoReloadOnExternalChange = preferences.autoReloadOnExternalChange
+        fileChangeDetectionEnabled = preferences.fileChangeDetectionEnabled
         backupOnSaveMode = preferences.backupOnSaveMode
         useCustomBackupDirectory = preferences.useCustomBackupDirectory
         customBackupDirectory = preferences.customBackupDirectory
@@ -4566,6 +4568,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
 
         fileChangeSnapshot = FileChangeSnapshot.captureIfPresent(url)
+        // Skip FSEvents watcher when user has disabled file change detection globally.
+        guard fileChangeDetectionEnabled || isMonitoringMode else { return }
         fileMonitor = FileMonitor(url: url) { [weak self] in
             self?.handleFileSystemChange()
         }

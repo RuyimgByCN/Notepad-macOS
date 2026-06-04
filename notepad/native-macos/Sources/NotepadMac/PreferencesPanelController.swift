@@ -130,8 +130,11 @@ final class PreferencesPanelController: NSWindowController {
     private let inSelectionThresholdStepper = NSStepper()
     private let keepFindDialogOpenButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let replaceDoesNotMoveButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let findDialogMonospaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let findTransparencyLabel = NSTextField(labelWithString: "")
     private let findTransparencySlider = NSSlider()
+    // File change detection (in Session & Files tab)
+    private let fileChangeDetectionButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     // Tabbar section (in Window tab)
     private let tabbarSectionLabel = NSTextField(labelWithString: "")
     private let tabbarDoubleClickCloseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -250,6 +253,7 @@ final class PreferencesPanelController: NSWindowController {
         noCheckRecentAtLaunchButton.title = "Don't check recent files at launch"
         keepAbsentFilesButton.title = "Keep absent files in session"
         autoReloadButton.title = "Auto-reload file when changed externally"
+        fileChangeDetectionButton.title = "Enable file change detection (monitor for external changes)"
         snapshotModeButton.title = "Enable session snapshot and periodic backup"
         periodicBackupLabel.stringValue = "Periodic backup interval (seconds):"
         backupOnSaveLabel.stringValue = "Backup on save:"
@@ -263,6 +267,7 @@ final class PreferencesPanelController: NSWindowController {
         inSelectionThresholdLabel.stringValue = "Auto-check In Selection threshold (chars):"
         keepFindDialogOpenButton.title = "Keep Find dialog open after Replace All"
         replaceDoesNotMoveButton.title = "After Replace, don't move caret to replaced range"
+        findDialogMonospaceButton.title = "Use monospaced font in Find / Replace fields"
         findTransparencyLabel.stringValue = "Find dialog transparency when unfocused:"
         tabbarSectionLabel.stringValue = "Tab Bar"
         tabbarDoubleClickCloseButton.title = "Double-click tab to close"
@@ -368,7 +373,7 @@ final class PreferencesPanelController: NSWindowController {
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, replaceDoesNotMoveButton, findTransparencySlider, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, replaceDoesNotMoveButton, findDialogMonospaceButton, findTransparencySlider, fileChangeDetectionButton, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -476,7 +481,8 @@ final class PreferencesPanelController: NSWindowController {
          printFooterSectionLabel, printFooterLeftField, printFooterCenterField, printFooterRightField,
          printColorModeLabel, printColorModePopup, printFontSizeLabel, printFontSizeField, printFontSizeStepper,
          openDirFollowsDocButton, folderDropAsWorkspaceButton,
-         defaultLangLabel, defaultLangPopup
+         defaultLangLabel, defaultLangPopup,
+         fileChangeDetectionButton
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; sessionCV.addSubview($0) }
 
         // Tab 3 – Find & Tools
@@ -489,6 +495,7 @@ final class PreferencesPanelController: NSWindowController {
          inSelectionSectionLabel, inSelectionThresholdLabel,
          inSelectionThresholdField, inSelectionThresholdStepper,
          keepFindDialogOpenButton, replaceDoesNotMoveButton,
+         findDialogMonospaceButton,
          findTransparencyLabel, findTransparencySlider
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; toolsCV.addSubview($0) }
 
@@ -711,8 +718,11 @@ final class PreferencesPanelController: NSWindowController {
             autoReloadButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             autoReloadButton.topAnchor.constraint(equalTo: keepAbsentFilesButton.bottomAnchor, constant: 10),
 
+            fileChangeDetectionButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            fileChangeDetectionButton.topAnchor.constraint(equalTo: autoReloadButton.bottomAnchor, constant: 10),
+
             snapshotModeButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
-            snapshotModeButton.topAnchor.constraint(equalTo: autoReloadButton.bottomAnchor, constant: 10),
+            snapshotModeButton.topAnchor.constraint(equalTo: fileChangeDetectionButton.bottomAnchor, constant: 10),
 
             periodicBackupLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             periodicBackupLabel.topAnchor.constraint(equalTo: snapshotModeButton.bottomAnchor, constant: 10),
@@ -891,8 +901,11 @@ final class PreferencesPanelController: NSWindowController {
             replaceDoesNotMoveButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
             replaceDoesNotMoveButton.topAnchor.constraint(equalTo: keepFindDialogOpenButton.bottomAnchor, constant: 10),
 
+            findDialogMonospaceButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            findDialogMonospaceButton.topAnchor.constraint(equalTo: replaceDoesNotMoveButton.bottomAnchor, constant: 10),
+
             findTransparencyLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
-            findTransparencyLabel.topAnchor.constraint(equalTo: replaceDoesNotMoveButton.bottomAnchor, constant: 14),
+            findTransparencyLabel.topAnchor.constraint(equalTo: findDialogMonospaceButton.bottomAnchor, constant: 14),
             findTransparencyLabel.widthAnchor.constraint(equalToConstant: 240),
 
             findTransparencySlider.leadingAnchor.constraint(equalTo: findTransparencyLabel.trailingAnchor, constant: 8),
@@ -984,6 +997,7 @@ final class PreferencesPanelController: NSWindowController {
         noCheckRecentAtLaunchButton.state = preferences.noCheckRecentAtLaunch ? .on : .off
         keepAbsentFilesButton.state = preferences.keepAbsentFilesInSession ? .on : .off
         autoReloadButton.state = preferences.autoReloadOnExternalChange ? .on : .off
+        fileChangeDetectionButton.state = preferences.fileChangeDetectionEnabled ? .on : .off
         snapshotModeButton.state = preferences.snapshotModeEnabled ? .on : .off
         periodicBackupField.intValue = Int32(preferences.periodicBackupIntervalSeconds)
         periodicBackupStepper.intValue = Int32(preferences.periodicBackupIntervalSeconds)
@@ -1009,6 +1023,7 @@ final class PreferencesPanelController: NSWindowController {
         inSelectionThresholdStepper.intValue = Int32(preferences.inSelectionThreshold)
         keepFindDialogOpenButton.state = preferences.keepFindDialogOpen ? .on : .off
         replaceDoesNotMoveButton.state = preferences.replaceDoesNotMove ? .on : .off
+        findDialogMonospaceButton.state = preferences.findDialogMonospace ? .on : .off
         findTransparencySlider.doubleValue = preferences.findDialogTransparency
         tabbarDoubleClickCloseButton.state = preferences.tabbarDoubleClickClose ? .on : .off
         tabbarMaxLabelLengthField.intValue = Int32(preferences.tabbarMaxLabelLength)
@@ -1202,7 +1217,9 @@ final class PreferencesPanelController: NSWindowController {
             shortTitle: shortTitleButton.state == .on,
             saveAllConfirm: saveAllConfirmButton.state == .on,
             autoCompleteIgnoreNumbers: autoCompleteIgnoreNumbersButton.state == .on,
-            replaceDoesNotMove: replaceDoesNotMoveButton.state == .on
+            replaceDoesNotMove: replaceDoesNotMoveButton.state == .on,
+            fileChangeDetectionEnabled: fileChangeDetectionButton.state == .on,
+            findDialogMonospace: findDialogMonospaceButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()

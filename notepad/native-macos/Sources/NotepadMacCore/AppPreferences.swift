@@ -163,6 +163,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let autoCompleteIgnoreNumbers: Bool
     /// After Replace, keep caret at original position instead of moving to replaced range
     public let replaceDoesNotMove: Bool
+    /// When false, skip starting the file-system watcher entirely (no external-change prompts)
+    public let fileChangeDetectionEnabled: Bool
+    /// Use a monospaced font in the Find/Replace text fields
+    public let findDialogMonospace: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -243,7 +247,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         shortTitle: Bool = false,
         saveAllConfirm: Bool = false,
         autoCompleteIgnoreNumbers: Bool = true,
-        replaceDoesNotMove: Bool = false
+        replaceDoesNotMove: Bool = false,
+        fileChangeDetectionEnabled: Bool = true,
+        findDialogMonospace: Bool = false
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -324,6 +330,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.saveAllConfirm = saveAllConfirm
         self.autoCompleteIgnoreNumbers = autoCompleteIgnoreNumbers
         self.replaceDoesNotMove = replaceDoesNotMove
+        self.fileChangeDetectionEnabled = fileChangeDetectionEnabled
+        self.findDialogMonospace = findDialogMonospace
     }
 
     /// Combined URL schemes: defaults + user-configured extras
@@ -453,7 +461,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             shortTitle: shortTitle,
             saveAllConfirm: saveAllConfirm,
             autoCompleteIgnoreNumbers: autoCompleteIgnoreNumbers,
-            replaceDoesNotMove: replaceDoesNotMove
+            replaceDoesNotMove: replaceDoesNotMove,
+            fileChangeDetectionEnabled: fileChangeDetectionEnabled,
+            findDialogMonospace: findDialogMonospace
         )
     }
 
