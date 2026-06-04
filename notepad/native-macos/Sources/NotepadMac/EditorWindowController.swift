@@ -1079,6 +1079,22 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     var currentFontSize: CGFloat { fontSize }
 
+    @objc func selectBetweenDelimiters(_ sender: Any?) {
+        let prefs = preferencesStore.load()
+        let left = prefs.delimiterLeft
+        let right = prefs.delimiterRight
+        let text = editorSurface.text
+        let selection = editorSurface.selectedRange
+        guard let newRange = TextEditCommands.selectBetweenDelimiters(
+            in: text,
+            from: selection,
+            left: left,
+            right: right
+        ) else { return }
+        editorSurface.setSelectedRange(newRange)
+        updateStatus()
+    }
+
     @objc func beginOrEndSelect(_ sender: Any?) {
         if let beginPos = beginSelectPosition {
             let endPos = editorSurface.selectedRange.location

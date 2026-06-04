@@ -450,6 +450,7 @@ enum Localization {
         case viewZoomRestore = "view.zoomRestore"
         case viewZoomSync = "view.zoomSync"
         case editBeginSelect = "edit.beginSelect"
+        case editSelectBetweenDelimiters = "edit.selectBetweenDelimiters"
         case editEndSelect = "edit.endSelect"
         case editToggleReadOnly = "edit.toggleReadOnly"
         case editSetReadOnlyAll = "edit.setReadOnlyAll"

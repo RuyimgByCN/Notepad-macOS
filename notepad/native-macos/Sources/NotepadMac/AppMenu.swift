@@ -234,6 +234,11 @@ enum AppMenu {
             action: #selector(EditorWindowController.beginOrEndSelect(_:)),
             keyEquivalent: ""
         )
+        editMenu.addItem(
+            withTitle: Localization.string(.editSelectBetweenDelimiters, default: "Select Between Delimiters"),
+            action: #selector(EditorWindowController.selectBetweenDelimiters(_:)),
+            keyEquivalent: ""
+        )
         editMenu.addItem(NSMenuItem.separator())
 
         // Insert submenu

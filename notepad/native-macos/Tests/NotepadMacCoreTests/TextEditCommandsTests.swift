@@ -869,4 +869,48 @@ final class TextEditCommandsTests: XCTestCase {
         XCTAssertEqual(result.text, "before target after")
         XCTAssertEqual(result.selectedRange, NSRange(location: 7, length: 6))
     }
+
+    // MARK: - Select between delimiters
+
+    func testSelectBetweenParentheses() {
+        let text = "foo(bar, baz)end"
+        let caret = NSRange(location: 6, length: 0)
+        let range = TextEditCommands.selectBetweenDelimiters(in: text, from: caret, left: "(", right: ")")
+        XCTAssertEqual(range, NSRange(location: 4, length: 8))
+    }
+
+    func testSelectBetweenBrackets() {
+        let text = "[hello world]"
+        let caret = NSRange(location: 4, length: 0)
+        let range = TextEditCommands.selectBetweenDelimiters(in: text, from: caret, left: "[", right: "]")
+        XCTAssertEqual(range, NSRange(location: 1, length: 11))
+    }
+
+    func testSelectBetweenReturnsNilWhenNoPair() {
+        let text = "no delimiters here"
+        let caret = NSRange(location: 5, length: 0)
+        let range = TextEditCommands.selectBetweenDelimiters(in: text, from: caret, left: "(", right: ")")
+        XCTAssertNil(range)
+    }
+
+    func testSelectBetweenWhitespaceSelectsToken() {
+        let text = "hello world foo"
+        let caret = NSRange(location: 8, length: 0) // inside "world"
+        let range = TextEditCommands.selectBetweenDelimiters(in: text, from: caret, left: "", right: "")
+        XCTAssertEqual(range, NSRange(location: 6, length: 5)) // "world"
+    }
+
+    func testSelectBetweenEmptyContent() {
+        let text = "()"
+        let caret = NSRange(location: 1, length: 0)
+        let range = TextEditCommands.selectBetweenDelimiters(in: text, from: caret, left: "(", right: ")")
+        XCTAssertEqual(range, NSRange(location: 1, length: 0))
+    }
+
+    func testSelectBetweenCaretAtStart() {
+        let text = "(content)"
+        let caret = NSRange(location: 0, length: 0) // before opening paren - outside
+        let range = TextEditCommands.selectBetweenDelimiters(in: text, from: caret, left: "(", right: ")")
+        XCTAssertNil(range, "Caret before opening delimiter should return nil")
+    }
 }

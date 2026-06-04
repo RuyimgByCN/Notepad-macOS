@@ -1992,6 +1992,82 @@ public enum TextEditCommands {
     private static func mutableCopy(of text: String) -> NSMutableString {
         NSMutableString(string: text)
     }
+
+    // MARK: - Select between delimiters
+
+    /// Returns the selection range of content between the nearest enclosing delimiter pair.
+    ///
+    /// If `left` and `right` are empty, treats whitespace characters as delimiters
+    /// (selects the current "word/token" bounded by whitespace).
+    /// Searches outward from the current caret or selection for the nearest matching pair.
+    ///
+    /// - Returns: The new selection range (excluding delimiters themselves), or `nil` if no pair found.
+    public static func selectBetweenDelimiters(
+        in text: String,
+        from selection: NSRange,
+        left: String,
+        right: String
+    ) -> NSRange? {
+        let ns = text as NSString
+        let len = ns.length
+        guard len > 0 else { return nil }
+
+        let caretPos = max(0, min(selection.location, len))
+
+        if left.isEmpty || right.isEmpty {
+            // Whitespace-delimited: select token around caret
+            var start = caretPos
+            var end = caretPos
+            // Expand left past non-whitespace
+            while start > 0 {
+                let ch = ns.character(at: start - 1)
+                guard let s = Unicode.Scalar(ch), !CharacterSet.whitespaces.contains(s) else { break }
+                start -= 1
+            }
+            // Expand right past non-whitespace
+            while end < len {
+                let ch = ns.character(at: end)
+                guard let s = Unicode.Scalar(ch), !CharacterSet.whitespaces.contains(s) else { break }
+                end += 1
+            }
+            guard end > start else { return nil }
+            return NSRange(location: start, length: end - start)
+        }
+
+        let leftLen = (left as NSString).length
+        let rightLen = (right as NSString).length
+
+        // Search backward from caret for left delimiter
+        var leftPos = -1
+        var searchFrom = caretPos
+        while searchFrom >= leftLen {
+            let candidateRange = NSRange(location: searchFrom - leftLen, length: leftLen)
+            if ns.substring(with: candidateRange) == left {
+                leftPos = searchFrom - leftLen
+                break
+            }
+            searchFrom -= 1
+        }
+        guard leftPos >= 0 else { return nil }
+
+        // Search forward from left delimiter end for right delimiter
+        var rightPos = -1
+        var searchRight = leftPos + leftLen
+        while searchRight + rightLen <= len {
+            let candidateRange = NSRange(location: searchRight, length: rightLen)
+            if ns.substring(with: candidateRange) == right {
+                rightPos = searchRight
+                break
+            }
+            searchRight += 1
+        }
+        guard rightPos > leftPos else { return nil }
+
+        let contentStart = leftPos + leftLen
+        let contentLength = rightPos - contentStart
+        guard contentLength >= 0 else { return nil }
+        return NSRange(location: contentStart, length: contentLength)
+    }
 }
 
 private struct TextEditLine: Equatable {
