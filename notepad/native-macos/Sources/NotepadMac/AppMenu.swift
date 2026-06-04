@@ -446,6 +446,12 @@ enum AppMenu {
         }
         encodingMenu.addItem(encodeInMenuItem)
 
+        // Auto-detect encoding
+        encodingMenu.addItem(
+            withTitle: Localization.string(.encodingAutoDetect, default: "Auto-Detect Encoding"),
+            action: #selector(EditorWindowController.autoDetectEncoding(_:)),
+            keyEquivalent: ""
+        )
         // BOM toggle
         encodingMenu.addItem(
             withTitle: Localization.string(.encodingToggleBOM, default: "Add / Remove UTF-8 BOM"),

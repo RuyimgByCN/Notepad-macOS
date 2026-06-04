@@ -869,6 +869,7 @@ enum Localization {
         case encodingConvertToFormat = "encoding.convertToFormat"
         case encodingConvertToMenu = "encoding.convertToMenu"
         case encodingEncodeInMenu = "encoding.encodeInMenu"
+        case encodingAutoDetect = "encoding.autoDetect"
         case encodingToggleBOM = "encoding.toggleBOM"
         case encodingReinterpretFailed = "encoding.reinterpretFailed"
         case encodingReinterpretFailedInfo = "encoding.reinterpretFailedInfo"

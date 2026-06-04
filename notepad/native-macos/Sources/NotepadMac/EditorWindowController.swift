@@ -721,6 +721,20 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
+    @objc func autoDetectEncoding(_ sender: Any?) {
+        guard let url = fileURL else { return }
+        do {
+            let loaded = try TextFileCodec.read(url)
+            let detectedEncoding = loaded.encoding
+            guard detectedEncoding != encoding else { return }
+            encoding = detectedEncoding
+            savePolicy = TextFileSavePolicy.loaded(loaded)
+            updateStatus()
+        } catch {
+            // File unreadable; no change
+        }
+    }
+
     @objc func toggleByteOrderMark(_ sender: Any?) {
         savePolicy = savePolicy.withByteOrderMark(!savePolicy.preservesByteOrderMark)
         isDirty = true
