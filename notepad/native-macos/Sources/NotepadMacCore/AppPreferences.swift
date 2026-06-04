@@ -169,6 +169,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let findDialogMonospace: Bool
     /// When true, Ctrl+C/Cmd+C with no selection copies the entire current line (Scintilla)
     public let copyLineWithoutSelection: Bool
+    /// When true, smart highlighting uses the Find dialog's match-case/whole-word settings
+    public let smartHighlightUseFindSettings: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -252,7 +254,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         replaceDoesNotMove: Bool = false,
         fileChangeDetectionEnabled: Bool = true,
         findDialogMonospace: Bool = false,
-        copyLineWithoutSelection: Bool = true
+        copyLineWithoutSelection: Bool = true,
+        smartHighlightUseFindSettings: Bool = false
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -336,6 +339,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.fileChangeDetectionEnabled = fileChangeDetectionEnabled
         self.findDialogMonospace = findDialogMonospace
         self.copyLineWithoutSelection = copyLineWithoutSelection
+        self.smartHighlightUseFindSettings = smartHighlightUseFindSettings
     }
 
     /// Combined URL schemes: defaults + user-configured extras
@@ -468,7 +472,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             replaceDoesNotMove: replaceDoesNotMove,
             fileChangeDetectionEnabled: fileChangeDetectionEnabled,
             findDialogMonospace: findDialogMonospace,
-            copyLineWithoutSelection: copyLineWithoutSelection
+            copyLineWithoutSelection: copyLineWithoutSelection,
+            smartHighlightUseFindSettings: smartHighlightUseFindSettings
         )
     }
 

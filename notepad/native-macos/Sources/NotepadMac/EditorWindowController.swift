@@ -339,8 +339,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.showsLineNumberMargin = preferences.showLineNumberMargin
         self.showsEdgeLine = preferences.showEdgeLine
         self.edgeLineColumn = preferences.edgeLineColumn
-        self.smartHighlightMatchCase = preferences.smartHighlightMatchCase
-        self.smartHighlightWholeWord = preferences.smartHighlightWholeWord
+        self.smartHighlightMatchCase = preferences.smartHighlightUseFindSettings
+            ? preferences.searchMatchCase : preferences.smartHighlightMatchCase
+        self.smartHighlightWholeWord = preferences.smartHighlightUseFindSettings
+            ? preferences.searchWholeWord : preferences.smartHighlightWholeWord
         self.stylePreferences = stylePreferences
         // Apply default new-document encoding and line ending from preferences
         if let encodingOpt = TextEncodingOption(rawValue: preferences.defaultNewDocumentEncoding) {
@@ -3369,8 +3371,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             cachedAutoCompletionCatalog = nil
             cachedAutoCompletionCatalogLanguage = nil
         }
-        smartHighlightMatchCase = preferences.smartHighlightMatchCase
-        smartHighlightWholeWord = preferences.smartHighlightWholeWord
+        smartHighlightMatchCase = preferences.smartHighlightUseFindSettings
+            ? preferences.searchMatchCase
+            : preferences.smartHighlightMatchCase
+        smartHighlightWholeWord = preferences.smartHighlightUseFindSettings
+            ? preferences.searchWholeWord
+            : preferences.smartHighlightWholeWord
         presentationState.postItAlpha = CGFloat(preferences.postItAlpha)
         showsStatusBar = preferences.statusBarVisible
         applyFont()

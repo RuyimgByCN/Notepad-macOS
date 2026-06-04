@@ -137,6 +137,8 @@ final class PreferencesPanelController: NSWindowController {
     private let fileChangeDetectionButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     // Copy/cut line behavior (in Editor tab)
     private let copyLineWithoutSelectionButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    // Smart highlight settings (in Editor tab)
+    private let smartHighlightUseFindSettingsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     // Tabbar section (in Window tab)
     private let tabbarSectionLabel = NSTextField(labelWithString: "")
     private let tabbarDoubleClickCloseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -271,6 +273,7 @@ final class PreferencesPanelController: NSWindowController {
         replaceDoesNotMoveButton.title = "After Replace, don't move caret to replaced range"
         findDialogMonospaceButton.title = "Use monospaced font in Find / Replace fields"
         copyLineWithoutSelectionButton.title = "Copy / Cut whole line when nothing is selected"
+        smartHighlightUseFindSettingsButton.title = "Smart highlight uses Find dialog Match Case / Whole Word settings"
         findTransparencyLabel.stringValue = "Find dialog transparency when unfocused:"
         tabbarSectionLabel.stringValue = "Tab Bar"
         tabbarDoubleClickCloseButton.title = "Double-click tab to close"
@@ -376,7 +379,7 @@ final class PreferencesPanelController: NSWindowController {
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, replaceDoesNotMoveButton, findDialogMonospaceButton, findTransparencySlider, fileChangeDetectionButton, copyLineWithoutSelectionButton, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, replaceDoesNotMoveButton, findDialogMonospaceButton, findTransparencySlider, fileChangeDetectionButton, copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -468,7 +471,7 @@ final class PreferencesPanelController: NSWindowController {
          additionalEdgeColumnsLabel, additionalEdgeColumnsField,
          autoCompleteModeLabel, autoCompleteModePopup,
          autoCompleteChooseSingleButton, autoCompleteTABFillupButton,
-         copyLineWithoutSelectionButton
+         copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; editCV.addSubview($0) }
 
         // Tab 2 – Session & Files
@@ -668,8 +671,11 @@ final class PreferencesPanelController: NSWindowController {
             copyLineWithoutSelectionButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             copyLineWithoutSelectionButton.topAnchor.constraint(equalTo: autoCompleteTABFillupButton.bottomAnchor, constant: 10),
 
+            smartHighlightUseFindSettingsButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            smartHighlightUseFindSettingsButton.topAnchor.constraint(equalTo: copyLineWithoutSelectionButton.bottomAnchor, constant: 10),
+
             // Pin Tab1 content bottom
-            editCV.bottomAnchor.constraint(equalTo: copyLineWithoutSelectionButton.bottomAnchor, constant: 24)
+            editCV.bottomAnchor.constraint(equalTo: smartHighlightUseFindSettingsButton.bottomAnchor, constant: 24)
         ])
 
         // ── Tab 2: Session & Files ──────────────────────────────
@@ -1032,6 +1038,7 @@ final class PreferencesPanelController: NSWindowController {
         replaceDoesNotMoveButton.state = preferences.replaceDoesNotMove ? .on : .off
         findDialogMonospaceButton.state = preferences.findDialogMonospace ? .on : .off
         copyLineWithoutSelectionButton.state = preferences.copyLineWithoutSelection ? .on : .off
+        smartHighlightUseFindSettingsButton.state = preferences.smartHighlightUseFindSettings ? .on : .off
         findTransparencySlider.doubleValue = preferences.findDialogTransparency
         tabbarDoubleClickCloseButton.state = preferences.tabbarDoubleClickClose ? .on : .off
         tabbarMaxLabelLengthField.intValue = Int32(preferences.tabbarMaxLabelLength)
@@ -1228,7 +1235,8 @@ final class PreferencesPanelController: NSWindowController {
             replaceDoesNotMove: replaceDoesNotMoveButton.state == .on,
             fileChangeDetectionEnabled: fileChangeDetectionButton.state == .on,
             findDialogMonospace: findDialogMonospaceButton.state == .on,
-            copyLineWithoutSelection: copyLineWithoutSelectionButton.state == .on
+            copyLineWithoutSelection: copyLineWithoutSelectionButton.state == .on,
+            smartHighlightUseFindSettings: smartHighlightUseFindSettingsButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()
