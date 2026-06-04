@@ -3128,6 +3128,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         macroStore.saveNamedRecording(MacroRecording(name: name, commands: recording.commands))
         updateStatus()
+        (NSApp.delegate as? AppDelegate)?.refreshMacroMenu()
     }
 
     @objc func playNamedMacro(_ sender: Any?) {
@@ -3145,6 +3146,17 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         replayMacro(recording)
     }
 
+    /// Returns all named macros from this editor's macro store (for menu/shortcut display).
+    func namedMacros() -> [MacroRecording] {
+        macroStore.loadNamedRecordings()
+    }
+
+    /// Plays a named macro by name; used by the dynamic macro menu.
+    func playNamedMacroByName(_ name: String) {
+        guard let recording = macroStore.loadNamedRecording(named: name) else { return }
+        replayMacro(recording)
+    }
+
     @objc func deleteNamedMacro(_ sender: Any?) {
         guard let recording = chooseNamedMacro(
             title: Localization.string(.macroDeletePanelTitle, default: "Delete Saved Macro"),
@@ -3156,6 +3168,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         macroStore.deleteNamedRecording(named: recording.name)
         updateStatus()
+        (NSApp.delegate as? AppDelegate)?.refreshMacroMenu()
     }
 
     @objc func clearLastMacro(_ sender: Any?) {

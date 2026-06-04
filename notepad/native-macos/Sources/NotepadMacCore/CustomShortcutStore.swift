@@ -11,24 +11,14 @@ public struct CustomShortcut: Codable, Equatable, Sendable {
         self.modifierFlags = modifierFlags
     }
 
-    /// Human-readable representation, e.g. "⌘⇧S"
+    /// Human-readable representation, e.g. "⌘⇧S" (⌃⌥⇧⌘ order, matching macOS convention)
     public var displayString: String {
         var s = ""
-        let mods = modifierFlags
-        if mods & (1 << 20) != 0 { s += "⌃" } // control
-        if mods & (1 << 19) != 0 { s += "⌥" } // option
-        if mods & (1 << 17) != 0 { s += "⇧" } // shift
-        if mods & (1 << 20) == 0 && mods & (1 << 18) != 0 { s += "" } // function (rarely shown)
-        if mods & (1 << 20) == 0 { s += "⌘" } // always show cmd if no ctrl
-        if mods & (1 << 18) != 0 && mods & (1 << 20) == 0 { } // fn
-        // Strip ⌘ if we only want ctrl
-        // Actually, rebuild cleanly:
-        s = ""
         let raw = UInt(bitPattern: modifierFlags)
-        if raw & (1 << 20) != 0 { s += "⌃" }
-        if raw & (1 << 19) != 0 { s += "⌥" }
-        if raw & (1 << 17) != 0 { s += "⇧" }
-        if raw & (1 << 18) != 0 { s += "⌘" }
+        if raw & (1 << 18) != 0 { s += "⌃" }  // control  (bit 18 = 0x40000)
+        if raw & (1 << 19) != 0 { s += "⌥" }  // option   (bit 19 = 0x80000)
+        if raw & (1 << 17) != 0 { s += "⇧" }  // shift    (bit 17 = 0x20000)
+        if raw & (1 << 20) != 0 { s += "⌘" }  // command  (bit 20 = 0x100000)
         return s + keyEquivalent.uppercased()
     }
 }

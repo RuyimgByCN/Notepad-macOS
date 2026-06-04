@@ -55,9 +55,12 @@ import Testing
 }
 
 @Test func customShortcutDisplayStringFormatsCorrectly() {
-    // cmd+S = ⌘S
-    let cmdS = CustomShortcut(menuItemTitle: "Save", keyEquivalent: "s", modifierFlags: Int(bitPattern: UInt(1 << 18)))
+    // command = bit 20 = 0x100000 → ⌘
+    let cmdS = CustomShortcut(menuItemTitle: "Save", keyEquivalent: "s", modifierFlags: Int(bitPattern: UInt(1 << 20)))
     #expect(cmdS.displayString == "⌘S")
+    // control = bit 18 = 0x40000 → ⌃
+    let ctrlT = CustomShortcut(menuItemTitle: "Test", keyEquivalent: "t", modifierFlags: Int(bitPattern: UInt(1 << 18)))
+    #expect(ctrlT.displayString == "⌃T")
 }
 
 @Test func customShortcutStoreReturnsEmptyWhenNew() {

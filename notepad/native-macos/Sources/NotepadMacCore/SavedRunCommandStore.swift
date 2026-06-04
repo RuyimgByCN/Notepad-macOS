@@ -4,11 +4,16 @@ public struct SavedRunCommand: Codable, Equatable, Sendable, Identifiable {
     public var id: UUID
     public var name: String
     public var commandLine: String
+    public var keyEquivalent: String   // single character for keyboard shortcut, empty = none
+    public var modifierFlags: Int      // NSEvent.ModifierFlags.rawValue
 
-    public init(id: UUID = UUID(), name: String, commandLine: String) {
+    public init(id: UUID = UUID(), name: String, commandLine: String,
+                keyEquivalent: String = "", modifierFlags: Int = 0) {
         self.id = id
         self.name = name
         self.commandLine = commandLine
+        self.keyEquivalent = keyEquivalent
+        self.modifierFlags = modifierFlags
     }
 }
 

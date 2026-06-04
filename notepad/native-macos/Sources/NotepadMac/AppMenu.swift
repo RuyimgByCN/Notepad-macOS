@@ -38,6 +38,8 @@ enum AppMenu {
     private static weak var installedWindowTabColorMenu: NSMenu?
     @MainActor
     private static weak var installedRunMenu: NSMenu?
+    @MainActor
+    private static weak var installedMacroMenu: NSMenu?
 
     @MainActor
     static func install(
@@ -811,6 +813,7 @@ enum AppMenu {
             action: #selector(EditorWindowController.runMacroMultipleTimes(_:)),
             keyEquivalent: ""
         )
+        installedMacroMenu = macroMenu
 
         let runMenuItem = NSMenuItem()
         mainMenu.addItem(runMenuItem)
@@ -1530,10 +1533,50 @@ enum AppMenu {
             let item = NSMenuItem(
                 title: command.name,
                 action: #selector(AppDelegate.executeSavedRunCommand(_:)),
-                keyEquivalent: ""
+                keyEquivalent: command.keyEquivalent
             )
+            if !command.keyEquivalent.isEmpty {
+                item.keyEquivalentModifierMask = NSEvent.ModifierFlags(
+                    rawValue: UInt(bitPattern: command.modifierFlags)
+                )
+            }
             item.target = delegate
             item.representedObject = command
+            menu.addItem(item)
+        }
+    }
+
+    /// The fixed items count in the macro menu before dynamic named-macro entries.
+    static let macroMenuStaticCount = 9   // items before the separator + named macros
+
+    @MainActor
+    static func refreshMacroMenu(
+        delegate: AppDelegate,
+        namedMacros: [MacroRecording],
+        shortcuts: [MacroShortcut]
+    ) {
+        guard let menu = installedMacroMenu else { return }
+        // Remove dynamic macro items (keep static ones)
+        while menu.items.count > macroMenuStaticCount {
+            menu.removeItem(at: macroMenuStaticCount)
+        }
+        guard !namedMacros.isEmpty else { return }
+        menu.addItem(NSMenuItem.separator())
+        let shortcutMap = Dictionary(uniqueKeysWithValues: shortcuts.map { ($0.macroName.lowercased(), $0) })
+        for macro in namedMacros {
+            let sc = shortcutMap[macro.name.lowercased()]
+            let item = NSMenuItem(
+                title: macro.name,
+                action: #selector(AppDelegate.playNamedMacroFromMenu(_:)),
+                keyEquivalent: sc?.keyEquivalent ?? ""
+            )
+            if let sc, !sc.keyEquivalent.isEmpty {
+                item.keyEquivalentModifierMask = NSEvent.ModifierFlags(
+                    rawValue: UInt(bitPattern: sc.modifierFlags)
+                )
+            }
+            item.target = delegate
+            item.representedObject = macro.name
             menu.addItem(item)
         }
     }

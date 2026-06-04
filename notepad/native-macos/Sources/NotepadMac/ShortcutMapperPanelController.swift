@@ -15,13 +15,22 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
             if keyEquivalent.isEmpty { return "" }
             var s = ""
             let raw = UInt(bitPattern: modifierFlags)
-            if raw & (1 << 20) != 0 { s += "⌃" }
-            if raw & (1 << 19) != 0 { s += "⌥" }
-            if raw & (1 << 17) != 0 { s += "⇧" }
-            if raw & (1 << 18) != 0 { s += "⌘" }
+            if raw & (1 << 18) != 0 { s += "⌃" }  // control
+            if raw & (1 << 19) != 0 { s += "⌥" }  // option
+            if raw & (1 << 17) != 0 { s += "⇧" }  // shift
+            if raw & (1 << 20) != 0 { s += "⌘" }  // command
             return s + keyEquivalent.uppercased()
         }
     }
+
+    // MARK: - Category
+
+    enum Category: Int {
+        case mainMenu = 0, macros = 1, runCommands = 2
+    }
+    private var currentCategory: Category = .mainMenu
+
+    private let categoryControl = NSSegmentedControl()
 
     private let tableView = NSTableView()
     private let scrollView = NSScrollView()
@@ -34,10 +43,18 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
     private var filteredEntries: [Entry] = []
 
     private let shortcutStore: CustomShortcutStore
+    private let macroShortcutStore: MacroShortcutStore
+    private let savedRunCommandStore: SavedRunCommandStore
     var onShortcutsChanged: (() -> Void)?
+    /// Called when macro menu should be rebuilt (e.g. after shortcut change)
+    var onMacroShortcutsChanged: (() -> Void)?
 
-    init(shortcutStore: CustomShortcutStore = CustomShortcutStore()) {
+    init(shortcutStore: CustomShortcutStore = CustomShortcutStore(),
+         macroShortcutStore: MacroShortcutStore = MacroShortcutStore(),
+         savedRunCommandStore: SavedRunCommandStore = SavedRunCommandStore()) {
         self.shortcutStore = shortcutStore
+        self.macroShortcutStore = macroShortcutStore
+        self.savedRunCommandStore = savedRunCommandStore
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 540, height: 500),
             styleMask: [.titled, .closable, .resizable, .utilityWindow],
@@ -77,11 +94,58 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
     // MARK: - Build entries
 
     func buildEntries() {
+        switch currentCategory {
+        case .mainMenu:
+            buildMainMenuEntries()
+        case .macros:
+            buildMacroEntries()
+        case .runCommands:
+            buildRunCommandEntries()
+        }
+    }
+
+    private func buildMainMenuEntries() {
         guard let mainMenu = NSApp.mainMenu else { return }
         let customMap = Dictionary(uniqueKeysWithValues: shortcutStore.load().map { ($0.menuItemTitle, $0) })
         var entries: [Entry] = []
         collectEntries(from: mainMenu.items, into: &entries, customMap: customMap)
         allEntries = entries
+    }
+
+    private func buildMacroEntries() {
+        let shortcuts = Dictionary(uniqueKeysWithValues: macroShortcutStore.load().map { ($0.macroName.lowercased(), $0) })
+        // Load from active editor's macroStore via AppDelegate
+        let appDelegate = NSApp.delegate as? AppDelegate
+        let macros = appDelegate?.activeEditorController()?.namedMacros() ?? []
+        allEntries = macros.map { macro in
+            let sc = shortcuts[macro.name.lowercased()]
+            return Entry(
+                title: macro.name,
+                menuItem: nil,
+                keyEquivalent: sc?.keyEquivalent ?? "",
+                modifierFlags: sc?.modifierFlags ?? 0,
+                isCustom: sc != nil
+            )
+        }
+        // If no named macros, show a placeholder
+        if allEntries.isEmpty {
+            allEntries = [Entry(title: "(No saved macros)", menuItem: nil, keyEquivalent: "", modifierFlags: 0, isCustom: false)]
+        }
+    }
+
+    private func buildRunCommandEntries() {
+        allEntries = savedRunCommandStore.load().map { cmd in
+            Entry(
+                title: cmd.name,
+                menuItem: nil,
+                keyEquivalent: cmd.keyEquivalent,
+                modifierFlags: cmd.modifierFlags,
+                isCustom: !cmd.keyEquivalent.isEmpty
+            )
+        }
+        if allEntries.isEmpty {
+            allEntries = [Entry(title: "(No saved run commands)", menuItem: nil, keyEquivalent: "", modifierFlags: 0, isCustom: false)]
+        }
     }
 
     private func collectEntries(from items: [NSMenuItem], into result: inout [Entry], customMap: [String: CustomShortcut]) {
@@ -158,16 +222,28 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
         guard row >= 0, row < filteredEntries.count else { return }
         let entry = filteredEntries[row]
         guard entry.isCustom else { return }
-        shortcutStore.removeShortcut(forTitle: entry.title)
-        // Reset to original menu item shortcut
-        if let item = entry.menuItem {
-            // Restore original — we can't easily know original, so just clear
-            item.keyEquivalent = ""
-            item.keyEquivalentModifierMask = []
+        switch currentCategory {
+        case .mainMenu:
+            shortcutStore.removeShortcut(forTitle: entry.title)
+            if let item = entry.menuItem {
+                item.keyEquivalent = ""
+                item.keyEquivalentModifierMask = []
+            }
+            onShortcutsChanged?()
+        case .macros:
+            macroShortcutStore.removeShortcut(for: entry.title)
+            onMacroShortcutsChanged?()
+        case .runCommands:
+            var commands = savedRunCommandStore.load()
+            if let idx = commands.firstIndex(where: { $0.name == entry.title }) {
+                commands[idx].keyEquivalent = ""
+                commands[idx].modifierFlags = 0
+                savedRunCommandStore.save(commands)
+            }
+            onShortcutsChanged?()
         }
         buildEntries()
         applyFilter()
-        onShortcutsChanged?()
         statusLabel.stringValue = Localization.string(.shortcutMapperCleared, default: "Shortcut cleared.")
     }
 
@@ -199,15 +275,34 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
             guard warn.runModal() == .alertFirstButtonReturn else { return }
         }
 
-        let custom = CustomShortcut(menuItemTitle: entry.title, keyEquivalent: keyEq, modifierFlags: mods)
-        shortcutStore.setShortcut(custom)
-        entry.menuItem?.keyEquivalent = keyEq
-        entry.menuItem?.keyEquivalentModifierMask = NSEvent.ModifierFlags(rawValue: UInt(bitPattern: mods))
+        let shortcutDisplay: String
+        switch currentCategory {
+        case .mainMenu:
+            let custom = CustomShortcut(menuItemTitle: entry.title, keyEquivalent: keyEq, modifierFlags: mods)
+            shortcutStore.setShortcut(custom)
+            entry.menuItem?.keyEquivalent = keyEq
+            entry.menuItem?.keyEquivalentModifierMask = NSEvent.ModifierFlags(rawValue: UInt(bitPattern: mods))
+            shortcutDisplay = custom.displayString
+            onShortcutsChanged?()
+        case .macros:
+            let sc = MacroShortcut(macroName: entry.title, keyEquivalent: keyEq, modifierFlags: mods)
+            macroShortcutStore.setShortcut(sc)
+            shortcutDisplay = sc.displayString
+            onMacroShortcutsChanged?()
+        case .runCommands:
+            var commands = savedRunCommandStore.load()
+            if let idx = commands.firstIndex(where: { $0.name == entry.title }) {
+                commands[idx].keyEquivalent = keyEq
+                commands[idx].modifierFlags = mods
+                savedRunCommandStore.save(commands)
+            }
+            shortcutDisplay = MacroShortcut(macroName: "", keyEquivalent: keyEq, modifierFlags: mods).displayString
+            onShortcutsChanged?()
+        }
         buildEntries()
         applyFilter()
-        onShortcutsChanged?()
         let assignedMsg = Localization.string(.shortcutMapperAssigned, default: "Assigned")
-        statusLabel.stringValue = "\(assignedMsg) \(custom.displayString) → \(entry.title)"
+        statusLabel.stringValue = "\(assignedMsg) \(shortcutDisplay) → \(entry.title)"
     }
 
     private func findMenuConflict(keyEquivalent: String, modifiers: NSEvent.ModifierFlags, excluding title: String) -> String? {
@@ -296,10 +391,31 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
         clearButton.isEnabled = hasSelection && row < filteredEntries.count && filteredEntries[row].isCustom
     }
 
+    // MARK: - Category switching
+
+    @objc private func categoryChanged(_ sender: NSSegmentedControl) {
+        currentCategory = Category(rawValue: sender.selectedSegment) ?? .mainMenu
+        buildEntries()
+        filteredEntries = allEntries
+        searchField.stringValue = ""
+        tableView.reloadData()
+        updateButtonStates()
+        statusLabel.stringValue = ""
+    }
+
     // MARK: - Configure content
 
     private func configureContent() {
         guard let root = window?.contentView else { return }
+
+        categoryControl.segmentCount = 3
+        categoryControl.setLabel("Main Menu", forSegment: 0)
+        categoryControl.setLabel("Macros", forSegment: 1)
+        categoryControl.setLabel("Run Commands", forSegment: 2)
+        categoryControl.trackingMode = .selectOne
+        categoryControl.selectedSegment = 0
+        categoryControl.target = self
+        categoryControl.action = #selector(categoryChanged(_:))
 
         searchField.target = self
         searchField.action = #selector(searchChanged(_:))
@@ -339,15 +455,18 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.lineBreakMode = .byTruncatingTail
 
-        for v in [searchField, scrollView, assignButton, clearButton, statusLabel] {
+        for v in [categoryControl, searchField, scrollView, assignButton, clearButton, statusLabel] {
             v.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(v)
         }
 
         NSLayoutConstraint.activate([
+            categoryControl.centerXAnchor.constraint(equalTo: root.centerXAnchor),
+            categoryControl.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
+
             searchField.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
             searchField.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
-            searchField.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
+            searchField.topAnchor.constraint(equalTo: categoryControl.bottomAnchor, constant: 8),
 
             scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
             scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),

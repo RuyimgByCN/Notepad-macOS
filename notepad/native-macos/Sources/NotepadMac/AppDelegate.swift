@@ -48,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private lazy var hashTextPanel = HashTextPanelController()
     private let savedRunCommandStore = SavedRunCommandStore()
+    let macroShortcutStore = MacroShortcutStore()
     private lazy var runCommandPanel: RunCommandPanelController = {
         let panel = RunCommandPanelController()
         panel.onSaveCommand = { [weak self] command in
@@ -89,9 +90,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return panel
     }()
     private lazy var shortcutMapperPanel: ShortcutMapperPanelController = {
-        let panel = ShortcutMapperPanelController(shortcutStore: customShortcutStore)
+        let panel = ShortcutMapperPanelController(
+            shortcutStore: customShortcutStore,
+            macroShortcutStore: macroShortcutStore,
+            savedRunCommandStore: savedRunCommandStore
+        )
         panel.onShortcutsChanged = { [weak self] in
-            // Nothing extra to do — shortcuts are already applied to menu items directly
+            self?.refreshRunMenu()
+        }
+        panel.onMacroShortcutsChanged = { [weak self] in
+            self?.refreshMacroMenu()
         }
         return panel
     }()
@@ -135,6 +143,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installCtrlTabMonitor()
         installWorkspaceFindInFiles()
         refreshRunMenu()
+        refreshMacroMenu()
         // Apply custom shortcuts after main menu is built
         DispatchQueue.main.async { [weak self] in
             self?.shortcutMapperPanel.applyStoredShortcuts()
@@ -908,6 +917,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             delegate: self,
             savedCommands: savedRunCommandStore.load()
         )
+    }
+
+    func refreshMacroMenu() {
+        // Macros are stored per-editor; gather from the active editor's macroStore
+        let macros: [MacroRecording]
+        if let editor = activeEditorController() {
+            macros = editor.namedMacros()
+        } else {
+            macros = []
+        }
+        AppMenu.refreshMacroMenu(
+            delegate: self,
+            namedMacros: macros,
+            shortcuts: macroShortcutStore.load()
+        )
+    }
+
+    @objc func playNamedMacroFromMenu(_ sender: Any?) {
+        guard let item = sender as? NSMenuItem,
+              let macroName = item.representedObject as? String,
+              let editor = activeEditorController() else { return }
+        editor.playNamedMacroByName(macroName)
     }
 
     @objc func showCommandLineArguments(_ sender: Any?) {
