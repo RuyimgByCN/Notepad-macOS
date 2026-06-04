@@ -237,10 +237,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func newDocument(_ sender: Any?) {
-        newDocumentCounter += 1
         let prefix = Localization.string(.editorNewDocumentPrefix, default: "新文件")
+        // Find lowest unused numbered name across all open untitled tabs.
+        let usedNumbers = Set(windows.compactMap { w -> Int? in
+            let title = w.tabItem.title
+            guard title.hasPrefix(prefix), let n = Int(title.dropFirst(prefix.count)) else { return nil }
+            return n
+        })
+        let n = (1...).first { !usedNumbers.contains($0) } ?? (newDocumentCounter + 1)
+        newDocumentCounter = max(newDocumentCounter, n)
         let controller = EditorWindowController(
-            untitledDisplayName: "\(prefix)\(newDocumentCounter)",
+            untitledDisplayName: "\(prefix)\(n)",
             languageCatalog: languageCatalog,
             styleCatalog: styleCatalog,
             preferencesStore: preferencesStore,
@@ -1066,7 +1073,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.handleTabContextAction(identity: identity, action: action)
         }
         controller.onNewDocument = { [weak self] in
-            self?.newDocument(nil)
+            DispatchQueue.main.async { self?.newDocument(nil) }
         }
         controller.onReorderTab = { [weak self] identity, targetIndex in
             guard let self else { return }
@@ -1171,6 +1178,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 windows.swapAt(idx, idx - 1)
                 rebuildTabState()
             }
+        case .copyDirectoryPath:
+            if case .file(let url) = identity {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(url.deletingLastPathComponent().path, forType: .string)
+            }
+        case .openContainingFolderInTerminal:
+            if case .file(let url) = identity {
+                let dir = url.deletingLastPathComponent()
+                let script = "tell application \"Terminal\" to do script \"cd \\\"\(dir.path)\\\"\" activate"
+                NSAppleScript(source: script)?.executeAndReturnError(nil)
+            }
+        case .save:
+            activate(targetController)
+            targetController.saveDocument(nil)
+        case .saveAs:
+            activate(targetController)
+            targetController.saveDocumentAs(nil)
+        case .rename:
+            activate(targetController)
+            targetController.renameDocument(nil)
+        case .moveToTrash:
+            activate(targetController)
+            targetController.moveToTrash(nil)
+        case .reload:
+            activate(targetController)
+            targetController.reloadFromDisk(nil)
+        case .print:
+            activate(targetController)
+            targetController.printDocument(nil)
+        case .toggleReadOnly:
+            activate(targetController)
+            targetController.toggleReadOnly(nil)
         }
     }
 

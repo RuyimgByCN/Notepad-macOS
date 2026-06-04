@@ -339,6 +339,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         super.init(window: window)
 
         window.title = displayStrings.windowTitle(displayName: self.untitledDisplayName, isDirty: false)
+        window.animationBehavior = .none
         window.delegate = self
         window.nextResponder = self
         window.tabbingMode = .disallowed

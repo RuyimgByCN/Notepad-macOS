@@ -10,13 +10,22 @@ enum TabContextAction {
     case closeToRight
     case copyFilename
     case copyFullPath
+    case copyDirectoryPath
     case openContainingFolder
+    case openContainingFolderInTerminal
     case togglePin
     case setColor(Int?)
     case moveToStart
     case moveToEnd
     case moveForward
     case moveBackward
+    case save
+    case saveAs
+    case rename
+    case moveToTrash
+    case reload
+    case print
+    case toggleReadOnly
 }
 
 @MainActor
@@ -204,8 +213,15 @@ final class EditorTabBarView: NSView {
 
     override func layout() {
         super.layout()
-        // Keep documentView at least as wide as visible area so background fills
-        if !tabButtons.isEmpty { return }
+        let newMax = min(EditorTabButton.absoluteMaxWidth,
+                        max(EditorTabButton.minWidth, scrollView.bounds.width / 2))
+        if !tabButtons.isEmpty {
+            // Recompute tab widths if bar was resized after initial rebuild (e.g. window resize).
+            if tabButtons.first?.dynamicMaxWidth != newMax {
+                rebuildTabs()
+            }
+            return
+        }
         documentView.frame = CGRect(x: 0, y: 0, width: max(documentView.frame.width, scrollView.bounds.width), height: Self.barHeight)
     }
 
@@ -378,36 +394,106 @@ final class EditorTabButton: NSView {
 
     private func buildContextMenu() -> NSMenu {
         let menu = NSMenu(title: "")
+        let isFile = { if case .file = self.item.identity { return true }; return false }()
 
-        let closeItem = ClosureMenuItem(title: Localization.string(.fileClose, default: "Close")) { [weak self] in self?.onClose() }
+        // — 关闭 / 关闭多个标签页 >
+        let closeItem = ClosureMenuItem(title: Localization.string(.fileClose, default: "关闭")) { [weak self] in self?.onClose() }
         menu.addItem(closeItem)
-        menu.addItem(menuItem(Localization.string(.fileCloseOthers, default: "Close Others"), action: .closeOthers))
-        menu.addItem(menuItem(Localization.string(.fileCloseAllToLeft, default: "Close All to Left"), action: .closeToLeft))
-        menu.addItem(menuItem(Localization.string(.fileCloseAllToRight, default: "Close All to Right"), action: .closeToRight))
+        menu.addItem(closeMultipleSubmenuItem())
+
+        // — 固定
+        let pinTitle = item.isPinned
+            ? Localization.string(.windowUnpinTab, default: "取消固定标签页")
+            : Localization.string(.windowPinTab, default: "固定标签页")
+        menu.addItem(menuItem(pinTitle, action: .togglePin))
+
         menu.addItem(.separator())
 
-        if case .file(let url) = item.identity {
-            let filename = url.lastPathComponent
-            let copyNameTitle = String(format: Localization.string(.editCopyCurrentFilename, default: "Copy \"%@\""), filename)
-            menu.addItem(menuItem(copyNameTitle, action: .copyFilename))
-            menu.addItem(menuItem(Localization.string(.editCopyCurrentFullPath, default: "Copy Full Path"), action: .copyFullPath))
-            menu.addItem(menuItem(Localization.string(.fileOpenContainingFolder, default: "Open Containing Folder"), action: .openContainingFolder))
-            menu.addItem(.separator())
+        // — 保存 / 另存为
+        let saveItem = menuItem(Localization.string(.fileSave, default: "保存"), action: .save)
+        saveItem.isEnabled = item.isDirty || !isFile
+        menu.addItem(saveItem)
+        menu.addItem(menuItem(Localization.string(.fileSaveAs, default: "另存为..."), action: .saveAs))
+
+        // — 打开至 > (only for file-backed docs)
+        if isFile {
+            menu.addItem(openInSubmenuItem())
         }
 
-        let pinTitle = item.isPinned
-            ? Localization.string(.windowUnpinTab, default: "Unpin Tab")
-            : Localization.string(.windowPinTab, default: "Pin Tab")
-        menu.addItem(menuItem(pinTitle, action: .togglePin))
-        menu.addItem(colorSubmenuItem())
+        // — 重命名 / 移至废纸篓 / 重新加载
+        let renameItem = menuItem(Localization.string(.fileRename, default: "重命名..."), action: .rename)
+        renameItem.isEnabled = isFile
+        menu.addItem(renameItem)
+
+        let trashItem = menuItem(Localization.string(.fileMoveToTrash, default: "移至废纸篓"), action: .moveToTrash)
+        trashItem.isEnabled = isFile
+        menu.addItem(trashItem)
+
+        let reloadItem = menuItem(Localization.string(.fileReloadFromDisk, default: "重新加载"), action: .reload)
+        reloadItem.isEnabled = isFile
+        menu.addItem(reloadItem)
+
+        // — 打印
+        menu.addItem(menuItem(Localization.string(.filePrint, default: "打印..."), action: .print))
+
         menu.addItem(.separator())
 
-        menu.addItem(menuItem(Localization.string(.windowMoveTabToStart, default: "Move to Start"), action: .moveToStart))
-        menu.addItem(menuItem(Localization.string(.windowMoveTabToEnd, default: "Move to End"), action: .moveToEnd))
-        menu.addItem(menuItem(Localization.string(.windowMoveTabForward, default: "Move Forward"), action: .moveForward))
-        menu.addItem(menuItem(Localization.string(.windowMoveTabBackward, default: "Move Backward"), action: .moveBackward))
+        // — 只读
+        menu.addItem(menuItem(Localization.string(.editReadOnlyMenu, default: "设置为只读（仅本程序中）"), action: .toggleReadOnly))
+
+        menu.addItem(.separator())
+
+        // — 复制到剪贴板 > / 移动文档 > / 设置标签颜色 >
+        menu.addItem(copyToClipboardSubmenuItem())
+        menu.addItem(moveDocumentSubmenuItem())
+        menu.addItem(colorSubmenuItem())
 
         return menu
+    }
+
+    private func closeMultipleSubmenuItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: Localization.string(.fileCloseOthers, default: "关闭多个标签页"), action: nil, keyEquivalent: "")
+        let sub = NSMenu(title: "")
+        sub.addItem(menuItem(Localization.string(.fileCloseOthers, default: "关闭其他标签页"), action: .closeOthers))
+        sub.addItem(menuItem(Localization.string(.fileCloseAllToLeft, default: "关闭左侧所有标签页"), action: .closeToLeft))
+        sub.addItem(menuItem(Localization.string(.fileCloseAllToRight, default: "关闭右侧所有标签页"), action: .closeToRight))
+        parent.submenu = sub
+        return parent
+    }
+
+    private func openInSubmenuItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: Localization.string(.fileOpenContainingFolder, default: "打开至"), action: nil, keyEquivalent: "")
+        let sub = NSMenu(title: "")
+        sub.addItem(menuItem(Localization.string(.fileOpenContainingFolder, default: "在 Finder 中显示"), action: .openContainingFolder))
+        sub.addItem(menuItem(Localization.string(.fileOpenContainingFolderInTerminal, default: "在终端中打开"), action: .openContainingFolderInTerminal))
+        parent.submenu = sub
+        return parent
+    }
+
+    private func copyToClipboardSubmenuItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: Localization.string(.editCopyCurrentFilename, default: "复制到剪贴板"), action: nil, keyEquivalent: "")
+        let sub = NSMenu(title: "")
+        if case .file(let url) = item.identity {
+            let filename = url.lastPathComponent
+            sub.addItem(menuItem(String(format: Localization.string(.editCopyCurrentFilename, default: "复制文件名 \"%@\""), filename), action: .copyFilename))
+        } else {
+            sub.addItem(menuItem(Localization.string(.editCopyCurrentFilename, default: "复制文件名"), action: .copyFilename))
+        }
+        sub.addItem(menuItem(Localization.string(.editCopyCurrentFullPath, default: "复制完整路径"), action: .copyFullPath))
+        sub.addItem(menuItem(Localization.string(.editCopyCurrentDirectoryPath, default: "复制目录路径"), action: .copyDirectoryPath))
+        parent.submenu = sub
+        return parent
+    }
+
+    private func moveDocumentSubmenuItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: Localization.string(.windowMoveTabToStart, default: "移动文档"), action: nil, keyEquivalent: "")
+        let sub = NSMenu(title: "")
+        sub.addItem(menuItem(Localization.string(.windowMoveTabToStart, default: "移到开头"), action: .moveToStart))
+        sub.addItem(menuItem(Localization.string(.windowMoveTabToEnd, default: "移到末尾"), action: .moveToEnd))
+        sub.addItem(menuItem(Localization.string(.windowMoveTabForward, default: "向前移动"), action: .moveForward))
+        sub.addItem(menuItem(Localization.string(.windowMoveTabBackward, default: "向后移动"), action: .moveBackward))
+        parent.submenu = sub
+        return parent
     }
 
     private func menuItem(_ title: String, action: TabContextAction) -> NSMenuItem {
