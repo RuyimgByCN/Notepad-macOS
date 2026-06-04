@@ -145,6 +145,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let tabbarMaxLabelLength: Int
     /// Keep the Find dialog open after Replace All
     public let keepFindDialogOpen: Bool
+    /// Transparency of Find dialog when unfocused (0.0 = opaque, 1.0 = fully transparent)
+    public let findDialogTransparency: Double
     /// Print header/footer and margin settings
     public let printSettings: PrintSettings
     /// Delimiter for "Select between delimiters": left char (empty = whitespace)
@@ -223,6 +225,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         tabbarDoubleClickClose: Bool = false,
         tabbarMaxLabelLength: Int = 0,
         keepFindDialogOpen: Bool = true,
+        findDialogTransparency: Double = 0,
         printSettings: PrintSettings = .defaultValue,
         delimiterLeft: String = "",
         delimiterRight: String = ""
@@ -297,6 +300,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.tabbarDoubleClickClose = tabbarDoubleClickClose
         self.tabbarMaxLabelLength = max(0, tabbarMaxLabelLength)
         self.keepFindDialogOpen = keepFindDialogOpen
+        self.findDialogTransparency = max(0, min(0.9, findDialogTransparency))
         self.printSettings = printSettings
         self.delimiterLeft = delimiterLeft
         self.delimiterRight = delimiterRight
@@ -599,6 +603,7 @@ public final class PreferencesStore {
         static let tabbarDoubleClickClose = "notepadMac.tabbarDoubleClickClose"
         static let tabbarMaxLabelLength = "notepadMac.tabbarMaxLabelLength"
         static let keepFindDialogOpen = "notepadMac.keepFindDialogOpen"
+        static let findDialogTransparency = "notepadMac.findDialogTransparency"
         static let printSettings = "notepadMac.printSettings"
         static let delimiterLeft = "notepadMac.delimiterLeft"
         static let delimiterRight = "notepadMac.delimiterRight"
@@ -684,6 +689,7 @@ public final class PreferencesStore {
             tabbarDoubleClickClose: defaults.object(forKey: Key.tabbarDoubleClickClose) as? Bool ?? false,
             tabbarMaxLabelLength: defaults.object(forKey: Key.tabbarMaxLabelLength) as? Int ?? 0,
             keepFindDialogOpen: defaults.object(forKey: Key.keepFindDialogOpen) as? Bool ?? true,
+            findDialogTransparency: defaults.object(forKey: Key.findDialogTransparency) as? Double ?? 0,
             printSettings: Self.loadPrintSettings(from: defaults),
             delimiterLeft: defaults.string(forKey: Key.delimiterLeft) ?? "",
             delimiterRight: defaults.string(forKey: Key.delimiterRight) ?? ""
@@ -766,6 +772,7 @@ public final class PreferencesStore {
         defaults.set(preferences.tabbarDoubleClickClose, forKey: Key.tabbarDoubleClickClose)
         defaults.set(preferences.tabbarMaxLabelLength, forKey: Key.tabbarMaxLabelLength)
         defaults.set(preferences.keepFindDialogOpen, forKey: Key.keepFindDialogOpen)
+        defaults.set(preferences.findDialogTransparency, forKey: Key.findDialogTransparency)
         if let data = try? JSONEncoder().encode(preferences.printSettings) {
             defaults.set(data, forKey: Key.printSettings)
         }

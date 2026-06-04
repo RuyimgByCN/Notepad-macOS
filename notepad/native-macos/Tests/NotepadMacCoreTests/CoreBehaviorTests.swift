@@ -1602,3 +1602,51 @@ private func upstreamThemesDirectoryURL() -> URL {
     #expect(record.isPinned == true)
     #expect(record.tabColorIndex == 3)
 }
+
+// MARK: - Regex backward search (P1 regression tests)
+
+@Test func regexBackwardFindsLastMatchBeforeCaret() {
+    let text = "foo bar foo baz foo"
+    // Caret at position 15 (after third "foo"), search backward
+    let from = NSRange(location: 15, length: 0)
+    let opts = TextSearch.Options(wraps: false, direction: .up, searchMode: .regex)
+    let result = TextSearch.findNext("foo", in: text, from: from, options: opts)
+    // Should find the second "foo" at position 8
+    #expect(result == NSRange(location: 8, length: 3))
+}
+
+@Test func regexBackwardWrapsToEndWhenNoPriorMatch() {
+    let text = "abc foo def"
+    // Caret before "foo"
+    let from = NSRange(location: 0, length: 0)
+    let opts = TextSearch.Options(wraps: true, direction: .up, searchMode: .regex)
+    let result = TextSearch.findNext("foo", in: text, from: from, options: opts)
+    // Should wrap and find "foo" at position 4
+    #expect(result == NSRange(location: 4, length: 3))
+}
+
+@Test func regexBackwardWithDatePattern() {
+    let text = "2026-01-01 and 2026-06-04"
+    let from = NSRange(location: text.utf16.count, length: 0)
+    let opts = TextSearch.Options(wraps: false, direction: .up, searchMode: .regex)
+    // Find dates backward - should find the last one first
+    let result = TextSearch.findNext("\\d{4}-\\d{2}-\\d{2}", in: text, from: from, options: opts)
+    #expect(result == NSRange(location: 15, length: 10))
+}
+
+@Test func regexBackwardNoMatchWithoutWrap() {
+    let text = "foo bar baz"
+    let from = NSRange(location: 0, length: 0)
+    let opts = TextSearch.Options(wraps: false, direction: .up, searchMode: .regex)
+    let result = TextSearch.findNext("foo", in: text, from: from, options: opts)
+    #expect(result == nil)
+}
+
+@Test func regexBackwardCaseInsensitive() {
+    let text = "Foo BAR foo bar FOO"
+    let from = NSRange(location: 15, length: 0)
+    let opts = TextSearch.Options(matchCase: false, wraps: false, direction: .up, searchMode: .regex)
+    let result = TextSearch.findNext("foo", in: text, from: from, options: opts)
+    // Should find "foo" at position 8
+    #expect(result == NSRange(location: 8, length: 3))
+}

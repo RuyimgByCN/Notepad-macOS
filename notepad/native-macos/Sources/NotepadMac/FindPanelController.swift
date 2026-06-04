@@ -2,7 +2,7 @@ import AppKit
 import NotepadMacCore
 
 @MainActor
-final class FindPanelController: NSWindowController {
+final class FindPanelController: NSWindowController, NSWindowDelegate {
     private weak var editor: EditorWindowController?
     private let preferencesStore: PreferencesStore
 
@@ -59,6 +59,7 @@ final class FindPanelController: NSWindowController {
         panel.hidesOnDeactivate = false
 
         super.init(window: panel)
+        panel.delegate = self
         configureContent()
         refreshLocalizedStrings()
         loadPreferences()
@@ -509,5 +510,18 @@ final class FindPanelController: NSWindowController {
             locale: Locale.current,
             arguments: arguments
         )
+    }
+
+    // MARK: - NSWindowDelegate (transparency on focus change)
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        window?.alphaValue = 1.0
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        let t = preferencesStore.load().findDialogTransparency
+        if t > 0 {
+            window?.alphaValue = max(0.1, 1.0 - t)
+        }
     }
 }

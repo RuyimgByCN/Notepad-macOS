@@ -123,6 +123,8 @@ final class PreferencesPanelController: NSWindowController {
     private let inSelectionThresholdField = NSTextField(string: "1024")
     private let inSelectionThresholdStepper = NSStepper()
     private let keepFindDialogOpenButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let findTransparencyLabel = NSTextField(labelWithString: "")
+    private let findTransparencySlider = NSSlider()
     // Tabbar section (in Window tab)
     private let tabbarSectionLabel = NSTextField(labelWithString: "")
     private let tabbarDoubleClickCloseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -253,6 +255,7 @@ final class PreferencesPanelController: NSWindowController {
         inSelectionSectionLabel.stringValue = "In-Selection Search"
         inSelectionThresholdLabel.stringValue = "Auto-check In Selection threshold (chars):"
         keepFindDialogOpenButton.title = "Keep Find dialog open after Replace All"
+        findTransparencyLabel.stringValue = "Find dialog transparency when unfocused:"
         tabbarSectionLabel.stringValue = "Tab Bar"
         tabbarDoubleClickCloseButton.title = "Double-click tab to close"
         tabbarMaxLabelLengthLabel.stringValue = "Max tab label length (0 = unlimited):"
@@ -352,7 +355,7 @@ final class PreferencesPanelController: NSWindowController {
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, findTransparencySlider, tabbarDoubleClickCloseButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -376,6 +379,10 @@ final class PreferencesPanelController: NSWindowController {
         tabbarMaxLabelLengthStepper.maxValue = 200
         tabbarMaxLabelLengthStepper.increment = 5
         tabbarMaxLabelLengthField.formatter = integerFormatter
+        findTransparencySlider.minValue = 0
+        findTransparencySlider.maxValue = 0.9
+        findTransparencySlider.numberOfTickMarks = 10
+        findTransparencySlider.allowsTickMarkValuesOnly = false
         largeFileMBStepper.minValue = Double(AppPreferences.minimumLargeFileMB)
         largeFileMBStepper.maxValue = Double(AppPreferences.maximumLargeFileMB)
         largeFileMBStepper.increment = 10
@@ -468,7 +475,7 @@ final class PreferencesPanelController: NSWindowController {
          localizationSectionLabel, localizationChoiceLabel, localizationPopup,
          inSelectionSectionLabel, inSelectionThresholdLabel,
          inSelectionThresholdField, inSelectionThresholdStepper,
-         keepFindDialogOpenButton
+         keepFindDialogOpenButton, findTransparencyLabel, findTransparencySlider
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; toolsCV.addSubview($0) }
 
         // Tab 4 – Window
@@ -865,7 +872,15 @@ final class PreferencesPanelController: NSWindowController {
             keepFindDialogOpenButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
             keepFindDialogOpenButton.topAnchor.constraint(equalTo: inSelectionThresholdLabel.bottomAnchor, constant: 10),
 
-            toolsCV.bottomAnchor.constraint(equalTo: keepFindDialogOpenButton.bottomAnchor, constant: 24)
+            findTransparencyLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            findTransparencyLabel.topAnchor.constraint(equalTo: keepFindDialogOpenButton.bottomAnchor, constant: 14),
+            findTransparencyLabel.widthAnchor.constraint(equalToConstant: 240),
+
+            findTransparencySlider.leadingAnchor.constraint(equalTo: findTransparencyLabel.trailingAnchor, constant: 8),
+            findTransparencySlider.centerYAnchor.constraint(equalTo: findTransparencyLabel.centerYAnchor),
+            findTransparencySlider.widthAnchor.constraint(equalToConstant: 120),
+
+            toolsCV.bottomAnchor.constraint(equalTo: findTransparencyLabel.bottomAnchor, constant: 24)
         ])
 
         // ── Tab 4: Window ──────────────────────────────────────
@@ -959,6 +974,7 @@ final class PreferencesPanelController: NSWindowController {
         inSelectionThresholdField.intValue = Int32(preferences.inSelectionThreshold)
         inSelectionThresholdStepper.intValue = Int32(preferences.inSelectionThreshold)
         keepFindDialogOpenButton.state = preferences.keepFindDialogOpen ? .on : .off
+        findTransparencySlider.doubleValue = preferences.findDialogTransparency
         tabbarDoubleClickCloseButton.state = preferences.tabbarDoubleClickClose ? .on : .off
         tabbarMaxLabelLengthField.intValue = Int32(preferences.tabbarMaxLabelLength)
         tabbarMaxLabelLengthStepper.intValue = Int32(preferences.tabbarMaxLabelLength)
@@ -1122,6 +1138,7 @@ final class PreferencesPanelController: NSWindowController {
             tabbarDoubleClickClose: tabbarDoubleClickCloseButton.state == .on,
             tabbarMaxLabelLength: Int(tabbarMaxLabelLengthField.intValue),
             keepFindDialogOpen: keepFindDialogOpenButton.state == .on,
+            findDialogTransparency: findTransparencySlider.doubleValue,
             printSettings: PrintSettings(
                 header: PrintBand(
                     left: printHeaderLeftField.stringValue,
