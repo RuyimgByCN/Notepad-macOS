@@ -127,7 +127,7 @@ protocol EditorSurface: AnyObject {
 
     // MARK: - Clickable URL highlighting
     var supportsUrlHighlight: Bool { get }
-    func applyUrlHighlights(ranges: [NSRange])
+    func applyUrlHighlights(ranges: [NSRange], style: Int)
     func clearUrlHighlights()
     func setUrlClickHandler(_ handler: ((NSRange) -> Void)?)
     func urlIndicatorRange(at utf16Location: Int) -> NSRange?
@@ -366,7 +366,7 @@ final class TextViewEditorSurface: EditorSurface {
     func insertAutoPairClose(_ close: Character) {}
 
     var supportsUrlHighlight: Bool { false }
-    func applyUrlHighlights(ranges: [NSRange]) {}
+    func applyUrlHighlights(ranges: [NSRange], style: Int) {}
     func clearUrlHighlights() {}
     func setUrlClickHandler(_ handler: ((NSRange) -> Void)?) {}
     func urlIndicatorRange(at utf16Location: Int) -> NSRange? { nil }
@@ -1584,14 +1584,21 @@ final class ScintillaEditorSurface: EditorSurface {
         urlClickHandler = handler
     }
 
-    func applyUrlHighlights(ranges: [NSRange]) {
+    func applyUrlHighlights(ranges: [NSRange], style: Int = 0) {
         clearUrlHighlights()
         let indicator = Self.urlIndicator
-        bridge.setGeneralProperty(ScintillaMessage.indicSetStyle, parameter: indicator, value: ScintillaIndicatorStyle.compositionThin)
+        // style: 0=underline(compositionThin), 1=box, 2=fullBox
+        let indicatorStyle: CLong
+        switch style {
+        case 1:  indicatorStyle = ScintillaIndicatorStyle.box
+        case 2:  indicatorStyle = ScintillaIndicatorStyle.fullBox
+        default: indicatorStyle = ScintillaIndicatorStyle.compositionThin
+        }
+        bridge.setGeneralProperty(ScintillaMessage.indicSetStyle, parameter: indicator, value: indicatorStyle)
         // Blue color
         let rgb: CLong = (0x00 << 16) | (0x66 << 8) | 0xCC
         bridge.setGeneralProperty(ScintillaMessage.indicSetFore, parameter: indicator, value: rgb)
-        bridge.setGeneralProperty(ScintillaMessage.indicSetUnder, parameter: indicator, value: 1)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetUnder, parameter: indicator, value: style == 2 ? 0 : 1)
 
         let currentText = text
         bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
@@ -2436,10 +2443,12 @@ private enum ScintillaFoldLevel {
 
 private enum ScintillaIndicatorStyle {
     static let straightBox: CLong = 0
+    static let plain: CLong = 1      // plain underline
     static let box: CLong = 6
     static let roundBox: CLong = 7
     static let straightBoxWithColour: CLong = 8
-    static let compositionThin: CLong = 14
+    static let compositionThin: CLong = 14  // thin dotted underline
+    static let fullBox: CLong = 16           // filled translucent box
 }
 
 private enum ScintillaKeyword {

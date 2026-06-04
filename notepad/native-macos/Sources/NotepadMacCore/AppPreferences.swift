@@ -171,6 +171,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let copyLineWithoutSelection: Bool
     /// When true, smart highlighting uses the Find dialog's match-case/whole-word settings
     public let smartHighlightUseFindSettings: Bool
+    /// URL highlight style: 0=underline, 1=box, 2=full-box
+    public let urlIndicatorStyle: Int
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -255,7 +257,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         fileChangeDetectionEnabled: Bool = true,
         findDialogMonospace: Bool = false,
         copyLineWithoutSelection: Bool = true,
-        smartHighlightUseFindSettings: Bool = false
+        smartHighlightUseFindSettings: Bool = false,
+        urlIndicatorStyle: Int = 0
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -340,6 +343,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.findDialogMonospace = findDialogMonospace
         self.copyLineWithoutSelection = copyLineWithoutSelection
         self.smartHighlightUseFindSettings = smartHighlightUseFindSettings
+        self.urlIndicatorStyle = max(0, min(2, urlIndicatorStyle))
     }
 
     /// Combined URL schemes: defaults + user-configured extras
@@ -473,7 +477,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             fileChangeDetectionEnabled: fileChangeDetectionEnabled,
             findDialogMonospace: findDialogMonospace,
             copyLineWithoutSelection: copyLineWithoutSelection,
-            smartHighlightUseFindSettings: smartHighlightUseFindSettings
+            smartHighlightUseFindSettings: smartHighlightUseFindSettings,
+            urlIndicatorStyle: urlIndicatorStyle
         )
     }
 
