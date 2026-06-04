@@ -980,3 +980,10 @@
 "view.xmlTagMatch" = "高亮匹配 XML 标签";
 "view.autoPair" = "自动插入匹配符号";
 "view.clickableLinks" = "可点击链接";
+
+// 编辑 – 在分隔符之间选择
+"edit.selectBetweenDelimiters" = "在分隔符之间选择";
+
+// 视图 – 项目面板
+"view.projectPanel2" = "项目面板 2...";
+"view.projectPanel3" = "项目面板 3...";

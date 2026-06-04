@@ -980,3 +980,10 @@
 "view.xmlTagMatch" = "Highlight Matching XML Tags";
 "view.autoPair" = "Auto-Insert Matching Pairs";
 "view.clickableLinks" = "Clickable Links";
+
+// Edit – Select Between Delimiters
+"edit.selectBetweenDelimiters" = "Select Between Delimiters";
+
+// View – Project Panels
+"view.projectPanel2" = "Project Panel 2...";
+"view.projectPanel3" = "Project Panel 3...";
