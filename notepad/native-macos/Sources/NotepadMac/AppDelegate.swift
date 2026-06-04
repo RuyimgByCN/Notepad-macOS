@@ -568,6 +568,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return nil
         }
 
+        // Session/workspace extension routing
+        let ext = url.pathExtension.lowercased()
+        if ext == "npsession" {
+            loadSessionFile(url)
+            return nil
+        }
+        if ext == "npproj" {
+            do {
+                let workspace = try WorkspaceDocument.load(from: url)
+                workspacePanel.show(workspace: workspace)
+            } catch { NSApp.presentError(error) }
+            return nil
+        }
+        // XML files: peek to detect workspace
+        if ext == "xml", let snippet = try? String(contentsOf: url, encoding: .utf8).prefix(256),
+           snippet.contains("<NotepadPlus") || snippet.contains("<Project") {
+            do {
+                let workspace = try WorkspaceDocument.load(from: url)
+                workspacePanel.show(workspace: workspace)
+            } catch { /* fall through to open as text */ }
+            return nil
+        }
+
         if let existingController = existingController(for: url) {
             activate(existingController)
             if persistSession {
