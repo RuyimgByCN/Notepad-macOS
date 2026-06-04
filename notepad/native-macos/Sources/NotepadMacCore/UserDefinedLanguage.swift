@@ -119,8 +119,12 @@ public struct UserDefinedLanguage: Codable, Equatable, Identifiable, Sendable {
     public let name: String
     public let displayName: String
     public let extensions: [String]
-    public let keywords: [String]
+    public let keywords: [String]   // Keywords1
     public let wordStyles: [UserDefinedLanguageWordStyle]
+    /// Additional keyword lists beyond Keywords1. Keys are canonical names:
+    /// "Keywords2"–"Keywords8", "Operators1", "Operators2",
+    /// "Comments" (raw comment-descriptor string), etc.
+    public let additionalKeywordLists: [String: String]
 
     public var id: String { name }
     public var editableExtensionsText: String { extensions.joined(separator: " ") }
@@ -134,7 +138,8 @@ public struct UserDefinedLanguage: Codable, Equatable, Identifiable, Sendable {
         displayName: String? = nil,
         extensions: [String],
         keywords: [String] = [],
-        wordStyles: [UserDefinedLanguageWordStyle] = []
+        wordStyles: [UserDefinedLanguageWordStyle] = [],
+        additionalKeywordLists: [String: String] = [:]
     ) {
         let normalizedName = name.trimmed
         let normalizedExtensions = Self.normalizedUnique(extensions, using: Self.normalizedExtension)
@@ -150,6 +155,7 @@ public struct UserDefinedLanguage: Codable, Equatable, Identifiable, Sendable {
             keyword.trimmed.nilIfEmpty
         }
         self.wordStyles = wordStyles
+        self.additionalKeywordLists = additionalKeywordLists
     }
 
     public func updating(
@@ -161,7 +167,8 @@ public struct UserDefinedLanguage: Codable, Equatable, Identifiable, Sendable {
             displayName: displayName,
             extensions: Self.splitEditorList(extensionsText),
             keywords: Self.splitEditorList(keywordsText),
-            wordStyles: wordStyles
+            wordStyles: wordStyles,
+            additionalKeywordLists: additionalKeywordLists
         )
     }
 
@@ -542,11 +549,24 @@ public final class UserDefinedLanguageStore {
 
 extension LanguageDefinition {
     init(userDefinedLanguage language: UserDefinedLanguage) {
+        var keywordGroups: [String: [String]] = [:]
+        if !language.keywords.isEmpty {
+            keywordGroups["udlkw1"] = language.keywords
+        }
+        for i in 2...8 {
+            let listKey = "Keywords\(i)"
+            if let text = language.additionalKeywordLists[listKey], !text.isEmpty {
+                let words = text.split(separator: " ").map(String.init).filter { !$0.isEmpty }
+                if !words.isEmpty {
+                    keywordGroups["udlkw\(i)"] = words
+                }
+            }
+        }
         self.init(
             name: language.name,
             displayName: language.displayName,
             extensions: language.extensions,
-            keywordGroups: language.keywords.isEmpty ? [:] : ["instre1": language.keywords],
+            keywordGroups: keywordGroups,
             wordStyles: language.wordStyles.compactMap {
                 LanguageWordStyle(name: $0.name, foregroundHexRGB: $0.fgColor)
             }

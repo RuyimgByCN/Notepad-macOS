@@ -25,7 +25,8 @@ public enum UserDefinedLanguageIO {
                 name: rawLanguage.name,
                 extensions: rawLanguage.extensions,
                 keywords: rawLanguage.keywords,
-                wordStyles: rawLanguage.wordStyles
+                wordStyles: rawLanguage.wordStyles,
+                additionalKeywordLists: rawLanguage.additionalKeywordLists
               )
         else {
             throw Error.invalidUserDefinedLanguage
@@ -39,12 +40,27 @@ public enum UserDefinedLanguageIO {
         let extensions = escapeXMLAttribute(language.extensions.joined(separator: " "))
         let keywords = escapeXMLText(language.keywords.joined(separator: " "))
 
+        var keywordLines = ["        <Keywords name=\"Keywords1\">\(keywords)</Keywords>"]
+        // Write additional keyword lists in alphabetical order (Keywords2-8 first, then others)
+        let orderedKeys = language.additionalKeywordLists.keys.sorted { a, b in
+            let aIsKw = a.hasPrefix("Keywords")
+            let bIsKw = b.hasPrefix("Keywords")
+            if aIsKw && bIsKw { return a < b }
+            if aIsKw { return true }
+            if bIsKw { return false }
+            return a < b
+        }
+        for key in orderedKeys {
+            let value = escapeXMLText(language.additionalKeywordLists[key] ?? "")
+            keywordLines.append("        <Keywords name=\"\(escapeXMLAttribute(key))\">\(value)</Keywords>")
+        }
+
         var lines = [
             "<UserLang name=\"\(name)\" ext=\"\(extensions)\">",
-            "    <KeywordLists>",
-            "        <Keywords name=\"Keywords1\">\(keywords)</Keywords>",
-            "    </KeywordLists>"
+            "    <KeywordLists>"
         ]
+        lines.append(contentsOf: keywordLines)
+        lines.append("    </KeywordLists>")
         if !language.wordStyles.isEmpty {
             lines.append("    <Styles>")
             lines.append(contentsOf: language.wordStyles.map { "        \(wordsStyleXML($0))" })
@@ -107,6 +123,7 @@ private final class UserDefinedLanguageXMLParser: NSObject, XMLParserDelegate {
         let extensions: [String]
         let keywords: [String]
         let wordStyles: [UserDefinedLanguageWordStyle]
+        let additionalKeywordLists: [String: String]
     }
 
     private(set) var language: RawLanguage?
@@ -115,8 +132,10 @@ private final class UserDefinedLanguageXMLParser: NSObject, XMLParserDelegate {
     private var activeExtensions: [String] = []
     private var activeKeywords: [String] = []
     private var activeWordStyles: [UserDefinedLanguageWordStyle] = []
+    private var activeAdditionalLists: [String: String] = [:]
     private var activeLanguageDepth: Int?
     private var activeKeywordDepth: Int?
+    private var activeKeywordListName: String?
     private var activeStylesDepth: Int?
     private var activeKeywordText = ""
     private var depth = 0
@@ -141,6 +160,7 @@ private final class UserDefinedLanguageXMLParser: NSObject, XMLParserDelegate {
                 .splitExtensionList()
             activeKeywords = []
             activeWordStyles = []
+            activeAdditionalLists = [:]
             activeLanguageDepth = depth
             return
         }
@@ -159,10 +179,9 @@ private final class UserDefinedLanguageXMLParser: NSObject, XMLParserDelegate {
             return
         }
 
-        guard elementName == "Keywords",
-              attributeDict["name"]?.isUserDefinedLanguageKeywordList == true
-        else { return }
+        guard elementName == "Keywords", let listName = attributeDict["name"] else { return }
         activeKeywordDepth = depth
+        activeKeywordListName = listName
         activeKeywordText = ""
     }
 
@@ -180,8 +199,17 @@ private final class UserDefinedLanguageXMLParser: NSObject, XMLParserDelegate {
         defer { depth -= 1 }
 
         if activeKeywordDepth == depth, elementName == "Keywords" {
-            activeKeywords.append(contentsOf: activeKeywordText.splitKeywordList())
+            let listName = activeKeywordListName ?? "Keywords1"
+            let text = activeKeywordText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if listName.isUserDefinedLanguageKeywordList1 {
+                activeKeywords.append(contentsOf: activeKeywordText.splitKeywordList())
+            } else if !text.isEmpty {
+                // Store other keyword lists (Keywords2-8, Comments, Operators, etc.) as raw strings
+                let existing = activeAdditionalLists[listName]
+                activeAdditionalLists[listName] = existing.map { $0 + " " + text } ?? text
+            }
             activeKeywordDepth = nil
+            activeKeywordListName = nil
             activeKeywordText = ""
             return
         }
@@ -197,13 +225,15 @@ private final class UserDefinedLanguageXMLParser: NSObject, XMLParserDelegate {
                 name: name,
                 extensions: activeExtensions,
                 keywords: activeKeywords,
-                wordStyles: activeWordStyles
+                wordStyles: activeWordStyles,
+                additionalKeywordLists: activeAdditionalLists
             )
         }
         activeLanguageName = nil
         activeExtensions = []
         activeKeywords = []
         activeWordStyles = []
+        activeAdditionalLists = [:]
         activeLanguageDepth = nil
         activeStylesDepth = nil
     }
@@ -233,6 +263,10 @@ private extension String {
         let suffix = normalized.dropFirst("Keywords".count)
         guard let index = Int(suffix) else { return false }
         return (1...8).contains(index)
+    }
+
+    var isUserDefinedLanguageKeywordList1: Bool {
+        trimmingCharacters(in: .whitespacesAndNewlines) == "Keywords1"
     }
 
     func splitExtensionList() -> [String] {

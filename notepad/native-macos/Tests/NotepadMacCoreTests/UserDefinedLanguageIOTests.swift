@@ -34,7 +34,11 @@ import Testing
 
     #expect(language.name == "Task Notes")
     #expect(language.extensions == ["todo", "task", "note"])
-    #expect(language.keywords == ["TODO", "DONE", "WAITING", "owner", "priority"])
+    // Keywords1 only in keywords; other lists in additionalKeywordLists
+    #expect(language.keywords == ["TODO", "DONE", "WAITING"])
+    #expect(language.additionalKeywordLists["Keywords2"]?.contains("owner") == true)
+    #expect(language.additionalKeywordLists["Keywords2"]?.contains("priority") == true)
+    #expect(language.additionalKeywordLists["Operators1"] == "+ -")
 }
 
 @Test func userDefinedLanguageIOImportsWordsStylesWithKnownAndUnknownAttributes() throws {

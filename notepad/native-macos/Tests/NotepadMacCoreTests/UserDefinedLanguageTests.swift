@@ -599,7 +599,7 @@ import Testing
     let catalog = LanguageCatalog.fallback.appendingUserDefinedLanguages([userLanguage])
     let language = try #require(catalog.language(named: "todo"))
 
-    #expect(language.keywordGroups == ["instre1": ["TODO", "DONE"]])
+    #expect(language.keywordGroups == ["udlkw1": ["TODO", "DONE"]])
     #expect(language.wordStyle(named: "KEYWORDS1")?.foreground == StyleColor(hexRGB: "AA5500"))
     #expect(language.userDefinedKeywordForeground == StyleColor(hexRGB: "AA5500"))
 }

@@ -2494,6 +2494,9 @@ private extension LanguageDefinition {
     func keywordGroupPriority(_ name: String) -> Int {
         if name == "instre1" { return 0 }
         if name == "instre2" { return 1 }
+        if name.hasPrefix("udlkw"), let number = Int(name.dropFirst(5)) {
+            return number - 1  // udlkw1 → 0, udlkw2 → 1, …, udlkw8 → 7
+        }
         if name.hasPrefix("type"), let number = Int(name.dropFirst("type".count)) {
             return 1 + number
         }
