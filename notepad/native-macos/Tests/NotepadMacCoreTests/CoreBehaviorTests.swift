@@ -1532,3 +1532,73 @@ private func upstreamThemesDirectoryURL() -> URL {
     let uniqueCount = Set(colors.map { "\($0.red),\($0.green),\($0.blue)" }).count
     #expect(uniqueCount == 5)
 }
+
+@Test func textSearchWithInSelectionConstraint() {
+    let text = "hello world\nhello there\ngoodbye world"
+    let constraint = NSRange(location: 0, length: 11) // "hello world"
+    var options = TextSearch.Options()
+    options.searchRange = constraint
+    let result = TextSearch.findNext("hello", in: text, from: NSRange(location: 0, length: 0), options: options)
+    #expect(result == NSRange(location: 0, length: 5))
+    // Should NOT find "hello" in second line when constrained
+    // With default wraps:true the search wraps; the match should still be inside the constraint
+    let result2 = TextSearch.findNext("hello", in: text, from: NSRange(location: 5, length: 0), options: options)
+    if let r = result2 {
+        #expect(r.location >= 0 && NSMaxRange(r) <= 11) // stays within constraint
+    }
+    // With wraps:false, no match should be found after passing "hello" in the constraint
+    var noWrapOptions = TextSearch.Options(wraps: false)
+    noWrapOptions.searchRange = constraint
+    let result3 = TextSearch.findNext("hello", in: text, from: NSRange(location: 5, length: 0), options: noWrapOptions)
+    #expect(result3 == nil)
+}
+
+@Test func textSearchInSelectionWrapsWithinConstraint() {
+    let text = "aa bb aa cc aa"
+    let constraint = NSRange(location: 0, length: 8) // "aa bb aa"
+    var options = TextSearch.Options(wraps: true)
+    options.searchRange = constraint
+    // Start after second "aa" - should wrap back to first
+    let from = NSRange(location: 6, length: 2)
+    let result = TextSearch.findNext("aa", in: text, from: from, options: options)
+    #expect(result == NSRange(location: 0, length: 2))
+}
+
+@Test func appPreferencesCopyPreservesAllFields() {
+    let original = AppPreferences.defaultValue
+    let modified = original.withSearchOptions(TextSearch.Options(matchCase: true, wholeWord: true))
+    // All non-search fields should be preserved
+    #expect(modified.editorFontSize == original.editorFontSize)
+    #expect(modified.wrapsLines == original.wrapsLines)
+    #expect(modified.tabSize == original.tabSize)
+    #expect(modified.largeFileSizeMB == original.largeFileSizeMB)
+    #expect(modified.postItAlpha == original.postItAlpha)
+    #expect(modified.newDocumentOnLaunch == original.newDocumentOnLaunch)
+    // Only search fields should change
+    #expect(modified.searchMatchCase == true)
+    #expect(modified.searchWholeWord == true)
+}
+
+@Test func appPreferencesWithTabSizePreservesOtherFields() {
+    let original = AppPreferences.defaultValue
+    let modified = original.withTabSize(2)
+    #expect(modified.tabSize == 2)
+    #expect(modified.editorFontSize == original.editorFontSize)
+    #expect(modified.searchMatchCase == original.searchMatchCase)
+    #expect(modified.largeFileSizeMB == original.largeFileSizeMB)
+    #expect(modified.postItAlpha == original.postItAlpha)
+}
+
+@Test func sessionCaretRecordIdentityNormalization() {
+    let url = URL(fileURLWithPath: "/tmp/test.txt")
+    let record = SessionCaretRecord(identity: .file(url), caretLocation: 42)
+    #expect(record.caretLocation == 42)
+    #expect(record.identity == EditorTabIdentity.file(url).normalized)
+}
+
+@Test func sessionTabStateRecordPreservesValues() {
+    let url = URL(fileURLWithPath: "/tmp/test.txt")
+    let record = SessionTabStateRecord(identity: .file(url), isPinned: true, tabColorIndex: 3)
+    #expect(record.isPinned == true)
+    #expect(record.tabColorIndex == 3)
+}

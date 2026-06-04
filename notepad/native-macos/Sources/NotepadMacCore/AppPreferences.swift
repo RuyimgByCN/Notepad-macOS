@@ -290,7 +290,13 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         customDateTimeFormat: String? = nil,
         searchEngineChoice: SearchEngineChoice? = nil,
         customSearchEngineURL: String? = nil,
-        localizationFileName: String? = nil
+        localizationFileName: String? = nil,
+        tabSize: Int? = nil,
+        insertSpacesInsteadOfTabs: Bool? = nil,
+        smartHighlightMatchCase: Bool? = nil,
+        smartHighlightWholeWord: Bool? = nil,
+        caretWidth: Int? = nil,
+        enableVirtualSpace: Bool? = nil
     ) -> AppPreferences {
         AppPreferences(
             editorFontSize: editorFontSize ?? self.editorFontSize,
@@ -301,6 +307,80 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             searchEngineChoice: searchEngineChoice ?? self.searchEngineChoice,
             customSearchEngineURL: customSearchEngineURL ?? self.customSearchEngineURL,
             localizationFileName: localizationFileName ?? self.localizationFileName,
+            showWhitespace: showWhitespace,
+            showEOL: showEOL,
+            showIndentGuides: showIndentGuides,
+            highlightCurrentLine: highlightCurrentLine,
+            showWrapSymbol: showWrapSymbol,
+            showChangeHistory: showChangeHistory,
+            tabSize: tabSize ?? self.tabSize,
+            insertSpacesInsteadOfTabs: insertSpacesInsteadOfTabs ?? self.insertSpacesInsteadOfTabs,
+            showLineNumberMargin: showLineNumberMargin,
+            showEdgeLine: showEdgeLine,
+            edgeLineColumn: edgeLineColumn,
+            enableAutoPair: enableAutoPair,
+            enableXmlTagMatch: enableXmlTagMatch,
+            enableClickableLinks: enableClickableLinks,
+            defaultNewDocumentEncoding: defaultNewDocumentEncoding,
+            defaultNewDocumentLineEnding: defaultNewDocumentLineEnding,
+            rememberLastSession: rememberLastSession,
+            showNpcCharacters: showNpcCharacters,
+            smartHighlightMatchCase: smartHighlightMatchCase ?? self.smartHighlightMatchCase,
+            smartHighlightWholeWord: smartHighlightWholeWord ?? self.smartHighlightWholeWord,
+            caretWidth: caretWidth ?? self.caretWidth,
+            enableVirtualSpace: enableVirtualSpace ?? self.enableVirtualSpace,
+            backspaceUnindents: backspaceUnindents,
+            autoIndent: autoIndent,
+            largeFileSizeMB: largeFileSizeMB,
+            scrollBeyondLastLine: scrollBeyondLastLine,
+            autoCompleteFromNthChar: autoCompleteFromNthChar,
+            caretNoBlink: caretNoBlink,
+            currentLineFrameWidth: currentLineFrameWidth,
+            lineWrapIndent: lineWrapIndent,
+            foldMarginStyle: foldMarginStyle,
+            useFirstLineAsTabName: useFirstLineAsTabName,
+            recentFilesMaxCount: recentFilesMaxCount,
+            recentFilesShowFullPath: recentFilesShowFullPath,
+            noCheckRecentAtLaunch: noCheckRecentAtLaunch,
+            keepAbsentFilesInSession: keepAbsentFilesInSession,
+            autoReloadOnExternalChange: autoReloadOnExternalChange,
+            backupOnSave: backupOnSave,
+            additionalEdgeColumns: additionalEdgeColumns,
+            linePadding: linePadding,
+            openDirectoryFollowsDocument: openDirectoryFollowsDocument,
+            defaultNewDocumentLanguageName: defaultNewDocumentLanguageName,
+            folderDropOpensAsWorkspace: folderDropOpensAsWorkspace,
+            extraURLSchemes: extraURLSchemes,
+            newDocumentOnLaunch: newDocumentOnLaunch,
+            postItAlpha: postItAlpha
+        )
+    }
+
+    public func withViewToggles(
+        showWhitespace: Bool,
+        showEOL: Bool,
+        showIndentGuides: Bool,
+        highlightCurrentLine: Bool,
+        showWrapSymbol: Bool,
+        showChangeHistory: Bool,
+        showLineNumberMargin: Bool,
+        showEdgeLine: Bool,
+        edgeLineColumn: Int,
+        enableAutoPair: Bool,
+        enableXmlTagMatch: Bool,
+        enableClickableLinks: Bool,
+        showNpcCharacters: Bool
+    ) -> AppPreferences {
+        // Use copy() to ensure all newer fields are preserved
+        AppPreferences(
+            editorFontSize: editorFontSize,
+            wrapsLines: wrapsLines,
+            searchMatchCase: searchMatchCase,
+            searchWholeWord: searchWholeWord,
+            customDateTimeFormat: customDateTimeFormat,
+            searchEngineChoice: searchEngineChoice,
+            customSearchEngineURL: customSearchEngineURL,
+            localizationFileName: localizationFileName,
             showWhitespace: showWhitespace,
             showEOL: showEOL,
             showIndentGuides: showIndentGuides,
@@ -350,167 +430,20 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         )
     }
 
-    public func withViewToggles(
-        showWhitespace: Bool,
-        showEOL: Bool,
-        showIndentGuides: Bool,
-        highlightCurrentLine: Bool,
-        showWrapSymbol: Bool,
-        showChangeHistory: Bool,
-        showLineNumberMargin: Bool,
-        showEdgeLine: Bool,
-        edgeLineColumn: Int,
-        enableAutoPair: Bool,
-        enableXmlTagMatch: Bool,
-        enableClickableLinks: Bool,
-        showNpcCharacters: Bool
-    ) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase,
-            searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace,
-            showEOL: showEOL,
-            showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine,
-            showWrapSymbol: showWrapSymbol,
-            showChangeHistory: showChangeHistory,
-            tabSize: tabSize,
-            insertSpacesInsteadOfTabs: insertSpacesInsteadOfTabs,
-            showLineNumberMargin: showLineNumberMargin,
-            showEdgeLine: showEdgeLine,
-            edgeLineColumn: edgeLineColumn,
-            enableAutoPair: enableAutoPair,
-            enableXmlTagMatch: enableXmlTagMatch,
-            enableClickableLinks: enableClickableLinks,
-            defaultNewDocumentEncoding: defaultNewDocumentEncoding,
-            defaultNewDocumentLineEnding: defaultNewDocumentLineEnding,
-            rememberLastSession: rememberLastSession,
-            showNpcCharacters: showNpcCharacters,
-            smartHighlightMatchCase: smartHighlightMatchCase,
-            smartHighlightWholeWord: smartHighlightWholeWord,
-            caretWidth: caretWidth,
-            enableVirtualSpace: enableVirtualSpace,
-            backspaceUnindents: backspaceUnindents,
-            autoIndent: autoIndent,
-            largeFileSizeMB: largeFileSizeMB,
-            scrollBeyondLastLine: scrollBeyondLastLine,
-            autoCompleteFromNthChar: autoCompleteFromNthChar
-        )
-    }
-
     public func withSmartHighlightOptions(matchCase: Bool, wholeWord: Bool) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase,
-            searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace,
-            showEOL: showEOL,
-            showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine,
-            showWrapSymbol: showWrapSymbol,
-            showChangeHistory: showChangeHistory,
-            tabSize: tabSize,
-            insertSpacesInsteadOfTabs: insertSpacesInsteadOfTabs,
-            showLineNumberMargin: showLineNumberMargin,
-            showEdgeLine: showEdgeLine,
-            edgeLineColumn: edgeLineColumn,
-            enableAutoPair: enableAutoPair,
-            enableXmlTagMatch: enableXmlTagMatch,
-            enableClickableLinks: enableClickableLinks,
-            defaultNewDocumentEncoding: defaultNewDocumentEncoding,
-            defaultNewDocumentLineEnding: defaultNewDocumentLineEnding,
-            rememberLastSession: rememberLastSession,
-            showNpcCharacters: showNpcCharacters,
-            smartHighlightMatchCase: matchCase,
-            smartHighlightWholeWord: wholeWord,
-            caretWidth: caretWidth,
-            enableVirtualSpace: enableVirtualSpace,
-            backspaceUnindents: backspaceUnindents,
-            autoIndent: autoIndent,
-            largeFileSizeMB: largeFileSizeMB,
-            scrollBeyondLastLine: scrollBeyondLastLine,
-            autoCompleteFromNthChar: autoCompleteFromNthChar
-        )
+        copy(smartHighlightMatchCase: matchCase, smartHighlightWholeWord: wholeWord)
     }
 
     public func withCaretSettings(width: Int, virtualSpace: Bool) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize, wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase, searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat, searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL, localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace, showEOL: showEOL, showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine, showWrapSymbol: showWrapSymbol,
-            showChangeHistory: showChangeHistory, tabSize: tabSize,
-            insertSpacesInsteadOfTabs: insertSpacesInsteadOfTabs,
-            showLineNumberMargin: showLineNumberMargin, showEdgeLine: showEdgeLine,
-            edgeLineColumn: edgeLineColumn, enableAutoPair: enableAutoPair,
-            enableXmlTagMatch: enableXmlTagMatch, enableClickableLinks: enableClickableLinks,
-            defaultNewDocumentEncoding: defaultNewDocumentEncoding,
-            defaultNewDocumentLineEnding: defaultNewDocumentLineEnding,
-            rememberLastSession: rememberLastSession, showNpcCharacters: showNpcCharacters,
-            smartHighlightMatchCase: smartHighlightMatchCase,
-            smartHighlightWholeWord: smartHighlightWholeWord,
-            caretWidth: width, enableVirtualSpace: virtualSpace,
-            backspaceUnindents: backspaceUnindents,
-            autoIndent: autoIndent,
-            largeFileSizeMB: largeFileSizeMB,
-            scrollBeyondLastLine: scrollBeyondLastLine,
-            autoCompleteFromNthChar: autoCompleteFromNthChar
-        )
+        copy(caretWidth: width, enableVirtualSpace: virtualSpace)
     }
 
     public func withTabSize(_ tabSize: Int) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase,
-            searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace,
-            showEOL: showEOL,
-            showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine,
-            showWrapSymbol: showWrapSymbol,
-            showChangeHistory: showChangeHistory,
-            tabSize: tabSize,
-            insertSpacesInsteadOfTabs: insertSpacesInsteadOfTabs
-        )
+        copy(tabSize: tabSize)
     }
 
     public func withInsertSpacesInsteadOfTabs(_ insertSpacesInsteadOfTabs: Bool) -> AppPreferences {
-        AppPreferences(
-            editorFontSize: editorFontSize,
-            wrapsLines: wrapsLines,
-            searchMatchCase: searchMatchCase,
-            searchWholeWord: searchWholeWord,
-            customDateTimeFormat: customDateTimeFormat,
-            searchEngineChoice: searchEngineChoice,
-            customSearchEngineURL: customSearchEngineURL,
-            localizationFileName: localizationFileName,
-            showWhitespace: showWhitespace,
-            showEOL: showEOL,
-            showIndentGuides: showIndentGuides,
-            highlightCurrentLine: highlightCurrentLine,
-            showWrapSymbol: showWrapSymbol,
-            showChangeHistory: showChangeHistory,
-            tabSize: tabSize,
-            insertSpacesInsteadOfTabs: insertSpacesInsteadOfTabs
-        )
+        copy(insertSpacesInsteadOfTabs: insertSpacesInsteadOfTabs)
     }
 }
 
