@@ -69,7 +69,7 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 | 部分迁移 | 50 项（绝大多数模块已有可用子集） |
 | 待迁移 | 2 项（多实例启动转发、插件 host 通信 API） |
 | Swift 源码（mac 端） | `Sources/NotepadMac` 41 文件 + `Sources/NotepadMacCore` 37 文件 |
-| 自动化测试 | 27 个测试文件，314 个测试用例（2026-06-05） |
+| 自动化测试 | 27 个测试文件，320 个测试用例（2026-06-05） |
 | 支持编码（Convert to / Encode in） | **28 种**（`TextEncodingOption`，含 CJK、Windows-125x、ISO-8859-2/15、KOI8-R、OEM CP437/CP850/CP866） |
 | 打包资源复用 | langs/stylers.model.xml、22 themes、34 APIs、48 functionList、94 nativeLang |
 | 命令行已解析 flag | `-nosession`、`-noPlugin`、`-alwaysOnTop`、`-ro`/`-fullReadOnly`、`-monitor`、`-multiInst`（接受）、`-openFoldersAsWorkspace`、`-l`/`-udl`、`-n`/`-c`/`-p`、`-x`/`-y` |
@@ -513,3 +513,4 @@ scripts/smoke-packaged-app.sh
 | 2026-06-04 | P13：编辑器右键上下文菜单（Undo/Redo/Cut/Copy/Paste/SelectAll/ReadOnly/ToggleFold/Search/OpenFile）；smartHighlightUseFindSettings 偏好；UDL Keywords2-8 完整支持（model additionalKeywordLists、XML import/export、Scintilla udlkw1-8 keyword groups、panel Keywords2 编辑字段）；命令行 --help/-openSession；Find in Files "Skip unsaved files"；WorkspaceDocument rename/move up/down + 19 个新测试（WorkspaceDocument suite 12 + PreferencesEnhancement 7）；Shortcut Mapper Export/Import JSON；URL indicator style 偏好（underline/box/full-box）；per-language tab settings（languageTabOverrides 偏好，格式 "python:4s,html:2s"）；Encoding > Auto-Detect Encoding 命令；tabbarLockDragDrop 偏好；测试基线 272 |
 | 2026-06-05 | P14：UDL Comments 字段（UDL 编辑面板新增注释标记输入栏）；UDL Operators 字段（operators1/operators2 两个输入栏）；Comments/Operators 通过 additionalKeywordLists → udl_comments/udl_operators1/udl_operators2 接入 Scintilla 关键字集；PowerShell/Perl/Markdown/VB Function List 提取器（4 个新测试）；Dark Mode appearance 三模式（System/Light/Dark）偏好与 AppDelegate KVO 联动；测试基线 306 |
 | 2026-06-05 | P15：UDL Numbers（7 字段：prefix1/2、extras1/2、suffix1/2、range）→ Scintilla 关键字集 1-7；UDL Folders in Code（9 字段：code1/code2/comment open/middle/close）→ Scintilla 关键字集 10-18；SCLEX_USER lexer 自动检测（udlkw/udl_ 前缀键名）；修复 beepIfEnabled() 无限递归 bug；修复 zoomRestore validateMenuItem 硬编码字号 13；In-Selection 手动勾选阈值警告（inSelectionToggled + findInSelectionSmallWarning 本地化键）；Function List 新增 Makefile/GDScript/VHDL/Raku/SAS/Assembly/AutoIt/COBOL 共 8 种语言提取器（7 个测试）；修复 htmlXmlCloseTagEnabled 偏好未接入 close-tag 插入逻辑 bug；测试基线 314 |
+| 2026-06-05 | P16：Language > Open UDL Directory 命令（AppMenu + Localization + AppDelegate.openUDLDirectory 实现，打开 ~/Library/Application Support/NotepadMac/userDefinedLanguages/ ）；Function List 新增 BaanC/Hollywood/KRL/Universe BASIC/Sinumerik/NppExec 共 6 种语言提取器 + COBOL 补测试（6 个新测试）；测试基线 320 |
