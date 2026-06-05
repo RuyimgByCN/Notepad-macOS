@@ -106,6 +106,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var smartHighlightMatchCase = false
     private var smartHighlightWholeWord = true
     private var enablesXmlTagMatch = true
+    private var htmlXmlCloseTagEnabled = true
     private var enablesAutoPair = true
     private var autoPairParentheses = true
     private var autoPairBrackets = true
@@ -363,6 +364,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.autoPairSingleQuotes = preferences.autoPairSingleQuotes
         self.autoPairDoubleQuotes = preferences.autoPairDoubleQuotes
         self.enablesXmlTagMatch = preferences.enableXmlTagMatch
+        self.htmlXmlCloseTagEnabled = preferences.htmlXmlCloseTagEnabled
         self.enablesClickableLinks = preferences.enableClickableLinks
         self.showsLineNumberMargin = preferences.showLineNumberMargin
         self.showsEdgeLine = preferences.showEdgeLine
@@ -1001,7 +1003,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 editorSurface.insertAutoPairClose("'")
             }
         case ">":
-            if let closeTag = xmlCloseTagToInsert(text: text, caretPos: caretPos) {
+            if htmlXmlCloseTagEnabled, let closeTag = xmlCloseTagToInsert(text: text, caretPos: caretPos) {
                 // Insert the close tag string char by char via the surface
                 let nsText = editorSurface.text as NSString
                 let curPos = editorSurface.selectedRange.location
@@ -3424,6 +3426,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         autoPairSingleQuotes = preferences.autoPairSingleQuotes
         autoPairDoubleQuotes = preferences.autoPairDoubleQuotes
         enablesXmlTagMatch = preferences.enableXmlTagMatch
+        htmlXmlCloseTagEnabled = preferences.htmlXmlCloseTagEnabled
         enablesClickableLinks = preferences.enableClickableLinks
         showsNpcCharacters = preferences.showNpcCharacters
         caretWidth = preferences.caretWidth
