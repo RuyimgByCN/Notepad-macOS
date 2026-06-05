@@ -86,3 +86,30 @@ import Testing
     #expect(entries.count == 1)
     #expect(entries[0].message == "python style")
 }
+
+@Test func taskListScannerTagsFromPreferenceEmpty() {
+    #expect(TaskListScanner.tags(fromPreference: "") == TaskListScanner.defaultTags)
+}
+
+@Test func taskListScannerTagsFromPreferenceCustom() {
+    let tags = TaskListScanner.tags(fromPreference: "MYMARK, CUSTOM")
+    #expect(tags == ["MYMARK", "CUSTOM"])
+}
+
+@Test func taskListScannerTagsFromPreferenceUppercased() {
+    let tags = TaskListScanner.tags(fromPreference: "todo, fixme")
+    #expect(tags == ["TODO", "FIXME"])
+}
+
+@Test func taskListScannerTagsFromPreferenceFiltersEmpty() {
+    let tags = TaskListScanner.tags(fromPreference: " , , ")
+    #expect(tags == TaskListScanner.defaultTags)
+}
+
+@Test func taskListScannerCustomTagsScanning() {
+    let text = "// MYMARK: custom task"
+    let entries = TaskListScanner.scan(text: text, tags: ["MYMARK"])
+    #expect(entries.count == 1)
+    #expect(entries[0].tag == "MYMARK")
+    #expect(entries[0].message == "custom task")
+}

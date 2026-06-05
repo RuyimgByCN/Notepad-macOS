@@ -143,6 +143,7 @@ private var appearanceObservation: NSKeyValueObservation?
         _ = NSTextView.didChangeSelectionNotification
 
         let preferences = preferencesStore.load()
+        applyAppearanceMode(preferences.appearanceMode)
         Localization.apply(localizationFileName: preferences.localizationFileName, postNotification: false)
         reloadLanguageCatalog()
         AppMenu.install(
@@ -759,6 +760,9 @@ private var appearanceObservation: NSKeyValueObservation?
             },
             onAction: { [weak self] item, action in
                 self?.handleDocumentListAction(item: item, action: action)
+            },
+            onMultiAction: { [weak self] items, action in
+                self?.handleDocumentListMultiAction(items: items, action: action)
             }
         )
     }
@@ -1682,6 +1686,9 @@ private var appearanceObservation: NSKeyValueObservation?
             },
             onAction: { [weak self] item, action in
                 self?.handleDocumentListAction(item: item, action: action)
+            },
+            onMultiAction: { [weak self] items, action in
+                self?.handleDocumentListMultiAction(items: items, action: action)
             }
         )
     }
@@ -1695,6 +1702,8 @@ private var appearanceObservation: NSKeyValueObservation?
             controller.window?.performClose(nil)
         case .closeOthers:
             closeDocumentControllers(windows.filter { $0 !== controller })
+        case .save:
+            controller.saveDocument(nil)
         case .copyFilename:
             if let url = controller.sessionFileURL {
                 NSPasteboard.general.clearContents()
@@ -1708,6 +1717,20 @@ private var appearanceObservation: NSKeyValueObservation?
         case .togglePin:
             controller.isPinnedToTab.toggle()
             rebuildTabState()
+        case .closeSelected, .saveSelected:
+            break // handled by onMultiAction
+        }
+    }
+
+    private func handleDocumentListMultiAction(items: [DocumentListItem], action: DocumentListAction) {
+        let controllers = items.compactMap { $0.representedObject as? EditorWindowController }
+        switch action {
+        case .closeSelected:
+            closeDocumentControllers(controllers)
+        case .saveSelected:
+            controllers.forEach { $0.saveDocument(nil) }
+        default:
+            break
         }
     }
 
@@ -1726,8 +1749,20 @@ private var appearanceObservation: NSKeyValueObservation?
         }
 
         windows.forEach { $0.applyPreferences(preferences) }
+        applyAppearanceMode(preferences.appearanceMode)
         refreshRecentFilesMenu()
         AppMenu.refreshLanguages(catalog: languageCatalog, compact: preferences.langMenuCompact)
+    }
+
+    private func applyAppearanceMode(_ mode: Int) {
+        switch mode {
+        case 1:
+            NSApp.appearance = NSAppearance(named: .aqua)
+        case 2:
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        default:
+            NSApp.appearance = nil // follow system
+        }
     }
 
     private func refreshRecentFilesMenu() {
@@ -1960,6 +1995,67 @@ private var appearanceObservation: NSKeyValueObservation?
             }.value
             self?.applyLoadedThemeResources(result)
         }
+    }
+
+    // MARK: - Context Menu XML Editing
+
+    @objc func editContextMenuXML(_ sender: Any?) {
+        openOrCreateUserConfigFile(
+            named: "contextMenu.xml",
+            template: """
+            <NotepadPlus>
+                <ScintillaContextMenu>
+                    <!-- Add menu items here. Example:
+                    <Item MenuEntryName="Edit" MenuItemName="Cut" />
+                    <Item id="0" />
+                    -->
+                </ScintillaContextMenu>
+            </NotepadPlus>
+            """
+        )
+    }
+
+    @objc func editTabContextMenuXML(_ sender: Any?) {
+        openOrCreateUserConfigFile(
+            named: "tabContextMenu.xml",
+            template: """
+            <NotepadPlus>
+                <TabContextMenu>
+                    <!-- Add menu items here. Example:
+                    <Item MenuEntryName="File" MenuItemName="Close" />
+                    <Item id="0" />
+                    -->
+                </TabContextMenu>
+            </NotepadPlus>
+            """
+        )
+    }
+
+    @objc func reloadContextMenus(_ sender: Any?) {
+        tabContextMenuSpec = TabContextMenuSpec.loadFromUserDirectory()
+        editorContextMenuSpec = EditorContextMenuSpec.loadFromUserDirectory()
+        for controller in windows {
+            controller.applyTabContextMenuSpec(tabContextMenuSpec)
+            controller.applyEditorContextMenuSpec(editorContextMenuSpec)
+        }
+    }
+
+    private func openOrCreateUserConfigFile(named filename: String, template: String) {
+        guard let support = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask).first
+        else { return }
+        let dir = support.appendingPathComponent("NotepadMac")
+        let url = dir.appendingPathComponent(filename)
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            if !FileManager.default.fileExists(atPath: url.path) {
+                try template.write(to: url, atomically: true, encoding: .utf8)
+            }
+        } catch {
+            NSApp.presentError(error)
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 
     private func reloadLanguageCatalog() {
@@ -2468,5 +2564,12 @@ private var appearanceObservation: NSKeyValueObservation?
         }
 
         return windows.compactMap { $0.sessionFileURL }.last
+    }
+}
+
+extension NSSound {
+    static func beepUnlessMuted() {
+        guard !UserDefaults.standard.bool(forKey: "notepadMac.muteAllSounds") else { return }
+        NSSound.beep()
     }
 }

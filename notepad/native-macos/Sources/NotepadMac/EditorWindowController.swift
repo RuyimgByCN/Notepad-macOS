@@ -92,6 +92,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var selectedTextDragDrop = true
     private var lineNumberDynamicWidth = false
     private var columnSelectionToMultiEditing = false
+    private var muteAllSounds = false
     private var autoCompleteFromNthChar = 3
     private var autoCompleteMode = 3
     private var autoCompleteChooseSingle = true
@@ -453,7 +454,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 if self.taskListPanel.isVisible {
                     self.taskListPanel.update(
                         documentName: self.displayName,
-                        text: self.editorSurface.text
+                        text: self.editorSurface.text,
+                        customTagsPreference: self.preferencesStore.load().taskListCustomTags
                     )
                 }
             }
@@ -1134,6 +1136,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         applyFont()
     }
 
+    private func beepIfEnabled() {
+        guard !muteAllSounds else { return }
+        beepIfEnabled()
+    }
+
     func applyFontSize(_ size: CGFloat) {
         fontSize = min(max(size, CGFloat(AppPreferences.minimumEditorFontSize)), CGFloat(AppPreferences.maximumEditorFontSize))
         applyFont()
@@ -1226,7 +1233,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         // Find a digit in the search range to locate the number
         guard let digitOffset = searchStr.firstIndex(where: { $0.isNumber }) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         let numberStart = searchRange.location + searchStr.distance(from: searchStr.startIndex, to: digitOffset)
@@ -1244,7 +1251,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let numRange = NSRange(location: numStart, length: numEnd - numStart)
         let numStr = nsText.substring(with: numRange)
         guard let num = Int(numStr) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
 
@@ -1267,14 +1274,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func pasteHtmlContent(_ sender: Any?) {
         let pb = NSPasteboard.general
         guard let html = pb.string(forType: .html) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         // Convert HTML to plain text
         guard let data = html.data(using: .utf8),
               let attributed = try? NSAttributedString(data: data, options: [.documentType: NSAttributedString.DocumentType.html, .characterEncoding: String.Encoding.utf8.rawValue], documentAttributes: nil)
         else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         insertText(attributed.string)
@@ -1286,7 +1293,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
            let attributed = NSAttributedString(rtf: rtfData, documentAttributes: nil) {
             insertText(attributed.string)
         } else {
-            NSSound.beep()
+            beepIfEnabled()
         }
     }
 
@@ -1331,7 +1338,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard !text.isEmpty,
               text.hasPrefix("http://") || text.hasPrefix("https://") || text.hasPrefix("ftp://") || text.contains("@")
         else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         copyToPasteboard(text)
@@ -1355,7 +1362,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
 
         guard let a = braceA, let b = braceB, a != b else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
 
@@ -1375,7 +1382,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let selectStart = openPos + 1
         let selectEnd = closePos
         guard selectStart <= selectEnd, selectEnd <= nsText.length else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.setSelectedRange(NSRange(location: selectStart, length: selectEnd - selectStart))
@@ -1442,7 +1449,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             from: NSRange(location: selectedRange.location + selectedRange.length, length: 0),
             options: options
         ) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.setSelectedRange(nextRange)
@@ -1462,7 +1469,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             from: NSRange(location: selectedRange.location, length: 0),
             options: options
         ) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.setSelectedRange(prevRange)
@@ -1471,7 +1478,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func volatileFindNext(_ sender: Any?) {
         guard let query = lastFindQuery, !query.isEmpty else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         let options = preferencesStore.load().searchOptions
@@ -1481,7 +1488,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             from: NSRange(location: editorSurface.selectedRange.location + editorSurface.selectedRange.length, length: 0),
             options: options
         ) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.setSelectedRange(range)
@@ -1490,7 +1497,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func volatileFindPrevious(_ sender: Any?) {
         guard let query = lastFindQuery, !query.isEmpty else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         var options = preferencesStore.load().searchOptions
@@ -1501,7 +1508,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             from: NSRange(location: editorSurface.selectedRange.location, length: 0),
             options: options
         ) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.setSelectedRange(range)
@@ -1666,7 +1673,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let text = editorSurface.text
         let selection = editorSurface.selectedRange
         guard let matchRange = CharRangeFinder.findNext(in: text, from: selection, options: options) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.setSelectedRange(matchRange)
@@ -1690,7 +1697,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func selectAndFindNext(_ sender: Any?) {
         let selection = editorSurface.selectedRange
         guard selection.length > 0 else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         let text = editorSurface.text
@@ -1699,7 +1706,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let options = TextSearch.Options(matchCase: true, wholeWord: false, wraps: true, direction: .down)
         let fromRange = NSRange(location: NSMaxRange(selection), length: 0)
         guard let range = TextSearch.findNext(query, in: text, from: fromRange, options: options) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.setSelectedRange(range)
@@ -1709,7 +1716,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func selectAndFindPrevious(_ sender: Any?) {
         let selection = editorSurface.selectedRange
         guard selection.length > 0 else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         let text = editorSurface.text
@@ -1718,7 +1725,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let options = TextSearch.Options(matchCase: true, wholeWord: false, wraps: true, direction: .up)
         let fromRange = NSRange(location: selection.location, length: 0)
         guard let range = TextSearch.findNext(query, in: text, from: fromRange, options: options) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.setSelectedRange(range)
@@ -1733,14 +1740,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         else { return }
         let query = resolveFindQuery()
         guard !query.isEmpty else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         let options = TextSearch.Options(matchCase: false, wholeWord: false, wraps: false, direction: .down)
         let text = editorSurface.text
         let matches = TextSearch.findAll(query, in: text, options: options)
         guard !matches.isEmpty else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.markAllWithIndicator(style, ranges: matches)
@@ -1753,7 +1760,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         else { return }
         let selection = editorSurface.selectedRange
         guard selection.length > 0 else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.markAllWithIndicator(style, ranges: [selection])
@@ -1779,7 +1786,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         else { return }
         let position = NSMaxRange(editorSurface.selectedRange)
         guard let target = editorSurface.goToNextIndicator(style, fromPosition: position) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         // Find the end of the indicator at the target position
@@ -1798,7 +1805,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         else { return }
         let position = editorSurface.selectedRange.location
         guard let target = editorSurface.goToPreviousIndicator(style, fromPosition: position) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         let ranges = editorSurface.indicatorRanges(style)
@@ -1816,7 +1823,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         else { return }
         let ranges = editorSurface.indicatorRanges(style)
         guard !ranges.isEmpty else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         let text = editorSurface.text as NSString
@@ -1834,7 +1841,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             }
         }
         guard !allText.isEmpty else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         copyToPasteboard(allText.joined(separator: "\n"))
@@ -1842,7 +1849,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func copyMarkedText(_ sender: Any?) {
         guard !bookmarks.isEmpty else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         let nsText = editorSurface.text as NSString
@@ -1874,7 +1881,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             }
         }
         guard !markedLines.isEmpty else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
 
@@ -1926,7 +1933,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func goToNextChangedLine(_ sender: Any?) {
         guard let line = editorSurface.nextChangedLine(from: editorSurface.currentLineNumber) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.goToLine(line)
@@ -1935,7 +1942,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func goToPreviousChangedLine(_ sender: Any?) {
         guard let line = editorSurface.previousChangedLine(from: editorSurface.currentLineNumber) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.goToLine(line)
@@ -2028,7 +2035,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func columnSelectionToMultiCursor(_ sender: Any?) {
         guard let rectSel = editorSurface.liveRectangularSelection else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
 
@@ -2060,7 +2067,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard !cursorRanges.isEmpty,
               editorSurface.applyDiscontiguousSelections(cursorRanges, mainSelectionIndex: 0)
         else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         updateStatus()
@@ -2191,7 +2198,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func goToMatchingBrace(_ sender: Any?) {
         let currentLocation = editorSurface.selectedRange.location
         guard let matchLocation = editorSurface.braceMatchPosition(from: currentLocation) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
         editorSurface.setSelectedRange(NSRange(location: matchLocation + 1, length: 0))
@@ -2212,7 +2219,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
 
         guard let matchLocation = editorSurface.braceMatchPosition(from: braceLocation) else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
 
@@ -2902,7 +2909,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func showTaskList(_ sender: Any?) {
         taskListPanel.show(
             documentName: displayName,
-            text: editorSurface.text
+            text: editorSurface.text,
+            customTagsPreference: preferencesStore.load().taskListCustomTags
         ) { [weak self] entry in
             self?.editorSurface.setSelectedRange(NSRange(location: entry.utf16Location, length: 0))
             self?.updateStatus()
@@ -3269,7 +3277,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func runMacroMultipleTimes(_ sender: Any?) {
         guard let recording = macroStore.loadLastRecording() else {
-            NSSound.beep()
+            beepIfEnabled()
             return
         }
 
@@ -3440,6 +3448,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         selectedTextDragDrop = preferences.selectedTextDragDrop
         lineNumberDynamicWidth = preferences.lineNumberDynamicWidth
         columnSelectionToMultiEditing = preferences.columnSelectionToMultiEditing
+        muteAllSounds = preferences.muteAllSounds
         autoCompleteFromNthChar = preferences.autoCompleteFromNthChar
         autoCompleteMode = preferences.autoCompleteMode
         autoCompleteChooseSingle = preferences.autoCompleteChooseSingle

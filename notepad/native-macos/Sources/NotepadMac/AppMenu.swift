@@ -78,6 +78,22 @@ enum AppMenu {
         ).target = delegate
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(
+            withTitle: Localization.string(.appEditContextMenu, default: "Edit Context Menu..."),
+            action: #selector(AppDelegate.editContextMenuXML(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+        appMenu.addItem(
+            withTitle: Localization.string(.appEditTabContextMenu, default: "Edit Tab Context Menu..."),
+            action: #selector(AppDelegate.editTabContextMenuXML(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+        appMenu.addItem(
+            withTitle: Localization.string(.appReloadContextMenus, default: "Reload Context Menus"),
+            action: #selector(AppDelegate.reloadContextMenus(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(
             withTitle: Localization.string(.appQuit, default: "Quit Notepad++ Mac"),
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"

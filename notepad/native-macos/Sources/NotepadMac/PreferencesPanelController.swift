@@ -173,6 +173,9 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     // Per-language tab overrides (in Editor tab)
     private let langTabOverridesLabel = NSTextField(labelWithString: "")
     private let langTabOverridesField = NSTextField(string: "")
+    // Task List custom tags (in Editor tab)
+    private let taskListTagsLabel = NSTextField(labelWithString: "")
+    private let taskListTagsField = NSTextField(string: "")
     // Tabbar section (in Window tab)
     private let tabbarSectionLabel = NSTextField(labelWithString: "")
     private let tabbarDoubleClickCloseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -181,6 +184,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let tabbarMaxLabelLengthLabel = NSTextField(labelWithString: "")
     private let tabbarMaxLabelLengthField = NSTextField(string: "0")
     private let tabbarMaxLabelLengthStepper = NSStepper()
+    // Appearance (Dark Mode) section in Window tab
+    private let appearanceSectionLabel = NSTextField(labelWithString: "")
+    private let appearanceModeLabel = NSTextField(labelWithString: "")
+    private let appearanceModeSegmented = NSSegmentedControl()
 
     typealias LanguageEntry = (name: String, displayName: String)
     private var languageEntries: [LanguageEntry] = []
@@ -353,6 +360,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         urlIndicatorStyleLabel.stringValue = "URL style:"
         langTabOverridesLabel.stringValue = "Lang tabs:"
         langTabOverridesField.placeholderString = "python:4s, html:2s, c:8t  (langname:sizeS/T)"
+        taskListTagsLabel.stringValue = "Task List tags:"
+        taskListTagsField.placeholderString = "TODO, FIXME, NOTE, HACK, BUG, XXX"
         findTransparencyLabel.stringValue = "Find dialog transparency when unfocused:"
         tabbarSectionLabel.stringValue = "Tab Bar"
         tabbarDoubleClickCloseButton.title = "Double-click tab to close"
@@ -367,6 +376,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         delimiterSectionLabel.stringValue = "Delimiter"
         delimiterLeftLabel.stringValue = "Left char (empty=whitespace):"
         delimiterRightLabel.stringValue = "Right char:"
+        appearanceSectionLabel.stringValue = "Appearance"
+        appearanceModeLabel.stringValue = "Color mode:"
+        appearanceModeSegmented.setLabel("System", forSegment: 0)
+        appearanceModeSegmented.setLabel("Light", forSegment: 1)
+        appearanceModeSegmented.setLabel("Dark", forSegment: 2)
         generalSectionLabel.stringValue = "General"
         statusBarVisibleButton.title = "Show status bar"
         shortTitleButton.title = "Short title (filename only in title bar)"
@@ -524,6 +538,9 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         urlIndicatorStyleSegmented.setLabel("Full Box", forSegment: 2)
         urlIndicatorStyleSegmented.trackingMode = .selectOne
 
+        appearanceModeSegmented.segmentCount = 3
+        appearanceModeSegmented.trackingMode = .selectOne
+
         recentFilesMaxField.formatter = integerFormatter
         recentFilesMaxStepper.minValue = 1
         recentFilesMaxStepper.maxValue = 50
@@ -574,7 +591,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          htmlXmlCloseTagButton, muteAllSoundsButton,
          copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton,
          urlIndicatorStyleLabel, urlIndicatorStyleSegmented,
-         langTabOverridesLabel, langTabOverridesField
+         langTabOverridesLabel, langTabOverridesField,
+         taskListTagsLabel, taskListTagsField
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; editCV.addSubview($0) }
 
         // Tab 2 – Session & Files
@@ -619,10 +637,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          delimiterSectionLabel, delimiterLeftLabel, delimiterLeftField,
          delimiterRightLabel, delimiterRightField,
          generalSectionLabel, statusBarVisibleButton, shortTitleButton,
-         saveAllConfirmButton, autoCompleteIgnoreNumbersButton
+         saveAllConfirmButton, autoCompleteIgnoreNumbersButton,
+         appearanceSectionLabel, appearanceModeLabel, appearanceModeSegmented
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; windowCV.addSubview($0) }
 
-        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel, inSelectionSectionLabel, tabbarSectionLabel, printSectionLabel, delimiterSectionLabel, generalSectionLabel].forEach {
+        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel, inSelectionSectionLabel, tabbarSectionLabel, printSectionLabel, delimiterSectionLabel, generalSectionLabel, appearanceSectionLabel].forEach {
             $0.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
         }
         // Convenience anchors for tabs 2 and 3
@@ -854,8 +873,16 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             langTabOverridesField.trailingAnchor.constraint(equalTo: editCV.trailingAnchor, constant: -18),
             langTabOverridesField.centerYAnchor.constraint(equalTo: langTabOverridesLabel.centerYAnchor),
 
+            taskListTagsLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            taskListTagsLabel.topAnchor.constraint(equalTo: langTabOverridesLabel.bottomAnchor, constant: 14),
+            taskListTagsLabel.widthAnchor.constraint(equalToConstant: 80),
+
+            taskListTagsField.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            taskListTagsField.trailingAnchor.constraint(equalTo: editCV.trailingAnchor, constant: -18),
+            taskListTagsField.centerYAnchor.constraint(equalTo: taskListTagsLabel.centerYAnchor),
+
             // Pin Tab1 content bottom
-            editCV.bottomAnchor.constraint(equalTo: langTabOverridesLabel.bottomAnchor, constant: 24)
+            editCV.bottomAnchor.constraint(equalTo: taskListTagsLabel.bottomAnchor, constant: 24)
         ])
 
         // ── Tab 2: Session & Files ──────────────────────────────
@@ -1192,7 +1219,17 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             autoCompleteIgnoreNumbersButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
             autoCompleteIgnoreNumbersButton.topAnchor.constraint(equalTo: saveAllConfirmButton.bottomAnchor, constant: 10),
 
-            windowCV.bottomAnchor.constraint(equalTo: autoCompleteIgnoreNumbersButton.bottomAnchor, constant: 24)
+            appearanceSectionLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            appearanceSectionLabel.topAnchor.constraint(equalTo: autoCompleteIgnoreNumbersButton.bottomAnchor, constant: 18),
+
+            appearanceModeLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            appearanceModeLabel.topAnchor.constraint(equalTo: appearanceSectionLabel.bottomAnchor, constant: 12),
+            appearanceModeLabel.widthAnchor.constraint(equalToConstant: 100),
+
+            appearanceModeSegmented.leadingAnchor.constraint(equalTo: appearanceModeLabel.trailingAnchor, constant: 10),
+            appearanceModeSegmented.centerYAnchor.constraint(equalTo: appearanceModeLabel.centerYAnchor),
+
+            windowCV.bottomAnchor.constraint(equalTo: appearanceModeSegmented.bottomAnchor, constant: 24)
         ])
     }
 
@@ -1276,6 +1313,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         smartHighlightUseFindSettingsButton.state = preferences.smartHighlightUseFindSettings ? .on : .off
         urlIndicatorStyleSegmented.selectedSegment = max(0, min(2, preferences.urlIndicatorStyle))
         langTabOverridesField.stringValue = preferences.languageTabOverrides
+        taskListTagsField.stringValue = preferences.taskListCustomTags
         findTransparencySlider.doubleValue = preferences.findDialogTransparency
         tabbarDoubleClickCloseButton.state = preferences.tabbarDoubleClickClose ? .on : .off
         tabbarLockDragDropButton.state = preferences.tabbarLockDragDrop ? .on : .off
@@ -1298,6 +1336,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         shortTitleButton.state = preferences.shortTitle ? .on : .off
         saveAllConfirmButton.state = preferences.saveAllConfirm ? .on : .off
         autoCompleteIgnoreNumbersButton.state = preferences.autoCompleteIgnoreNumbers ? .on : .off
+        appearanceModeSegmented.selectedSegment = max(0, min(2, preferences.appearanceMode))
         largeFileMBField.intValue = Int32(preferences.largeFileSizeMB)
         largeFileMBStepper.intValue = Int32(preferences.largeFileSizeMB)
         additionalEdgeColumnsField.stringValue = preferences.additionalEdgeColumns
@@ -1509,7 +1548,9 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             muteAllSounds: muteAllSoundsButton.state == .on,
             selectedTextDragDrop: selectedTextDragDropButton.state == .on,
             lineNumberDynamicWidth: lineNumberDynamicWidthButton.state == .on,
-            columnSelectionToMultiEditing: columnSelectionToMultiEditingButton.state == .on
+            columnSelectionToMultiEditing: columnSelectionToMultiEditingButton.state == .on,
+            appearanceMode: appearanceModeSegmented.selectedSegment,
+            taskListCustomTags: taskListTagsField.stringValue
         )
         preferencesStore.save(preferences)
         loadPreferences()

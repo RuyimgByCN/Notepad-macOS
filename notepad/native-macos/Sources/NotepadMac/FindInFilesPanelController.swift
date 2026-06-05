@@ -304,7 +304,7 @@ final class FindInFilesPanelController: NSWindowController {
         let directory = directoryField.stringValue
 
         guard !query.isEmpty, !directory.isEmpty else {
-            NSSound.beep()
+            NSSound.beepUnlessMuted()
             return
         }
 
@@ -367,7 +367,7 @@ final class FindInFilesPanelController: NSWindowController {
     @objc private func performFind(_ sender: Any?) {
         let query = findField.stringValue
         guard !query.isEmpty else {
-            NSSound.beep()
+            NSSound.beepUnlessMuted()
             return
         }
 
@@ -385,7 +385,7 @@ final class FindInFilesPanelController: NSWindowController {
         case .directory:
             let directory = directoryField.stringValue
             guard !directory.isEmpty else {
-                NSSound.beep()
+                NSSound.beepUnlessMuted()
                 return
             }
             let dirURL = URL(fileURLWithPath: directory)

@@ -191,4 +191,45 @@ final class PreferencesEnhancementTests: XCTestCase {
         XCTAssertEqual(AppPreferences(urlIndicatorStyle: 3).urlIndicatorStyle, 2)
         XCTAssertEqual(AppPreferences(urlIndicatorStyle: 1).urlIndicatorStyle, 1)
     }
+
+    // MARK: - Appearance Mode
+
+    func testAppearanceModeDefault() {
+        XCTAssertEqual(AppPreferences().appearanceMode, 0)
+    }
+
+    func testAppearanceModeClamped() {
+        XCTAssertEqual(AppPreferences(appearanceMode: -1).appearanceMode, 0)
+        XCTAssertEqual(AppPreferences(appearanceMode: 3).appearanceMode, 2)
+        XCTAssertEqual(AppPreferences(appearanceMode: 1).appearanceMode, 1)
+        XCTAssertEqual(AppPreferences(appearanceMode: 2).appearanceMode, 2)
+    }
+
+    func testAppearanceModeRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.appearanceMode.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(appearanceMode: 2))
+        let loaded = store.load()
+        XCTAssertEqual(loaded.appearanceMode, 2)
+    }
+
+    // MARK: - Mute All Sounds
+
+    func testMuteAllSoundsDefault() {
+        let prefs = AppPreferences()
+        XCTAssertFalse(prefs.muteAllSounds)
+    }
+
+    func testMuteAllSoundsRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.muteAllSounds.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(muteAllSounds: true))
+        let loaded = store.load()
+        XCTAssertTrue(loaded.muteAllSounds)
+    }
+
+    func testMuteAllSoundsCanBeDisabled() {
+        let prefs = AppPreferences(muteAllSounds: false)
+        XCTAssertFalse(prefs.muteAllSounds)
+    }
 }

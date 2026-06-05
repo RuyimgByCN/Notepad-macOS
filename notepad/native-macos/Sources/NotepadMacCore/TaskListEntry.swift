@@ -99,4 +99,16 @@ public enum TaskListScanner {
 
         return entries
     }
+
+    /// Parse a comma-separated tag preference string into a tag list.
+    /// If the string is empty or invalid, returns `defaultTags`.
+    public static func tags(fromPreference pref: String) -> [String] {
+        let trimmed = pref.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return defaultTags }
+        let parsed = trimmed
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces).uppercased() }
+            .filter { !$0.isEmpty }
+        return parsed.isEmpty ? defaultTags : parsed
+    }
 }

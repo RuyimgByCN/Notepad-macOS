@@ -224,6 +224,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let lineNumberDynamicWidth: Bool
     /// When true, column selection mode converts to multi-cursor editing
     public let columnSelectionToMultiEditing: Bool
+    /// Appearance override: 0=follow system, 1=always light, 2=always dark
+    public let appearanceMode: Int
+    /// Comma-separated list of tags for the Task List scanner (empty = use defaults)
+    public let taskListCustomTags: String
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -334,7 +338,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         muteAllSounds: Bool = false,
         selectedTextDragDrop: Bool = true,
         lineNumberDynamicWidth: Bool = false,
-        columnSelectionToMultiEditing: Bool = false
+        columnSelectionToMultiEditing: Bool = false,
+        appearanceMode: Int = 0,
+        taskListCustomTags: String = ""
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -445,6 +451,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.selectedTextDragDrop = selectedTextDragDrop
         self.lineNumberDynamicWidth = lineNumberDynamicWidth
         self.columnSelectionToMultiEditing = columnSelectionToMultiEditing
+        self.appearanceMode = max(0, min(2, appearanceMode))
+        self.taskListCustomTags = taskListCustomTags
     }
 
     /// Parse languageTabOverrides string into a dictionary.
@@ -883,6 +891,8 @@ public final class PreferencesStore {
         static let selectedTextDragDrop = "notepadMac.selectedTextDragDrop"
         static let lineNumberDynamicWidth = "notepadMac.lineNumberDynamicWidth"
         static let columnSelectionToMultiEditing = "notepadMac.columnSelectionToMultiEditing"
+        static let appearanceMode = "notepadMac.appearanceMode"
+        static let taskListCustomTags = "notepadMac.taskListCustomTags"
     }
 
     private let defaults: UserDefaults
@@ -997,7 +1007,9 @@ public final class PreferencesStore {
             muteAllSounds: defaults.object(forKey: Key.muteAllSounds) as? Bool ?? false,
             selectedTextDragDrop: defaults.object(forKey: Key.selectedTextDragDrop) as? Bool ?? true,
             lineNumberDynamicWidth: defaults.object(forKey: Key.lineNumberDynamicWidth) as? Bool ?? false,
-            columnSelectionToMultiEditing: defaults.object(forKey: Key.columnSelectionToMultiEditing) as? Bool ?? false
+            columnSelectionToMultiEditing: defaults.object(forKey: Key.columnSelectionToMultiEditing) as? Bool ?? false,
+            appearanceMode: defaults.object(forKey: Key.appearanceMode) as? Int ?? 0,
+            taskListCustomTags: defaults.string(forKey: Key.taskListCustomTags) ?? ""
         )
     }
 
@@ -1118,6 +1130,8 @@ public final class PreferencesStore {
         defaults.set(preferences.selectedTextDragDrop, forKey: Key.selectedTextDragDrop)
         defaults.set(preferences.lineNumberDynamicWidth, forKey: Key.lineNumberDynamicWidth)
         defaults.set(preferences.columnSelectionToMultiEditing, forKey: Key.columnSelectionToMultiEditing)
+        defaults.set(preferences.appearanceMode, forKey: Key.appearanceMode)
+        defaults.set(preferences.taskListCustomTags, forKey: Key.taskListCustomTags)
         defaults.synchronize()
     }
 

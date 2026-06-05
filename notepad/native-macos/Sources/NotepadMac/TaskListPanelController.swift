@@ -17,6 +17,8 @@ final class TaskListPanelController: NSObject, NSTableViewDataSource, NSTableVie
     private var entries: [TaskListEntry] = []
     private var onSelect: ((TaskListEntry) -> Void)?
     private var currentDocumentName = ""
+    private var activeTags: [String] = TaskListScanner.defaultTags
+    private weak var goButton: NSButton?
 
     override init() {
         super.init()
@@ -37,18 +39,27 @@ final class TaskListPanelController: NSObject, NSTableViewDataSource, NSTableVie
 
     var isVisible: Bool { panel.isVisible }
 
-    func show(documentName: String, text: String, onSelect: @escaping (TaskListEntry) -> Void) {
+    func show(
+        documentName: String,
+        text: String,
+        customTagsPreference: String = "",
+        onSelect: @escaping (TaskListEntry) -> Void
+    ) {
         currentDocumentName = documentName
         self.onSelect = onSelect
-        update(documentName: documentName, text: text)
+        activeTags = TaskListScanner.tags(fromPreference: customTagsPreference)
+        update(documentName: documentName, text: text, customTagsPreference: customTagsPreference)
         panel.center()
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    func update(documentName: String, text: String) {
+    func update(documentName: String, text: String, customTagsPreference: String = "") {
         currentDocumentName = documentName
-        entries = TaskListScanner.scan(text: text)
+        if !customTagsPreference.isEmpty {
+            activeTags = TaskListScanner.tags(fromPreference: customTagsPreference)
+        }
+        entries = TaskListScanner.scan(text: text, tags: activeTags)
         refreshLocalizedStrings()
         tableView.reloadData()
     }
@@ -119,7 +130,8 @@ final class TaskListPanelController: NSObject, NSTableViewDataSource, NSTableVie
         tableView.addTableColumn(messageColumn)
         scrollView.documentView = tableView
 
-        let goButton = NSButton(title: "Go To", target: self, action: #selector(goToSelectedEntry(_:)))
+        let goButton = NSButton(title: Localization.string(.taskListGoTo, default: "Go To"), target: self, action: #selector(goToSelectedEntry(_:)))
+        self.goButton = goButton
         goButton.translatesAutoresizingMaskIntoConstraints = false
         goButton.bezelStyle = .rounded
 
@@ -143,13 +155,19 @@ final class TaskListPanelController: NSObject, NSTableViewDataSource, NSTableVie
     }
 
     private func refreshLocalizedStrings() {
-        panel.title = "Task List"
+        panel.title = Localization.string(.taskListPanelTitle, default: "Task List")
         let count = entries.count
-        titleField.stringValue = count == 0
-            ? "\(currentDocumentName)    No tasks found"
-            : String(format: "%@    %d task%@", currentDocumentName, count, count == 1 ? "" : "s")
-        lineColumn.title = "Line"
-        tagColumn.title = "Tag"
-        messageColumn.title = "Message"
+        if count == 0 {
+            titleField.stringValue = "\(currentDocumentName)    \(Localization.string(.taskListNoTasks, default: "No tasks found"))"
+        } else {
+            titleField.stringValue = String(
+                format: Localization.string(.taskListSummary, default: "%@    %d task(s)"),
+                currentDocumentName, count
+            )
+        }
+        lineColumn.title = Localization.string(.taskListColumnLine, default: "Line")
+        tagColumn.title = Localization.string(.taskListColumnTag, default: "Tag")
+        messageColumn.title = Localization.string(.taskListColumnMessage, default: "Message")
+        goButton?.title = Localization.string(.taskListGoTo, default: "Go To")
     }
 }

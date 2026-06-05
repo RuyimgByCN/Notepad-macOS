@@ -4,9 +4,13 @@ enum DocumentListAction {
     case activate
     case close
     case closeOthers
+    case save
     case copyFilename
     case copyPath
     case togglePin
+    // Multi-select actions (operate on all selected items)
+    case closeSelected
+    case saveSelected
 }
 
 struct DocumentListItem: Equatable {
@@ -62,9 +66,16 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
     private let titleColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("title"))
     private let detailColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("detail"))
     private let activateButton = NSButton(title: "", target: nil, action: nil)
+    private let closeSelectedButton = NSButton(title: "", target: nil, action: nil)
+    private let saveSelectedButton = NSButton(title: "", target: nil, action: nil)
     private var items: [DocumentListItem] = []
+    private var sortedItems: [DocumentListItem] = []
+    private enum SortKey { case title, detail, dirty }
+    private var sortKey: SortKey = .title
+    private var sortAscending: Bool = true
     private var onSelect: ((DocumentListItem) -> Void)?
     private var onAction: ((DocumentListItem, DocumentListAction) -> Void)?
+    private var onMultiAction: (([DocumentListItem], DocumentListAction) -> Void)?
 
     var window: NSWindow? {
         panel
@@ -90,18 +101,22 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
     func show(
         items: [DocumentListItem],
         onSelect: @escaping (DocumentListItem) -> Void,
-        onAction: ((DocumentListItem, DocumentListAction) -> Void)? = nil
+        onAction: ((DocumentListItem, DocumentListAction) -> Void)? = nil,
+        onMultiAction: (([DocumentListItem], DocumentListAction) -> Void)? = nil
     ) {
         self.items = items
         self.onSelect = onSelect
         self.onAction = onAction
+        self.onMultiAction = onMultiAction
+        rebuildSortedItems()
         refreshLocalizedStrings()
         tableView.reloadData()
-        if let activeIndex = items.firstIndex(where: \.isActive) {
+        if let activeIndex = sortedItems.firstIndex(where: \.isActive) {
             tableView.selectRowIndexes(IndexSet(integer: activeIndex), byExtendingSelection: false)
-        } else if !items.isEmpty {
+        } else if !sortedItems.isEmpty {
             tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
         }
+        updateMultiSelectButtons()
         panel.center()
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -110,17 +125,45 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
     func update(items: [DocumentListItem]) {
         guard items != self.items else { return }
         self.items = items
+        rebuildSortedItems()
         tableView.reloadData()
         refreshLocalizedStrings()
+        updateMultiSelectButtons()
+    }
+
+    private func rebuildSortedItems() {
+        sortedItems = items.sorted {
+            switch sortKey {
+            case .title:
+                let cmp = $0.title.localizedStandardCompare($1.title)
+                return sortAscending ? cmp == .orderedAscending : cmp == .orderedDescending
+            case .detail:
+                let cmp = $0.detail.localizedStandardCompare($1.detail)
+                return sortAscending ? cmp == .orderedAscending : cmp == .orderedDescending
+            case .dirty:
+                return sortAscending ? ($0.isDirty && !$1.isDirty) : (!$0.isDirty && $1.isDirty)
+            }
+        }
+    }
+
+    func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
+        guard let descriptor = tableView.sortDescriptors.first else { return }
+        sortAscending = descriptor.ascending
+        switch descriptor.key {
+        case "detail": sortKey = .detail
+        default: sortKey = .title
+        }
+        rebuildSortedItems()
+        tableView.reloadData()
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        items.count
+        sortedItems.count
     }
 
     func tableView(_ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int) -> Any? {
-        guard row >= 0, row < items.count else { return nil }
-        let item = items[row]
+        guard row >= 0, row < sortedItems.count else { return nil }
+        let item = sortedItems[row]
         switch tableColumn?.identifier.rawValue {
         case "detail":
             return item.detail
@@ -136,6 +179,10 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
 
     func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
         row >= 0 && row < items.count
+    }
+
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        updateMultiSelectButtons()
     }
 
     @objc private func localizationDidChange(_ notification: Notification) {
@@ -160,13 +207,16 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.usesAlternatingRowBackgroundColors = true
+        tableView.allowsMultipleSelection = true
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.doubleAction = #selector(selectCurrentDocument(_:))
+        tableView.doubleAction = #selector(activateSelectedDocument(_:))
         tableView.target = self
         tableView.menu = buildPlaceholderMenu()
         titleColumn.width = 160
+        titleColumn.sortDescriptorPrototype = NSSortDescriptor(key: "title", ascending: true)
         detailColumn.width = 260
+        detailColumn.sortDescriptorPrototype = NSSortDescriptor(key: "detail", ascending: true)
         tableView.addTableColumn(titleColumn)
         tableView.addTableColumn(detailColumn)
         scrollView.documentView = tableView
@@ -174,10 +224,22 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
         activateButton.translatesAutoresizingMaskIntoConstraints = false
         activateButton.bezelStyle = .rounded
         activateButton.target = self
-        activateButton.action = #selector(selectCurrentDocument(_:))
+        activateButton.action = #selector(activateSelectedDocument(_:))
+
+        closeSelectedButton.translatesAutoresizingMaskIntoConstraints = false
+        closeSelectedButton.bezelStyle = .rounded
+        closeSelectedButton.target = self
+        closeSelectedButton.action = #selector(closeSelectedDocuments(_:))
+
+        saveSelectedButton.translatesAutoresizingMaskIntoConstraints = false
+        saveSelectedButton.bezelStyle = .rounded
+        saveSelectedButton.target = self
+        saveSelectedButton.action = #selector(saveSelectedDocuments(_:))
 
         root.addSubview(titleField)
         root.addSubview(scrollView)
+        root.addSubview(saveSelectedButton)
+        root.addSubview(closeSelectedButton)
         root.addSubview(activateButton)
 
         NSLayoutConstraint.activate([
@@ -189,6 +251,12 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
             scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -14),
             scrollView.topAnchor.constraint(equalTo: titleField.bottomAnchor, constant: 10),
             scrollView.bottomAnchor.constraint(equalTo: activateButton.topAnchor, constant: -12),
+
+            saveSelectedButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 14),
+            saveSelectedButton.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -14),
+
+            closeSelectedButton.leadingAnchor.constraint(equalTo: saveSelectedButton.trailingAnchor, constant: 8),
+            closeSelectedButton.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -14),
 
             activateButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -14),
             activateButton.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -14)
@@ -213,19 +281,57 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
         activateButton.setAccessibilityLabel(
             Localization.string(.documentListActivateAccessibilityLabel, default: "Activate selected document")
         )
+        updateMultiSelectButtons()
     }
 
-    private func column(identifier: String, title: String, width: CGFloat) -> NSTableColumn {
-        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(identifier))
-        column.title = title
-        column.width = width
-        return column
+    private func updateMultiSelectButtons() {
+        let count = tableView.selectedRowIndexes.count
+        let isMulti = count > 1
+        closeSelectedButton.isHidden = !isMulti
+        saveSelectedButton.isHidden = !isMulti
+        if isMulti {
+            closeSelectedButton.title = String(
+                format: Localization.string(.documentListCloseSelected, default: "Close (%d)"),
+                count
+            )
+            saveSelectedButton.title = String(
+                format: Localization.string(.documentListSaveSelected, default: "Save (%d)"),
+                count
+            )
+        }
     }
 
-    @objc private func selectCurrentDocument(_ sender: Any?) {
+    private func selectedItems() -> [DocumentListItem] {
+        tableView.selectedRowIndexes.compactMap { row in
+            guard row < sortedItems.count else { return nil }
+            return sortedItems[row]
+        }
+    }
+
+    @objc private func activateSelectedDocument(_ sender: Any?) {
         let row = tableView.selectedRow
-        guard row >= 0, row < items.count else { return }
-        onSelect?(items[row])
+        guard row >= 0, row < sortedItems.count else { return }
+        onSelect?(sortedItems[row])
+    }
+
+    @objc private func closeSelectedDocuments(_ sender: Any?) {
+        let selected = selectedItems()
+        guard !selected.isEmpty else { return }
+        if selected.count == 1 {
+            onAction?(selected[0], .close)
+        } else {
+            onMultiAction?(selected, .closeSelected)
+        }
+    }
+
+    @objc private func saveSelectedDocuments(_ sender: Any?) {
+        let selected = selectedItems()
+        guard !selected.isEmpty else { return }
+        if selected.count == 1 {
+            onAction?(selected[0], .save)
+        } else {
+            onMultiAction?(selected, .saveSelected)
+        }
     }
 
     // MARK: - Context menu (NSMenuDelegate)
@@ -238,19 +344,62 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        let row = tableView.clickedRow
-        guard row >= 0, row < items.count else { return }
-        tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-        let item = items[row]
-        menu.addItem(contextMenuItem("Activate", action: { [weak self] in self?.onAction?(item, .activate) }))
-        menu.addItem(contextMenuItem("Close", action: { [weak self] in self?.onAction?(item, .close) }))
-        menu.addItem(contextMenuItem("Close Others", action: { [weak self] in self?.onAction?(item, .closeOthers) }))
-        menu.addItem(.separator())
-        menu.addItem(contextMenuItem("Copy Filename", action: { [weak self] in self?.onAction?(item, .copyFilename) }))
-        menu.addItem(contextMenuItem("Copy Full Path", action: { [weak self] in self?.onAction?(item, .copyPath) }))
-        menu.addItem(.separator())
-        let pinTitle = item.isPinned ? "Unpin" : "Pin"
-        menu.addItem(contextMenuItem(pinTitle, action: { [weak self] in self?.onAction?(item, .togglePin) }))
+        let clickedRow = tableView.clickedRow
+        guard clickedRow >= 0, clickedRow < sortedItems.count else { return }
+
+        // If the clicked row is not in the current selection, select only it.
+        if !tableView.selectedRowIndexes.contains(clickedRow) {
+            tableView.selectRowIndexes(IndexSet(integer: clickedRow), byExtendingSelection: false)
+        }
+
+        let selectionCount = tableView.selectedRowIndexes.count
+
+        if selectionCount > 1 {
+            // Multi-select context menu
+            let selected = selectedItems()
+            menu.addItem(contextMenuItem(
+                String(format: Localization.string(.documentListCloseSelected, default: "Close (%d)"), selectionCount),
+                action: { [weak self] in self?.onMultiAction?(selected, .closeSelected) }
+            ))
+            menu.addItem(contextMenuItem(
+                String(format: Localization.string(.documentListSaveSelected, default: "Save (%d)"), selectionCount),
+                action: { [weak self] in self?.onMultiAction?(selected, .saveSelected) }
+            ))
+        } else {
+            // Single-item context menu
+            let item = sortedItems[clickedRow]
+            menu.addItem(contextMenuItem(
+                Localization.string(.documentListActivate, default: "Activate"),
+                action: { [weak self] in self?.onAction?(item, .activate) }
+            ))
+            menu.addItem(contextMenuItem(
+                Localization.string(.documentListClose, default: "Close"),
+                action: { [weak self] in self?.onAction?(item, .close) }
+            ))
+            menu.addItem(contextMenuItem(
+                Localization.string(.documentListCloseOthers, default: "Close Others"),
+                action: { [weak self] in self?.onAction?(item, .closeOthers) }
+            ))
+            menu.addItem(.separator())
+            menu.addItem(contextMenuItem(
+                Localization.string(.documentListSave, default: "Save"),
+                action: { [weak self] in self?.onAction?(item, .save) }
+            ))
+            menu.addItem(.separator())
+            menu.addItem(contextMenuItem(
+                Localization.string(.documentListCopyFilename, default: "Copy Filename"),
+                action: { [weak self] in self?.onAction?(item, .copyFilename) }
+            ))
+            menu.addItem(contextMenuItem(
+                Localization.string(.documentListCopyPath, default: "Copy Full Path"),
+                action: { [weak self] in self?.onAction?(item, .copyPath) }
+            ))
+            menu.addItem(.separator())
+            let pinTitle = item.isPinned
+                ? Localization.string(.documentListUnpin, default: "Unpin")
+                : Localization.string(.documentListPin, default: "Pin")
+            menu.addItem(contextMenuItem(pinTitle, action: { [weak self] in self?.onAction?(item, .togglePin) }))
+        }
     }
 
     private func contextMenuItem(_ title: String, action: @escaping () -> Void) -> NSMenuItem {
