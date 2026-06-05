@@ -661,6 +661,8 @@ enum Localization {
         case foldingLevel8 = "folding.level8"
         case themeMenu = "menu.theme"
         case themeDefaultStyle = "theme.defaultStyle"
+        case themeSetAsDarkMode = "theme.setAsDarkMode"
+        case themeClearDarkMode = "theme.clearDarkMode"
         case languageMenu = "menu.language"
         case languageUserDefined = "language.userDefined"
         case menuRun = "menu.run"

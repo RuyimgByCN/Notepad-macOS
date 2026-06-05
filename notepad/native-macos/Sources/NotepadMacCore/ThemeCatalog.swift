@@ -102,9 +102,19 @@ public struct ThemeCatalog: Equatable, Sendable {
 
 public struct ThemePreferences: Codable, Equatable, Sendable {
     public let selectedThemeName: String?
+    /// Theme to apply automatically when the system is in dark mode (nil = don't auto-switch)
+    public let darkModeThemeName: String?
 
-    public init(selectedThemeName: String? = nil) {
+    public init(selectedThemeName: String? = nil, darkModeThemeName: String? = nil) {
         self.selectedThemeName = selectedThemeName?.nilIfEmpty
+        self.darkModeThemeName = darkModeThemeName?.nilIfEmpty
+    }
+
+    /// Returns the effective theme name for the given appearance.
+    /// In dark mode, prefers darkModeThemeName if set.
+    public func effectiveThemeName(isDarkMode: Bool) -> String? {
+        if isDarkMode, let dark = darkModeThemeName { return dark }
+        return selectedThemeName
     }
 }
 

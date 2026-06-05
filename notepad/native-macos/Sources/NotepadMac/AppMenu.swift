@@ -1485,6 +1485,22 @@ enum AppMenu {
             item.state = theme.name == selectedThemeName ? .on : .off
             menu.addItem(item)
         }
+
+        menu.addItem(NSMenuItem.separator())
+        let setDarkItem = NSMenuItem(
+            title: Localization.string(.themeSetAsDarkMode, default: "Set Current Theme as Dark Mode Theme"),
+            action: #selector(AppDelegate.setCurrentThemeAsDarkMode(_:)),
+            keyEquivalent: ""
+        )
+        setDarkItem.target = delegate
+        menu.addItem(setDarkItem)
+        let clearDarkItem = NSMenuItem(
+            title: Localization.string(.themeClearDarkMode, default: "Clear Dark Mode Theme"),
+            action: #selector(AppDelegate.clearDarkModeTheme(_:)),
+            keyEquivalent: ""
+        )
+        clearDarkItem.target = delegate
+        menu.addItem(clearDarkItem)
     }
 
     @MainActor

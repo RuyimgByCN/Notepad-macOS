@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var recentlyClosedDocuments: [URL] = []
     private var closeCompletions: [ObjectIdentifier: [() -> Void]] = [:]
     private var didCompleteLaunch = false
+private var appearanceObservation: NSKeyValueObservation?
     private lazy var preferencesPanel = PreferencesPanelController(
         preferencesStore: preferencesStore,
         localizationOptions: localizationOptions,
@@ -148,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installTerminationHandlers()
         installCtrlTabMonitor()
         installWorkspaceFindInFiles()
+        installAppearanceObserver()
         refreshRunMenu()
         refreshMacroMenu()
         // Apply custom shortcuts after main menu is built
@@ -1292,17 +1294,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func selectTheme(_ sender: Any?) {
         guard let item = sender as? NSMenuItem else { return }
+        let currentDark = themePreferencesStore.load().darkModeThemeName
 
         if let themeName = item.representedObject as? String,
            let theme = themeCatalog.theme(named: themeName),
            let catalog = try? themeCatalog.loadStyleCatalog(for: theme) {
-            themePreferencesStore.save(ThemePreferences(selectedThemeName: theme.name))
+            themePreferencesStore.save(ThemePreferences(selectedThemeName: theme.name, darkModeThemeName: currentDark))
             applyStyleCatalog(catalog)
         } else {
-            themePreferencesStore.clear()
+            themePreferencesStore.save(ThemePreferences(selectedThemeName: nil, darkModeThemeName: currentDark))
             applyStyleCatalog(.loadDefault())
         }
 
+        AppMenu.refreshThemes(themeCatalog: themeCatalog, selectedThemeName: selectedThemeName)
+    }
+
+    @objc func setCurrentThemeAsDarkMode(_ sender: Any?) {
+        let current = themePreferencesStore.load()
+        themePreferencesStore.save(ThemePreferences(
+            selectedThemeName: current.selectedThemeName,
+            darkModeThemeName: current.selectedThemeName
+        ))
+        let name = current.selectedThemeName ?? "Default Style"
+        AppMenu.refreshThemes(themeCatalog: themeCatalog, selectedThemeName: selectedThemeName)
+        // Notify user
+        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        if isDark { loadThemeResources() }
+        _ = name  // suppress unused warning
+    }
+
+    @objc func clearDarkModeTheme(_ sender: Any?) {
+        let current = themePreferencesStore.load()
+        themePreferencesStore.save(ThemePreferences(selectedThemeName: current.selectedThemeName, darkModeThemeName: nil))
         AppMenu.refreshThemes(themeCatalog: themeCatalog, selectedThemeName: selectedThemeName)
     }
 
@@ -1916,6 +1939,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Workspace Find in Files
 
+    private func installAppearanceObserver() {
+        appearanceObservation = NSApp.observe(\.effectiveAppearance) { [weak self] _, _ in
+            DispatchQueue.main.async { self?.handleAppearanceChange() }
+        }
+    }
+
+    private func handleAppearanceChange() {
+        let themePrefs = themePreferencesStore.load()
+        guard themePrefs.darkModeThemeName != nil else { return }
+        loadThemeResources()
+    }
+
     private func installWorkspaceFindInFiles() {
         let handler: (URL) -> Void = { [weak self] url in
             self?.showFindInFilesPanel(searchRoot: url)
@@ -2032,7 +2067,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private var selectedThemeName: String? {
-        themePreferencesStore.load().selectedThemeName
+        let prefs = themePreferencesStore.load()
+        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return prefs.effectiveThemeName(isDarkMode: isDark)
     }
 
     private func applyLoadedThemeResources(_ result: ThemeResourceLoadResult) {
