@@ -667,10 +667,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applySelectedTextDragDrop(_ enabled: Bool) {
-        // Scintilla's drag-drop of selected text is enabled by default;
-        // there's no single SCI_* to disable it — defer to platform bridge if added later.
-        // This preference is stored and surfaced in UI but not yet applied via Scintilla.
-        _ = enabled
+        bridge.setGeneralProperty(ScintillaMessage.setDragDropEnabled, parameter: enabled ? 1 : 0, value: 0)
     }
 
     func applyLineNumberDynamicWidth(_ enabled: Bool) {
@@ -2446,6 +2443,7 @@ private enum ScintillaMessage {
     static let setExtraDescent: Int32 = 2526
     static let setBidirectional: Int32 = 2709
     static let setCopyAllowsLineSelection: Int32 = 2660
+    static let setDragDropEnabled: Int32 = 2819
 }
 
 
