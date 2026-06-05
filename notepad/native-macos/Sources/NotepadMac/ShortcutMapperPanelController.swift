@@ -380,6 +380,50 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
         }
     }
 
+    @objc private func exportShortcutsXML(_ sender: Any?) {
+        let shortcuts = shortcutStore.load()
+        guard !shortcuts.isEmpty else {
+            statusLabel.stringValue = "No custom shortcuts to export."
+            return
+        }
+        guard let data = ShortcutsXMLCodec.encode(shortcuts) else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.xml]
+        panel.nameFieldStringValue = "shortcuts.xml"
+        panel.title = "Export Shortcuts (XML)"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try data.write(to: url, options: .atomic)
+            statusLabel.stringValue = "Shortcuts exported to \(url.lastPathComponent)."
+        } catch {
+            statusLabel.stringValue = "Export failed: \(error.localizedDescription)"
+        }
+    }
+
+    @objc private func importShortcutsXML(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.xml]
+        panel.title = "Import Shortcuts (XML)"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let data = try Data(contentsOf: url)
+            guard let shortcuts = ShortcutsXMLCodec.decode(data) else {
+                statusLabel.stringValue = "Import failed: could not parse XML."
+                return
+            }
+            shortcutStore.save(shortcuts)
+            buildEntries()
+            applyFilter()
+            onShortcutsChanged?()
+            statusLabel.stringValue = "Imported \(shortcuts.count) shortcuts from \(url.lastPathComponent)."
+        } catch {
+            statusLabel.stringValue = "Import failed: \(error.localizedDescription)"
+        }
+    }
+
     private func promptForShortcut(entry: Entry) {
         let recorder = ShortcutRecorderView(frame: NSRect(x: 0, y: 0, width: 220, height: 28))
         let alert = NSAlert()
@@ -664,13 +708,19 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
         exportImportButton.pullsDown = true
         exportImportButton.bezelStyle = .rounded
         exportImportButton.addItem(withTitle: "⚙")
-        exportImportButton.addItem(withTitle: "Export Shortcuts...")
-        exportImportButton.addItem(withTitle: "Import Shortcuts...")
+        exportImportButton.addItem(withTitle: "Export Shortcuts (JSON)...")
+        exportImportButton.addItem(withTitle: "Import Shortcuts (JSON)...")
+        exportImportButton.addItem(withTitle: "Export Shortcuts (XML)...")
+        exportImportButton.addItem(withTitle: "Import Shortcuts (XML)...")
         exportImportButton.item(at: 0)?.title = "⚙"
-        exportImportButton.item(withTitle: "Export Shortcuts...")?.target = self
-        exportImportButton.item(withTitle: "Export Shortcuts...")?.action = #selector(exportShortcuts(_:))
-        exportImportButton.item(withTitle: "Import Shortcuts...")?.target = self
-        exportImportButton.item(withTitle: "Import Shortcuts...")?.action = #selector(importShortcuts(_:))
+        exportImportButton.item(withTitle: "Export Shortcuts (JSON)...")?.target = self
+        exportImportButton.item(withTitle: "Export Shortcuts (JSON)...")?.action = #selector(exportShortcuts(_:))
+        exportImportButton.item(withTitle: "Import Shortcuts (JSON)...")?.target = self
+        exportImportButton.item(withTitle: "Import Shortcuts (JSON)...")?.action = #selector(importShortcuts(_:))
+        exportImportButton.item(withTitle: "Export Shortcuts (XML)...")?.target = self
+        exportImportButton.item(withTitle: "Export Shortcuts (XML)...")?.action = #selector(exportShortcutsXML(_:))
+        exportImportButton.item(withTitle: "Import Shortcuts (XML)...")?.target = self
+        exportImportButton.item(withTitle: "Import Shortcuts (XML)...")?.action = #selector(importShortcutsXML(_:))
 
         for v in [categoryControl, searchField, scrollView, assignButton, clearButton, statusLabel, exportImportButton] {
             v.translatesAutoresizingMaskIntoConstraints = false
