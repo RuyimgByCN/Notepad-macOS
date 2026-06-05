@@ -728,6 +728,44 @@ import Testing
     #expect(catalog.language(for: ".rs")?.displayName == "Case Custom Rust")
 }
 
+@Test func udlLanguageDefinitionParsesCommentMarkersFromCommentsKeyword() throws {
+    // UDL Comments keyword list: "00line_open 01 02((EOL)) 03block_open 04block_close"
+    let xml = """
+    <NotepadPlus>
+    <UserLang name="TestComments" ext="tc">
+      <Styles>
+        <WordsStyle styleID="0" name="Normal Text" fgColor="000000" bgColor="ffffff" nesting="0" />
+      </Styles>
+      <Keywords name="Keywords1">foo</Keywords>
+      <Keywords name="Comments">00// 01 02((EOL)) 03/* 04*/</Keywords>
+    </UserLang>
+    </NotepadPlus>
+    """
+    let parsed = try UserDefinedLanguageIO.importLanguage(from: xml)
+    let langDef = LanguageDefinition(userDefinedLanguage: parsed)
+    #expect(langDef.lineComment == "//")
+    #expect(langDef.blockCommentStart == "/*")
+    #expect(langDef.blockCommentEnd == "*/")
+}
+
+@Test func udlLanguageDefinitionHandlesMissingCommentMarkers() throws {
+    let xml = """
+    <NotepadPlus>
+    <UserLang name="TestNoComment" ext="tnc">
+      <Styles>
+        <WordsStyle styleID="0" name="Normal Text" fgColor="000000" bgColor="ffffff" nesting="0" />
+      </Styles>
+      <Keywords name="Keywords1">foo</Keywords>
+    </UserLang>
+    </NotepadPlus>
+    """
+    let parsed = try UserDefinedLanguageIO.importLanguage(from: xml)
+    let langDef = LanguageDefinition(userDefinedLanguage: parsed)
+    #expect(langDef.lineComment == nil)
+    #expect(langDef.blockCommentStart == nil)
+    #expect(langDef.blockCommentEnd == nil)
+}
+
 @Test func udlLanguageDefinitionPopulatesNestingProperties() throws {
     let xml = """
     <NotepadPlus>

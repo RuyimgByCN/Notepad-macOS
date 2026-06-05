@@ -564,9 +564,17 @@ extension LanguageDefinition {
             }
         }
 
-        // Comments → SCE_USER_KWLIST_COMMENTS (0); raw descriptor string, pass verbatim
+        // Comments → SCE_USER_KWLIST_COMMENTS (0); raw descriptor string, pass verbatim.
+        // Also extract line/block comment markers for Comment/Uncomment command support.
+        var lineComment: String? = nil
+        var blockCommentStart: String? = nil
+        var blockCommentEnd: String? = nil
         if let raw = language.additionalKeywordLists["Comments"], !raw.isEmpty {
             keywordGroups["udl_comments"] = [raw]
+            let markers = Self.parseUDLCommentMarkers(from: raw)
+            lineComment = markers.lineOpen
+            blockCommentStart = markers.blockOpen
+            blockCommentEnd = markers.blockClose
         }
 
         // Numbers → sets 1–7 (prefix1/2, extras1/2, suffix1/2, range)
@@ -633,12 +641,39 @@ extension LanguageDefinition {
             name: language.name,
             displayName: language.displayName,
             extensions: language.extensions,
+            lineComment: lineComment,
+            blockCommentStart: blockCommentStart,
+            blockCommentEnd: blockCommentEnd,
             keywordGroups: keywordGroups,
             wordStyles: language.wordStyles.compactMap {
                 LanguageWordStyle(name: $0.name, foregroundHexRGB: $0.fgColor)
             },
             nestingProperties: nestingProperties
         )
+    }
+
+    /// Parses the UDL Comments keyword descriptor string.
+    /// Format: "00line_open 01line_cont 02line_close 03block_open 04block_close ..."
+    /// Each token starts with a 2-digit prefix indicating its position.
+    private static func parseUDLCommentMarkers(
+        from raw: String
+    ) -> (lineOpen: String?, blockOpen: String?, blockClose: String?) {
+        var lineOpen: String? = nil
+        var blockOpen: String? = nil
+        var blockClose: String? = nil
+        for token in raw.split(separator: " ").map(String.init) {
+            guard token.count >= 2,
+                  let index = Int(token.prefix(2)) else { continue }
+            let value = String(token.dropFirst(2))
+            guard !value.isEmpty, value != "((EOL))" else { continue }
+            switch index {
+            case 0: lineOpen  = value
+            case 3: blockOpen = value
+            case 4: blockClose = value
+            default: break
+            }
+        }
+        return (lineOpen, blockOpen, blockClose)
     }
 }
 
