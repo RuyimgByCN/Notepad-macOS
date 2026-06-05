@@ -91,8 +91,10 @@ public struct FunctionListDefinition: Equatable, Sendable {
             "css.xml"
         case "batch", "bat", "cmd":
             "batch.xml"
-        case "fortran", "f", "f77", "f90", "f95", "for", "fpp":
+        case "fortran", "f", "f90", "f95", "for", "fpp":
             "fortran.xml"
+        case "fortran77", "f77":
+            "fortran77.xml"
         case "haskell", "hs", "lhs":
             "haskell.xml"
         case "pascal", "pas", "delphi", "dfm":
@@ -224,8 +226,10 @@ public enum FunctionListExtractor {
             extractCSS(from: text)
         case "batch", "bat", "cmd":
             extractBatch(from: text)
-        case "fortran", "f", "f77", "f90", "f95", "for", "fpp":
+        case "fortran", "f", "f90", "f95", "for", "fpp":
             extractFortran(from: text)
+        case "fortran77", "f77":
+            extractFortran77(from: text)
         case "haskell", "hs", "lhs":
             extractHaskell(from: text)
         case "pascal", "pas", "delphi", "dfm":
@@ -569,6 +573,15 @@ public enum FunctionListExtractor {
             in: text, kind: .type
         )
         return sortedUnique(functionSymbols + moduleSymbols)
+    }
+
+    private static func extractFortran77(from text: String) -> [FunctionListSymbol] {
+        // Fixed-form Fortran 77: skip C/c/* comment lines; col 6 is continuation marker.
+        // FUNCTION/SUBROUTINE declarations start in col 7+ (after optional label cols 1-5).
+        matches(
+            pattern: #"(?mi)^(?![Cc*])[\d ]{0,5}[ \t]*(?:(?:INTEGER|REAL|DOUBLE\h+PRECISION|COMPLEX|LOGICAL|CHARACTER)\h+)?(?:FUNCTION|SUBROUTINE)\h+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text, kind: .function
+        )
     }
 
     private static func extractHaskell(from text: String) -> [FunctionListSymbol] {

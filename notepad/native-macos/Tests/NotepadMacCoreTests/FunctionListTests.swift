@@ -704,3 +704,26 @@ private func upstreamFunctionListURL(_ fileName: String) -> URL {
     #expect(names.contains { $0.contains("Run") || $0.contains("Tests") })
     #expect(names.contains { $0.contains("done") || $0.contains("error") })
 }
+
+@Test func extractsFortran77Functions() {
+    let code = [
+        "C     This is a comment",
+        "      SUBROUTINE MYSUB(X, Y)",
+        "      REAL X, Y",
+        "      RETURN",
+        "      END",
+        "C     Another comment",
+        "* also a comment",
+        "      INTEGER FUNCTION MYFUNC(N)",
+        "      INTEGER N",
+        "      RETURN",
+        "      END",
+        "      SUBROUTINE HELPER()",
+        "      END",
+    ].joined(separator: "\n")
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "fortran77", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("MYSUB"))
+    #expect(names.contains("MYFUNC"))
+    #expect(names.contains("HELPER"))
+}
