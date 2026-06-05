@@ -2,7 +2,7 @@ import AppKit
 import NotepadMacCore
 
 @MainActor
-final class PreferencesPanelController: NSWindowController {
+final class PreferencesPanelController: NSWindowController, NSTableViewDelegate, NSTableViewDataSource {
     private let preferencesStore: PreferencesStore
     private let localizationOptions: [AppLocalizationOption]
     private let onChange: (AppPreferences) -> Void
@@ -94,6 +94,11 @@ final class PreferencesPanelController: NSWindowController {
     private let autoPairCurlyBracketsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoPairSingleQuotesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoPairDoubleQuotesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let customPairsTableView = NSTableView()
+    private let customPairsScrollView = NSScrollView()
+    private var customPairsData: [[String]] = []
+    private let customPairsAddButton = NSButton(title: "+", target: nil, action: nil)
+    private let customPairsRemoveButton = NSButton(title: "−", target: nil, action: nil)
     private let xmlTagMatchButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let clickableLinksButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let smartHighlightMatchCaseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -255,6 +260,28 @@ final class PreferencesPanelController: NSWindowController {
         autoPairCurlyBracketsButton.title = "  { } Curly brackets"
         autoPairSingleQuotesButton.title = "  ' ' Single quotes"
         autoPairDoubleQuotesButton.title = "  \" \" Double quotes"
+        customPairsAddButton.bezelStyle = .smallSquare
+        customPairsAddButton.target = self
+        customPairsAddButton.action = #selector(addCustomPair(_:))
+        customPairsRemoveButton.bezelStyle = .smallSquare
+        customPairsRemoveButton.target = self
+        customPairsRemoveButton.action = #selector(removeCustomPair(_:))
+        let openCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("Open"))
+        openCol.title = "Open"
+        openCol.width = 50
+        openCol.isEditable = true
+        let closeCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("Close"))
+        closeCol.title = "Close"
+        closeCol.width = 50
+        closeCol.isEditable = true
+        customPairsTableView.addTableColumn(openCol)
+        customPairsTableView.addTableColumn(closeCol)
+        customPairsTableView.delegate = self
+        customPairsTableView.dataSource = self
+        customPairsTableView.rowSizeStyle = .small
+        customPairsScrollView.documentView = customPairsTableView
+        customPairsScrollView.hasVerticalScroller = true
+        customPairsScrollView.borderType = .bezelBorder
         xmlTagMatchButton.title = Localization.string(.preferencesXmlTagMatch, default: "Highlight matching XML tags")
         clickableLinksButton.title = Localization.string(.preferencesClickableLinks, default: "Highlight clickable links")
         smartHighlightMatchCaseButton.title = Localization.string(.preferencesSmartHighlightMatchCase, default: "Smart highlight: match case")
@@ -527,6 +554,7 @@ final class PreferencesPanelController: NSWindowController {
          editorFeaturesSectionLabel,
          autoPairButton, autoPairParenthesesButton, autoPairBracketsButton,
          autoPairCurlyBracketsButton, autoPairSingleQuotesButton, autoPairDoubleQuotesButton,
+         customPairsScrollView, customPairsAddButton, customPairsRemoveButton,
          xmlTagMatchButton, clickableLinksButton,
          smartHighlightMatchCaseButton, smartHighlightWholeWordButton,
          markAllMatchCaseButton, markAllWholeWordButton, langMenuCompactButton,
@@ -655,8 +683,21 @@ final class PreferencesPanelController: NSWindowController {
             autoPairDoubleQuotesButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             autoPairDoubleQuotesButton.topAnchor.constraint(equalTo: autoPairSingleQuotesButton.bottomAnchor, constant: 4),
 
+            customPairsScrollView.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            customPairsScrollView.topAnchor.constraint(equalTo: autoPairDoubleQuotesButton.bottomAnchor, constant: 8),
+            customPairsScrollView.widthAnchor.constraint(equalToConstant: 160),
+            customPairsScrollView.heightAnchor.constraint(equalToConstant: 80),
+
+            customPairsAddButton.leadingAnchor.constraint(equalTo: customPairsScrollView.leadingAnchor),
+            customPairsAddButton.topAnchor.constraint(equalTo: customPairsScrollView.bottomAnchor, constant: 4),
+            customPairsAddButton.widthAnchor.constraint(equalToConstant: 26),
+
+            customPairsRemoveButton.leadingAnchor.constraint(equalTo: customPairsAddButton.trailingAnchor, constant: 4),
+            customPairsRemoveButton.topAnchor.constraint(equalTo: customPairsScrollView.bottomAnchor, constant: 4),
+            customPairsRemoveButton.widthAnchor.constraint(equalToConstant: 26),
+
             xmlTagMatchButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
-            xmlTagMatchButton.topAnchor.constraint(equalTo: autoPairDoubleQuotesButton.bottomAnchor, constant: 10),
+            xmlTagMatchButton.topAnchor.constraint(equalTo: customPairsAddButton.bottomAnchor, constant: 10),
 
             clickableLinksButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             clickableLinksButton.topAnchor.constraint(equalTo: xmlTagMatchButton.bottomAnchor, constant: 10),
@@ -1169,6 +1210,8 @@ final class PreferencesPanelController: NSWindowController {
         autoPairCurlyBracketsButton.state = preferences.autoPairCurlyBrackets ? .on : .off
         autoPairSingleQuotesButton.state = preferences.autoPairSingleQuotes ? .on : .off
         autoPairDoubleQuotesButton.state = preferences.autoPairDoubleQuotes ? .on : .off
+        customPairsData = preferences.customMatchedPairs
+        customPairsTableView.reloadData()
         xmlTagMatchButton.state = preferences.enableXmlTagMatch ? .on : .off
         clickableLinksButton.state = preferences.enableClickableLinks ? .on : .off
         smartHighlightMatchCaseButton.state = preferences.smartHighlightMatchCase ? .on : .off
@@ -1371,6 +1414,7 @@ final class PreferencesPanelController: NSWindowController {
             autoPairCurlyBrackets: autoPairCurlyBracketsButton.state == .on,
             autoPairSingleQuotes: autoPairSingleQuotesButton.state == .on,
             autoPairDoubleQuotes: autoPairDoubleQuotesButton.state == .on,
+            customMatchedPairs: customPairsData,
             enableXmlTagMatch: xmlTagMatchButton.state == .on,
             enableClickableLinks: clickableLinksButton.state == .on,
             defaultNewDocumentEncoding: selectedNewDocEncoding,
@@ -1642,6 +1686,72 @@ final class PreferencesPanelController: NSWindowController {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         customBackupDirField.stringValue = url.path
         savePreferences(sender: sender)
+    }
+
+    // MARK: - Custom Matched Pairs
+
+    @objc private func addCustomPair(_ sender: Any?) {
+        customPairsData.append(["(", ")"])
+        customPairsTableView.reloadData()
+        let newRow = customPairsData.count - 1
+        customPairsTableView.selectRowIndexes(IndexSet(integer: newRow), byExtendingSelection: false)
+        customPairsTableView.editColumn(0, row: newRow, with: nil, select: true)
+        savePreferences(sender: sender)
+    }
+
+    @objc private func removeCustomPair(_ sender: Any?) {
+        let row = customPairsTableView.selectedRow
+        guard row >= 0, row < customPairsData.count else { return }
+        customPairsData.remove(at: row)
+        customPairsTableView.reloadData()
+        savePreferences(sender: sender)
+    }
+
+    func numberOfRows(in tableView: NSTableView) -> Int {
+        customPairsData.count
+    }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        guard row < customPairsData.count else { return nil }
+        let pair = customPairsData[row]
+        let identifier = tableColumn?.identifier.rawValue == "Open" ? "Open" : "Close"
+        let value = identifier == "Open" ? (pair.first ?? "") : (pair.count > 1 ? pair[1] : "")
+        let cellID = NSUserInterfaceItemIdentifier(identifier)
+        if let cell = tableView.makeView(withIdentifier: cellID, owner: nil) as? NSTableCellView {
+            cell.textField?.stringValue = value
+            return cell
+        }
+        let cell = NSTableCellView()
+        cell.identifier = cellID
+        let field = NSTextField(string: value)
+        field.translatesAutoresizingMaskIntoConstraints = false
+        field.isBordered = false
+        field.isEditable = true
+        field.drawsBackground = false
+        cell.addSubview(field)
+        cell.textField = field
+        NSLayoutConstraint.activate([
+            field.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
+            field.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -2),
+            field.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+        ])
+        return cell
+    }
+
+    func tableView(_ tableView: NSTableView, shouldEdit tableColumn: NSTableColumn?, row: Int) -> Bool {
+        true
+    }
+
+    func tableView(_ tableView: NSTableView, setObjectValue object: Any?, for tableColumn: NSTableColumn?, row: Int) {
+        guard row < customPairsData.count, let value = object as? String else { return }
+        var pair = customPairsData[row]
+        if tableColumn?.identifier.rawValue == "Open" {
+            pair = [value, pair.count > 1 ? pair[1] : ""]
+        } else {
+            pair = [pair.first ?? "", value]
+        }
+        customPairsData[row] = pair
+        savePreferences(sender: tableView)
     }
 }
 

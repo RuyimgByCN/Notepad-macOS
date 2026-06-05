@@ -94,6 +94,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let autoPairSingleQuotes: Bool
     /// Auto-insert matching double quotes " "
     public let autoPairDoubleQuotes: Bool
+    /// User-defined custom matched pairs; each element is [openChar, closeChar]
+    public let customMatchedPairs: [[String]]
     public let enableXmlTagMatch: Bool
     public let enableClickableLinks: Bool
     public let defaultNewDocumentEncoding: String   // TextEncodingOption.rawValue
@@ -253,6 +255,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         autoPairCurlyBrackets: Bool = true,
         autoPairSingleQuotes: Bool = false,
         autoPairDoubleQuotes: Bool = false,
+        customMatchedPairs: [[String]] = [],
         enableXmlTagMatch: Bool = true,
         enableClickableLinks: Bool = true,
         defaultNewDocumentEncoding: String = "utf8",
@@ -362,6 +365,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.autoPairCurlyBrackets = autoPairCurlyBrackets
         self.autoPairSingleQuotes = autoPairSingleQuotes
         self.autoPairDoubleQuotes = autoPairDoubleQuotes
+        self.customMatchedPairs = customMatchedPairs
         self.enableXmlTagMatch = enableXmlTagMatch
         self.enableClickableLinks = enableClickableLinks
         self.defaultNewDocumentEncoding = defaultNewDocumentEncoding.isEmpty ? "utf8" : defaultNewDocumentEncoding
@@ -665,6 +669,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             autoPairCurlyBrackets: autoPairCurlyBrackets,
             autoPairSingleQuotes: autoPairSingleQuotes,
             autoPairDoubleQuotes: autoPairDoubleQuotes,
+            customMatchedPairs: customMatchedPairs,
             enableXmlTagMatch: enableXmlTagMatch,
             enableClickableLinks: enableClickableLinks,
             defaultNewDocumentEncoding: defaultNewDocumentEncoding,
@@ -791,6 +796,7 @@ public final class PreferencesStore {
         static let autoPairCurlyBrackets = "notepadMac.autoPairCurlyBrackets"
         static let autoPairSingleQuotes = "notepadMac.autoPairSingleQuotes"
         static let autoPairDoubleQuotes = "notepadMac.autoPairDoubleQuotes"
+        static let customMatchedPairs = "notepadMac.customMatchedPairs"
         static let enableXmlTagMatch = "notepadMac.enableXmlTagMatch"
         static let enableClickableLinks = "notepadMac.enableClickableLinks"
         static let defaultNewDocumentEncoding = "notepadMac.defaultNewDocumentEncoding"
@@ -912,6 +918,7 @@ public final class PreferencesStore {
             autoPairCurlyBrackets: defaults.object(forKey: Key.autoPairCurlyBrackets) as? Bool ?? AppPreferences.defaultValue.autoPairCurlyBrackets,
             autoPairSingleQuotes: defaults.object(forKey: Key.autoPairSingleQuotes) as? Bool ?? AppPreferences.defaultValue.autoPairSingleQuotes,
             autoPairDoubleQuotes: defaults.object(forKey: Key.autoPairDoubleQuotes) as? Bool ?? AppPreferences.defaultValue.autoPairDoubleQuotes,
+            customMatchedPairs: (defaults.object(forKey: Key.customMatchedPairs) as? [[String]]) ?? [],
             enableXmlTagMatch: defaults.object(forKey: Key.enableXmlTagMatch) as? Bool ?? AppPreferences.defaultValue.enableXmlTagMatch,
             enableClickableLinks: defaults.object(forKey: Key.enableClickableLinks) as? Bool ?? AppPreferences.defaultValue.enableClickableLinks,
             defaultNewDocumentEncoding: defaults.string(forKey: Key.defaultNewDocumentEncoding) ?? AppPreferences.defaultValue.defaultNewDocumentEncoding,
@@ -1028,6 +1035,7 @@ public final class PreferencesStore {
         defaults.set(preferences.autoPairCurlyBrackets, forKey: Key.autoPairCurlyBrackets)
         defaults.set(preferences.autoPairSingleQuotes, forKey: Key.autoPairSingleQuotes)
         defaults.set(preferences.autoPairDoubleQuotes, forKey: Key.autoPairDoubleQuotes)
+        defaults.set(preferences.customMatchedPairs, forKey: Key.customMatchedPairs)
         defaults.set(preferences.enableXmlTagMatch, forKey: Key.enableXmlTagMatch)
         defaults.set(preferences.enableClickableLinks, forKey: Key.enableClickableLinks)
         defaults.set(preferences.defaultNewDocumentEncoding, forKey: Key.defaultNewDocumentEncoding)

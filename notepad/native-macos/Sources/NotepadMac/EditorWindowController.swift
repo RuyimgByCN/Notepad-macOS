@@ -95,6 +95,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var autoCompleteTABFillup = false
     private var autoCompleteEnterCommit = true
     private var autoCompleteBrief = false
+    private var customMatchedPairs: [[String]] = []
     private var cachedAutoCompletionCatalog: AutoCompletionCatalog?
     private var cachedAutoCompletionCatalogLanguage: String?
     private var enablesSmartHighlight = false
@@ -348,6 +349,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.autoCompleteTABFillup = preferences.autoCompleteTABFillup
         self.autoCompleteEnterCommit = preferences.autoCompleteEnterCommit
         self.autoCompleteBrief = preferences.autoCompleteBrief
+        self.customMatchedPairs = preferences.customMatchedPairs
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.tabMaxLabelLength = preferences.tabbarMaxLabelLength
         self.enablesAutoPair = preferences.enableAutoPair
@@ -997,7 +999,19 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 editorSurface.setSelectedRange(NSRange(location: curPos + closeTag.utf16.count, length: 0))
             }
         default:
-            break
+            // Custom user-defined matched pairs
+            let typed = String(ch)
+            for pair in customMatchedPairs {
+                guard pair.count == 2,
+                      pair[0] == typed,
+                      !pair[1].isEmpty,
+                      pair[0] != pair[1] else { continue }
+                if isNextBlank || isNextCloseSymbol,
+                   let closeChar = pair[1].first {
+                    editorSurface.insertAutoPairClose(closeChar)
+                }
+                break
+            }
         }
     }
 
@@ -3413,6 +3427,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         autoCompleteTABFillup = preferences.autoCompleteTABFillup
         autoCompleteEnterCommit = preferences.autoCompleteEnterCommit
         autoCompleteBrief = preferences.autoCompleteBrief
+        customMatchedPairs = preferences.customMatchedPairs
         if cachedAutoCompletionCatalogLanguage != language.name {
             cachedAutoCompletionCatalog = nil
             cachedAutoCompletionCatalogLanguage = nil
