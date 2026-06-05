@@ -115,6 +115,8 @@ final class PreferencesPanelController: NSWindowController {
     private let autoCompleteModePopup = NSPopUpButton()
     private let autoCompleteChooseSingleButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoCompleteTABFillupButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let htmlXmlCloseTagButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let muteAllSoundsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let linePaddingLabel = NSTextField(labelWithString: "")
     private let linePaddingSegmented = NSSegmentedControl()
     private let largeFileSectionLabel = NSTextField(labelWithString: "")
@@ -288,6 +290,8 @@ final class PreferencesPanelController: NSWindowController {
         autoCompleteModeLabel.stringValue = "Auto-complete source:"
         autoCompleteChooseSingleButton.title = "Auto-accept when only one match"
         autoCompleteTABFillupButton.title = "Tab key commits auto-complete selection"
+        htmlXmlCloseTagButton.title = "Auto-close HTML/XML tags when typing '>'"
+        muteAllSoundsButton.title = "Mute all sounds"
         inSelectionSectionLabel.stringValue = "In-Selection Search"
         inSelectionThresholdLabel.stringValue = "Auto-check In Selection threshold (chars):"
         keepFindDialogOpenButton.title = "Keep Find dialog open after Replace All"
@@ -513,6 +517,7 @@ final class PreferencesPanelController: NSWindowController {
          additionalEdgeColumnsLabel, additionalEdgeColumnsField,
          autoCompleteModeLabel, autoCompleteModePopup,
          autoCompleteChooseSingleButton, autoCompleteTABFillupButton,
+         htmlXmlCloseTagButton, muteAllSoundsButton,
          copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton,
          urlIndicatorStyleLabel, urlIndicatorStyleSegmented,
          langTabOverridesLabel, langTabOverridesField
@@ -725,8 +730,14 @@ final class PreferencesPanelController: NSWindowController {
             autoCompleteTABFillupButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             autoCompleteTABFillupButton.topAnchor.constraint(equalTo: autoCompleteChooseSingleButton.bottomAnchor, constant: 10),
 
+            htmlXmlCloseTagButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            htmlXmlCloseTagButton.topAnchor.constraint(equalTo: autoCompleteTABFillupButton.bottomAnchor, constant: 10),
+
+            muteAllSoundsButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            muteAllSoundsButton.topAnchor.constraint(equalTo: htmlXmlCloseTagButton.bottomAnchor, constant: 10),
+
             copyLineWithoutSelectionButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
-            copyLineWithoutSelectionButton.topAnchor.constraint(equalTo: autoCompleteTABFillupButton.bottomAnchor, constant: 10),
+            copyLineWithoutSelectionButton.topAnchor.constraint(equalTo: muteAllSoundsButton.bottomAnchor, constant: 10),
 
             smartHighlightUseFindSettingsButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             smartHighlightUseFindSettingsButton.topAnchor.constraint(equalTo: copyLineWithoutSelectionButton.bottomAnchor, constant: 10),
@@ -1138,6 +1149,8 @@ final class PreferencesPanelController: NSWindowController {
         autoCompleteModePopup.selectItem(at: max(0, min(3, preferences.autoCompleteMode)))
         autoCompleteChooseSingleButton.state = preferences.autoCompleteChooseSingle ? .on : .off
         autoCompleteTABFillupButton.state = preferences.autoCompleteTABFillup ? .on : .off
+        htmlXmlCloseTagButton.state = preferences.htmlXmlCloseTagEnabled ? .on : .off
+        muteAllSoundsButton.state = preferences.muteAllSounds ? .on : .off
         inSelectionThresholdField.intValue = Int32(preferences.inSelectionThreshold)
         inSelectionThresholdStepper.intValue = Int32(preferences.inSelectionThreshold)
         keepFindDialogOpenButton.state = preferences.keepFindDialogOpen ? .on : .off
@@ -1367,6 +1380,8 @@ final class PreferencesPanelController: NSWindowController {
             languageTabOverrides: langTabOverridesField.stringValue,
             tabbarLockDragDrop: tabbarLockDragDropButton.state == .on,
             tabbarExitOnLastTab: tabbarExitOnLastTabButton.state == .on,
+            htmlXmlCloseTagEnabled: htmlXmlCloseTagButton.state == .on,
+            muteAllSounds: muteAllSoundsButton.state == .on,
             selectedTextDragDrop: selectedTextDragDropButton.state == .on,
             lineNumberDynamicWidth: lineNumberDynamicWidthButton.state == .on,
             columnSelectionToMultiEditing: columnSelectionToMultiEditingButton.state == .on

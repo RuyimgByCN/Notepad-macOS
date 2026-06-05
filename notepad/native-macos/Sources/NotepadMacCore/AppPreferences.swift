@@ -190,6 +190,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let tabbarLockDragDrop: Bool
     /// When true, closing the last tab exits the app instead of creating a new empty document
     public let tabbarExitOnLastTab: Bool
+    /// When true, automatically insert the matching HTML/XML close tag after typing '>'
+    public let htmlXmlCloseTagEnabled: Bool
+    /// When true, mute all application sounds (e.g., bell on invalid action)
+    public let muteAllSounds: Bool
     /// When false, dragging selected text within the editor is disabled
     public let selectedTextDragDrop: Bool
     /// When true, the line number margin width adjusts dynamically based on line count
@@ -290,6 +294,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         languageTabOverrides: String = "",
         tabbarLockDragDrop: Bool = false,
         tabbarExitOnLastTab: Bool = false,
+        htmlXmlCloseTagEnabled: Bool = false,
+        muteAllSounds: Bool = false,
         selectedTextDragDrop: Bool = true,
         lineNumberDynamicWidth: Bool = false,
         columnSelectionToMultiEditing: Bool = false
@@ -386,6 +392,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.languageTabOverrides = languageTabOverrides
         self.tabbarLockDragDrop = tabbarLockDragDrop
         self.tabbarExitOnLastTab = tabbarExitOnLastTab
+        self.htmlXmlCloseTagEnabled = htmlXmlCloseTagEnabled
+        self.muteAllSounds = muteAllSounds
         self.selectedTextDragDrop = selectedTextDragDrop
         self.lineNumberDynamicWidth = lineNumberDynamicWidth
         self.columnSelectionToMultiEditing = columnSelectionToMultiEditing
@@ -552,6 +560,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             languageTabOverrides: languageTabOverrides,
             tabbarLockDragDrop: tabbarLockDragDrop,
             tabbarExitOnLastTab: tabbarExitOnLastTab,
+            htmlXmlCloseTagEnabled: htmlXmlCloseTagEnabled,
+            muteAllSounds: muteAllSounds,
             selectedTextDragDrop: selectedTextDragDrop,
             lineNumberDynamicWidth: lineNumberDynamicWidth,
             columnSelectionToMultiEditing: columnSelectionToMultiEditing
@@ -663,6 +673,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             languageTabOverrides: languageTabOverrides,
             tabbarLockDragDrop: tabbarLockDragDrop,
             tabbarExitOnLastTab: tabbarExitOnLastTab,
+            htmlXmlCloseTagEnabled: htmlXmlCloseTagEnabled,
+            muteAllSounds: muteAllSounds,
             selectedTextDragDrop: selectedTextDragDrop,
             lineNumberDynamicWidth: lineNumberDynamicWidth,
             columnSelectionToMultiEditing: columnSelectionToMultiEditing
@@ -783,6 +795,8 @@ public final class PreferencesStore {
         static let languageTabOverrides = "notepadMac.languageTabOverrides"
         static let tabbarLockDragDrop = "notepadMac.tabbarLockDragDrop"
         static let tabbarExitOnLastTab = "notepadMac.tabbarExitOnLastTab"
+        static let htmlXmlCloseTagEnabled = "notepadMac.htmlXmlCloseTagEnabled"
+        static let muteAllSounds = "notepadMac.muteAllSounds"
         static let selectedTextDragDrop = "notepadMac.selectedTextDragDrop"
         static let lineNumberDynamicWidth = "notepadMac.lineNumberDynamicWidth"
         static let columnSelectionToMultiEditing = "notepadMac.columnSelectionToMultiEditing"
@@ -884,6 +898,8 @@ public final class PreferencesStore {
             languageTabOverrides: defaults.string(forKey: Key.languageTabOverrides) ?? "",
             tabbarLockDragDrop: defaults.object(forKey: Key.tabbarLockDragDrop) as? Bool ?? false,
             tabbarExitOnLastTab: defaults.object(forKey: Key.tabbarExitOnLastTab) as? Bool ?? false,
+            htmlXmlCloseTagEnabled: defaults.object(forKey: Key.htmlXmlCloseTagEnabled) as? Bool ?? false,
+            muteAllSounds: defaults.object(forKey: Key.muteAllSounds) as? Bool ?? false,
             selectedTextDragDrop: defaults.object(forKey: Key.selectedTextDragDrop) as? Bool ?? true,
             lineNumberDynamicWidth: defaults.object(forKey: Key.lineNumberDynamicWidth) as? Bool ?? false,
             columnSelectionToMultiEditing: defaults.object(forKey: Key.columnSelectionToMultiEditing) as? Bool ?? false
@@ -990,6 +1006,8 @@ public final class PreferencesStore {
         defaults.set(preferences.languageTabOverrides, forKey: Key.languageTabOverrides)
         defaults.set(preferences.tabbarLockDragDrop, forKey: Key.tabbarLockDragDrop)
         defaults.set(preferences.tabbarExitOnLastTab, forKey: Key.tabbarExitOnLastTab)
+        defaults.set(preferences.htmlXmlCloseTagEnabled, forKey: Key.htmlXmlCloseTagEnabled)
+        defaults.set(preferences.muteAllSounds, forKey: Key.muteAllSounds)
         defaults.set(preferences.selectedTextDragDrop, forKey: Key.selectedTextDragDrop)
         defaults.set(preferences.lineNumberDynamicWidth, forKey: Key.lineNumberDynamicWidth)
         defaults.set(preferences.columnSelectionToMultiEditing, forKey: Key.columnSelectionToMultiEditing)
