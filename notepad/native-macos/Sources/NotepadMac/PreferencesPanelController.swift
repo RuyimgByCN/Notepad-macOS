@@ -124,6 +124,16 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let columnSelectionToMultiEditingButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let showBookmarkMarginButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let showEdgeLineButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    // Display Defaults section
+    private let displayDefaultsSectionLabel = NSTextField(labelWithString: "")
+    private let showLineNumberMarginButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let showWhitespaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let showEOLButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let showIndentGuidesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let highlightCurrentLineButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let showNpcCharactersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let showWrapSymbolButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let showChangeHistoryButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let edgeLineColumnLabel = NSTextField(labelWithString: "")
     private let edgeLineColumnField = NSTextField(string: "80")
     private let edgeLineColumnStepper = NSStepper()
@@ -193,6 +203,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let appearanceSectionLabel = NSTextField(labelWithString: "")
     private let appearanceModeLabel = NSTextField(labelWithString: "")
     private let appearanceModeSegmented = NSSegmentedControl()
+    // Post-It Mode section in Window tab
+    private let postItSectionLabel = NSTextField(labelWithString: "")
+    private let postItAlphaLabel = NSTextField(labelWithString: "")
+    private let postItAlphaSlider = NSSlider()
 
     typealias LanguageEntry = (name: String, displayName: String)
     private var languageEntries: [LanguageEntry] = []
@@ -326,6 +340,15 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         columnSelectionToMultiEditingButton.title = "Column selection converts to multi-cursor editing"
         showBookmarkMarginButton.title = "Show bookmark margin"
         showEdgeLineButton.title = "Show edge line"
+        displayDefaultsSectionLabel.stringValue = "Display Defaults"
+        showLineNumberMarginButton.title = "Show line number margin"
+        showWhitespaceButton.title = "Show whitespace"
+        showEOLButton.title = "Show EOL characters"
+        showIndentGuidesButton.title = "Show indent guides"
+        highlightCurrentLineButton.title = "Highlight current line"
+        showNpcCharactersButton.title = "Show non-printable characters"
+        showWrapSymbolButton.title = "Show wrap symbol"
+        showChangeHistoryButton.title = "Show change history margin"
         edgeLineColumnLabel.stringValue = "Edge column:"
         edgeLineColumnField.stringValue = "80"
         edgeLineColumnField.isEditable = true
@@ -397,6 +420,13 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         appearanceModeSegmented.setLabel("System", forSegment: 0)
         appearanceModeSegmented.setLabel("Light", forSegment: 1)
         appearanceModeSegmented.setLabel("Dark", forSegment: 2)
+        postItSectionLabel.stringValue = "Post-It Mode"
+        postItAlphaLabel.stringValue = "Window opacity:"
+        postItAlphaSlider.minValue = 0.2
+        postItAlphaSlider.maxValue = 1.0
+        postItAlphaSlider.isContinuous = true
+        postItAlphaSlider.target = self
+        postItAlphaSlider.action = #selector(controlChanged(_:))
         generalSectionLabel.stringValue = "General"
         statusBarVisibleButton.title = "Show status bar"
         shortTitleButton.title = "Short title (filename only in title bar)"
@@ -603,6 +633,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          selectedTextDragDropButton, lineNumberDynamicWidthButton, columnSelectionToMultiEditingButton,
          showBookmarkMarginButton,
          showEdgeLineButton, edgeLineColumnLabel, edgeLineColumnField, edgeLineColumnStepper,
+         displayDefaultsSectionLabel,
+         showLineNumberMarginButton, showWhitespaceButton, showEOLButton,
+         showIndentGuidesButton, highlightCurrentLineButton,
+         showNpcCharactersButton, showWrapSymbolButton, showChangeHistoryButton,
          linePaddingLabel, linePaddingSegmented,
          autoCompleteLabel, autoCompleteField, autoCompleteStepper,
          largeFileSectionLabel, largeFileMBLabel, largeFileMBField, largeFileMBStepper,
@@ -660,10 +694,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          delimiterRightLabel, delimiterRightField,
          generalSectionLabel, statusBarVisibleButton, shortTitleButton,
          saveAllConfirmButton, autoCompleteIgnoreNumbersButton,
-         appearanceSectionLabel, appearanceModeLabel, appearanceModeSegmented
+         appearanceSectionLabel, appearanceModeLabel, appearanceModeSegmented,
+         postItSectionLabel, postItAlphaLabel, postItAlphaSlider
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; windowCV.addSubview($0) }
 
-        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel, inSelectionSectionLabel, tabbarSectionLabel, printSectionLabel, delimiterSectionLabel, generalSectionLabel, appearanceSectionLabel].forEach {
+        [localizationSectionLabel, editorSectionLabel, editorFeaturesSectionLabel, displayDefaultsSectionLabel, largeFileSectionLabel, newDocumentSectionLabel, findDefaultsSectionLabel, dateTimeSectionLabel, searchEngineSectionLabel, inSelectionSectionLabel, tabbarSectionLabel, printSectionLabel, delimiterSectionLabel, generalSectionLabel, appearanceSectionLabel, postItSectionLabel].forEach {
             $0.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
         }
         // Convenience anchors for tabs 2 and 3
@@ -826,8 +861,35 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             edgeLineColumnStepper.leadingAnchor.constraint(equalTo: edgeLineColumnField.trailingAnchor, constant: 4),
             edgeLineColumnStepper.centerYAnchor.constraint(equalTo: edgeLineColumnField.centerYAnchor),
 
+            displayDefaultsSectionLabel.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            displayDefaultsSectionLabel.topAnchor.constraint(equalTo: edgeLineColumnLabel.bottomAnchor, constant: 20),
+
+            showLineNumberMarginButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            showLineNumberMarginButton.topAnchor.constraint(equalTo: displayDefaultsSectionLabel.bottomAnchor, constant: 10),
+
+            showWhitespaceButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            showWhitespaceButton.topAnchor.constraint(equalTo: showLineNumberMarginButton.bottomAnchor, constant: 6),
+
+            showEOLButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            showEOLButton.topAnchor.constraint(equalTo: showWhitespaceButton.bottomAnchor, constant: 6),
+
+            showIndentGuidesButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            showIndentGuidesButton.topAnchor.constraint(equalTo: showEOLButton.bottomAnchor, constant: 6),
+
+            highlightCurrentLineButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            highlightCurrentLineButton.topAnchor.constraint(equalTo: showIndentGuidesButton.bottomAnchor, constant: 6),
+
+            showNpcCharactersButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            showNpcCharactersButton.topAnchor.constraint(equalTo: highlightCurrentLineButton.bottomAnchor, constant: 6),
+
+            showWrapSymbolButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            showWrapSymbolButton.topAnchor.constraint(equalTo: showNpcCharactersButton.bottomAnchor, constant: 6),
+
+            showChangeHistoryButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            showChangeHistoryButton.topAnchor.constraint(equalTo: showWrapSymbolButton.bottomAnchor, constant: 6),
+
             linePaddingLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
-            linePaddingLabel.topAnchor.constraint(equalTo: edgeLineColumnLabel.bottomAnchor, constant: 14),
+            linePaddingLabel.topAnchor.constraint(equalTo: showChangeHistoryButton.bottomAnchor, constant: 14),
 
             linePaddingSegmented.leadingAnchor.constraint(equalTo: linePaddingLabel.trailingAnchor, constant: 12),
             linePaddingSegmented.centerYAnchor.constraint(equalTo: linePaddingLabel.centerYAnchor),
@@ -1267,7 +1329,18 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             appearanceModeSegmented.leadingAnchor.constraint(equalTo: appearanceModeLabel.trailingAnchor, constant: 10),
             appearanceModeSegmented.centerYAnchor.constraint(equalTo: appearanceModeLabel.centerYAnchor),
 
-            windowCV.bottomAnchor.constraint(equalTo: appearanceModeSegmented.bottomAnchor, constant: 24)
+            postItSectionLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            postItSectionLabel.topAnchor.constraint(equalTo: appearanceModeLabel.bottomAnchor, constant: 20),
+
+            postItAlphaLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            postItAlphaLabel.topAnchor.constraint(equalTo: postItSectionLabel.bottomAnchor, constant: 12),
+            postItAlphaLabel.widthAnchor.constraint(equalToConstant: 120),
+
+            postItAlphaSlider.leadingAnchor.constraint(equalTo: postItAlphaLabel.trailingAnchor, constant: 10),
+            postItAlphaSlider.centerYAnchor.constraint(equalTo: postItAlphaLabel.centerYAnchor),
+            postItAlphaSlider.widthAnchor.constraint(equalToConstant: 160),
+
+            windowCV.bottomAnchor.constraint(equalTo: postItAlphaLabel.bottomAnchor, constant: 24)
         ])
     }
 
@@ -1333,6 +1406,14 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         showEdgeLineButton.state = preferences.showEdgeLine ? .on : .off
         edgeLineColumnField.intValue = Int32(preferences.edgeLineColumn)
         edgeLineColumnStepper.intValue = Int32(preferences.edgeLineColumn)
+        showLineNumberMarginButton.state = preferences.showLineNumberMargin ? .on : .off
+        showWhitespaceButton.state = preferences.showWhitespace ? .on : .off
+        showEOLButton.state = preferences.showEOL ? .on : .off
+        showIndentGuidesButton.state = preferences.showIndentGuides ? .on : .off
+        highlightCurrentLineButton.state = preferences.highlightCurrentLine ? .on : .off
+        showNpcCharactersButton.state = preferences.showNpcCharacters ? .on : .off
+        showWrapSymbolButton.state = preferences.showWrapSymbol ? .on : .off
+        showChangeHistoryButton.state = preferences.showChangeHistory ? .on : .off
         linePaddingSegmented.selectedSegment = max(0, min(5, preferences.linePadding))
         autoCompleteField.intValue = Int32(preferences.autoCompleteFromNthChar)
         autoCompleteStepper.intValue = Int32(preferences.autoCompleteFromNthChar)
@@ -1379,6 +1460,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         saveAllConfirmButton.state = preferences.saveAllConfirm ? .on : .off
         autoCompleteIgnoreNumbersButton.state = preferences.autoCompleteIgnoreNumbers ? .on : .off
         appearanceModeSegmented.selectedSegment = max(0, min(2, preferences.appearanceMode))
+        postItAlphaSlider.doubleValue = max(0.2, min(1.0, preferences.postItAlpha))
         largeFileMBField.intValue = Int32(preferences.largeFileSizeMB)
         largeFileMBStepper.intValue = Int32(preferences.largeFileSizeMB)
         additionalEdgeColumnsField.stringValue = preferences.additionalEdgeColumns
@@ -1484,15 +1566,15 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             searchEngineChoice: selectedSearchEngineChoice,
             customSearchEngineURL: searchEngineCustomURLField.stringValue,
             localizationFileName: selectedLocalizationFileName,
-            showWhitespace: existing.showWhitespace,
-            showEOL: existing.showEOL,
-            showIndentGuides: existing.showIndentGuides,
-            highlightCurrentLine: existing.highlightCurrentLine,
-            showWrapSymbol: existing.showWrapSymbol,
-            showChangeHistory: existing.showChangeHistory,
+            showWhitespace: showWhitespaceButton.state == .on,
+            showEOL: showEOLButton.state == .on,
+            showIndentGuides: showIndentGuidesButton.state == .on,
+            highlightCurrentLine: highlightCurrentLineButton.state == .on,
+            showWrapSymbol: showWrapSymbolButton.state == .on,
+            showChangeHistory: showChangeHistoryButton.state == .on,
             tabSize: Int(tabSizeField.intValue),
             insertSpacesInsteadOfTabs: insertSpacesButton.state == .on,
-            showLineNumberMargin: existing.showLineNumberMargin,
+            showLineNumberMargin: showLineNumberMarginButton.state == .on,
             showEdgeLine: showEdgeLineButton.state == .on,
             edgeLineColumn: max(1, Int(edgeLineColumnField.intValue)),
             enableAutoPair: autoPairButton.state == .on,
@@ -1507,7 +1589,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             defaultNewDocumentEncoding: selectedNewDocEncoding,
             defaultNewDocumentLineEnding: selectedNewDocLineEnding,
             rememberLastSession: rememberSessionButton.state == .on,
-            showNpcCharacters: existing.showNpcCharacters,
+            showNpcCharacters: showNpcCharactersButton.state == .on,
             smartHighlightMatchCase: smartHighlightMatchCaseButton.state == .on,
             smartHighlightWholeWord: smartHighlightWholeWordButton.state == .on,
             markAllMatchCase: markAllMatchCaseButton.state == .on,
@@ -1545,6 +1627,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             folderDropRecursiveOpen: folderDropRecursiveOpenButton.state == .on,
             extraURLSchemes: extraURLSchemesField.stringValue,
             newDocumentOnLaunch: newDocumentOnLaunchButton.state == .on,
+            postItAlpha: postItAlphaSlider.doubleValue,
             printLineNumbers: printLineNumbersButton.state == .on,
             autoCompleteMode: autoCompleteModePopup.indexOfSelectedItem,
             autoCompleteChooseSingle: autoCompleteChooseSingleButton.state == .on,
@@ -1599,6 +1682,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             columnSelectionToMultiEditing: columnSelectionToMultiEditingButton.state == .on,
             appearanceMode: appearanceModeSegmented.selectedSegment,
             taskListCustomTags: taskListTagsField.stringValue,
+            toolbarVisible: existing.toolbarVisible,
             showBookmarkMargin: showBookmarkMarginButton.state == .on
         )
         preferencesStore.save(preferences)

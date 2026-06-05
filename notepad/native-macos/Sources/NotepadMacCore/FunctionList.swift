@@ -302,6 +302,14 @@ public enum FunctionListExtractor {
             extractOCaml(from: text)
         case "fsharp", "f#", "fs", "fsx":
             extractFSharp(from: text)
+        case "html", "htm", "xhtml", "shtml":
+            extractHTML(from: text)
+        case "dart":
+            extractDart(from: text)
+        case "julia", "jl":
+            extractJulia(from: text)
+        case "cmake":
+            extractCMake(from: text)
         default:
             definition == nil ? [] : extractCStyle(from: text)
         }
@@ -1064,5 +1072,67 @@ extension FunctionListExtractor {
             kind: .function
         )
         return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractHTML(from text: String) -> [FunctionListSymbol] {
+        // Extract headings (h1-h6) text content and element IDs as navigation landmarks
+        let headingSymbols = matches(
+            pattern: #"(?i)<h[1-6][^>]*>([^<]{1,80})"#,
+            in: text,
+            kind: .function
+        )
+        let idSymbols = matches(
+            pattern: #"(?i)\sid="([^"]{1,60})""#,
+            in: text,
+            kind: .type
+        )
+        return sortedUnique(headingSymbols + idSymbols)
+    }
+
+    private static func extractDart(from text: String) -> [FunctionListSymbol] {
+        let classSymbols = matches(
+            pattern: #"(?m)^\s*(?:abstract\s+)?class\s+([A-Za-z_$][A-Za-z0-9_$]*)"#,
+            in: text,
+            kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^\s*(?:static\s+|async\s+|Future<[^>]+>\s+|void\s+|[A-Za-z_$][A-Za-z0-9_$<>?]*\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:<[^>]*>)?\s*\([^)]*\)\s*(?:async\s*)?\{"#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(classSymbols + functionSymbols)
+    }
+
+    private static func extractJulia(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?m)^\s*(?:abstract\s+type|mutable\s+struct|struct)\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text,
+            kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^\s*function\s+([A-Za-z_][A-Za-z0-9_!.]*)"#,
+            in: text,
+            kind: .function
+        )
+        let macroSymbols = matches(
+            pattern: #"(?m)^\s*macro\s+([A-Za-z_][A-Za-z0-9_!]*)"#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols + macroSymbols)
+    }
+
+    private static func extractCMake(from text: String) -> [FunctionListSymbol] {
+        let functionSymbols = matches(
+            pattern: #"(?mi)^\s*function\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text,
+            kind: .function
+        )
+        let macroSymbols = matches(
+            pattern: #"(?mi)^\s*macro\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text,
+            kind: .type
+        )
+        return sortedUnique(functionSymbols + macroSymbols)
     }
 }

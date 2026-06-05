@@ -879,3 +879,113 @@ private func upstreamFunctionListURL(_ fileName: String) -> URL {
     #expect(names.contains("add"))
     #expect(names.contains("fib"))
 }
+
+@Test func extractsHTMLSymbols() {
+    let code = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Test Page</title></head>
+    <body>
+    <h1>Introduction</h1>
+    <p id="overview">Some text here.</p>
+    <h2>Getting Started</h2>
+    <div id="setup">Setup instructions</div>
+    <h3>Step One</h3>
+    </body>
+    </html>
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "html", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Introduction"))
+    #expect(names.contains("Getting Started"))
+    #expect(names.contains("Step One"))
+    #expect(names.contains("overview"))
+    #expect(names.contains("setup"))
+}
+
+@Test func extractsDartSymbols() {
+    let code = """
+    class Animal {
+        String name;
+        Animal(this.name);
+        void speak() {
+            print('...');
+        }
+    }
+
+    abstract class Shape {
+        double area();
+    }
+
+    void main() {
+        var a = Animal('Dog');
+    }
+
+    Future<String> fetchData() async {
+        return 'data';
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "dart", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Animal"))
+    #expect(names.contains("Shape"))
+}
+
+@Test func extractsJuliaSymbols() {
+    let code = """
+    struct Point
+        x::Float64
+        y::Float64
+    end
+
+    abstract type Shape end
+
+    mutable struct Circle <: Shape
+        radius::Float64
+    end
+
+    function area(c::Circle)
+        π * c.radius^2
+    end
+
+    function distance(p1::Point, p2::Point)
+        sqrt((p2.x - p1.x)^2 + (p2.y - p1.y)^2)
+    end
+
+    macro assert_positive(x)
+        :($x > 0 || error("Not positive"))
+    end
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "julia", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Point"))
+    #expect(names.contains("Shape"))
+    #expect(names.contains("Circle"))
+    #expect(names.contains("area"))
+    #expect(names.contains("distance"))
+    #expect(names.contains("assert_positive"))
+}
+
+@Test func extractsCMakeSymbols() {
+    let code = """
+    cmake_minimum_required(VERSION 3.20)
+    project(MyApp)
+
+    function(add_component name sources)
+        add_library(${name} STATIC ${sources})
+        target_include_directories(${name} PUBLIC include)
+    endfunction()
+
+    macro(setup_target target)
+        target_compile_features(${target} PRIVATE cxx_std_17)
+        set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    endmacro()
+
+    add_component(core src/core.cpp)
+    setup_target(core)
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "cmake", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("add_component"))
+    #expect(names.contains("setup_target"))
+}
