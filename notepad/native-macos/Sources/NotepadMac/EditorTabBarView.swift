@@ -44,6 +44,8 @@ final class EditorTabBarView: NSView {
     var tabMaxLabelLength = 0
     /// When true, drag-drop tab reordering is disabled
     var lockDragDrop = false
+    /// Optional custom tab context menu spec loaded from tabContextMenu.xml
+    var tabContextMenuSpec: TabContextMenuSpec?
 
     private var state = EditorTabState()
     private let scrollView = NSScrollView()
@@ -244,6 +246,7 @@ final class EditorTabBarView: NSView {
             btn.doubleClickClosesTab = doubleClickClosesTab
             btn.maxLabelLength = tabMaxLabelLength
             btn.dynamicMaxWidth = tabMaxWidth
+            btn.tabContextMenuSpec = tabContextMenuSpec
             let w = btn.preferredWidth
             btn.frame = CGRect(x: x, y: 0, width: w, height: Self.barHeight)
             documentView.addSubview(btn)
@@ -342,6 +345,8 @@ final class EditorTabButton: NSView {
     var doubleClickClosesTab = false
     /// Max characters to display in the tab label (0 = no limit)
     var maxLabelLength = 0
+    /// Optional XML-driven tab context menu spec
+    var tabContextMenuSpec: TabContextMenuSpec?
 
     init(item: EditorTabItem, isActive: Bool, onSelect: @escaping () -> Void, onClose: @escaping () -> Void, onContextAction: @escaping (TabContextAction) -> Void) {
         self.item = item
@@ -526,6 +531,136 @@ final class EditorTabButton: NSView {
     }
 
     private func buildContextMenu() -> NSMenu {
+        if let spec = tabContextMenuSpec {
+            return buildContextMenuFromSpec(spec)
+        }
+        return buildDefaultContextMenu()
+    }
+
+    private func buildContextMenuFromSpec(_ spec: TabContextMenuSpec) -> NSMenu {
+        let menu = NSMenu(title: "")
+        let isFile = { if case .file = self.item.identity { return true }; return false }()
+
+        // Group items by folderName → submenus
+        var submenus: [String: NSMenu] = [:]
+        var submenuOrder: [String] = []
+
+        func makeItem(specAction: TabContextMenuAction, displayName: String?) -> NSMenuItem {
+            let label = displayName ?? localizedLabel(for: specAction)
+            let it = specMenuItem(label, specAction: specAction)
+            it.isEnabled = isActionEnabled(specAction, isFile: isFile)
+            return it
+        }
+
+        for specItem in spec.items {
+            switch specItem {
+            case .separator:
+                menu.addItem(.separator())
+            case .action(let action, let displayName, let folderName):
+                if let folder = folderName {
+                    if submenus[folder] == nil {
+                        submenus[folder] = NSMenu(title: "")
+                        submenuOrder.append(folder)
+                        let parent = NSMenuItem(title: folder, action: nil, keyEquivalent: "")
+                        parent.submenu = submenus[folder]
+                        menu.addItem(parent)
+                    }
+                    submenus[folder]?.addItem(makeItem(specAction: action, displayName: displayName))
+                } else {
+                    menu.addItem(makeItem(specAction: action, displayName: displayName))
+                }
+            }
+        }
+        return menu
+    }
+
+    private func localizedLabel(for action: TabContextMenuAction) -> String {
+        switch action {
+        case .close:                return Localization.string(.fileClose, default: "Close")
+        case .closeOthers, .closeAllButThis: return Localization.string(.fileCloseOthers, default: "Close Others")
+        case .closeToLeft:          return Localization.string(.fileCloseAllToLeft, default: "Close All to the Left")
+        case .closeToRight:         return Localization.string(.fileCloseAllToRight, default: "Close All to the Right")
+        case .closeUnchanged:       return "Close All Unchanged"
+        case .save:                 return Localization.string(.fileSave, default: "Save")
+        case .saveAs:               return Localization.string(.fileSaveAs, default: "Save As...")
+        case .rename:               return Localization.string(.fileRename, default: "Rename...")
+        case .moveToTrash:          return Localization.string(.fileMoveToTrash, default: "Move to Trash")
+        case .reload:               return Localization.string(.fileReloadFromDisk, default: "Reload from Disk")
+        case .print:                return Localization.string(.filePrint, default: "Print...")
+        case .toggleReadOnly:       return Localization.string(.editReadOnlyMenu, default: "Set Read-Only")
+        case .clearReadOnly:        return "Clear Read-Only"
+        case .copyFullPath:         return Localization.string(.editCopyCurrentFullPath, default: "Copy Full Path")
+        case .copyFilename:         return Localization.string(.editCopyCurrentFilename, default: "Copy Filename")
+        case .copyDirPath:          return Localization.string(.editCopyCurrentDirectoryPath, default: "Copy Dir Path")
+        case .moveToStart:          return Localization.string(.windowMoveTabToStart, default: "Move to Start")
+        case .moveToEnd:            return Localization.string(.windowMoveTabToEnd, default: "Move to End")
+        case .openContainingFolder: return Localization.string(.fileOpenContainingFolder, default: "Open in Finder")
+        case .openInTerminal:       return Localization.string(.fileOpenContainingFolderInTerminal, default: "Open in Terminal")
+        case .openAsFolderWorkspace: return "Open as Folder Workspace"
+        case .openInDefaultViewer:  return "Open in Default Viewer"
+        case .applyColor1:          return Localization.string(.windowTabColor1, default: "Yellow")
+        case .applyColor2:          return Localization.string(.windowTabColor2, default: "Green")
+        case .applyColor3:          return Localization.string(.windowTabColor3, default: "Blue")
+        case .applyColor4:          return Localization.string(.windowTabColor4, default: "Red")
+        case .applyColor5:          return Localization.string(.windowTabColor5, default: "Orange")
+        case .removeColor:          return Localization.string(.windowTabColorNone, default: "Remove Color")
+        case .pinTab:               return Localization.string(.windowPinTab, default: "Pin Tab")
+        case .unpinTab:             return Localization.string(.windowUnpinTab, default: "Unpin Tab")
+        }
+    }
+
+    private func tabContextActionFor(_ specAction: TabContextMenuAction) -> TabContextAction {
+        switch specAction {
+        case .close:                return .closeOthers // handled specially below
+        case .closeOthers, .closeAllButThis: return .closeOthers
+        case .closeToLeft:          return .closeToLeft
+        case .closeToRight:         return .closeToRight
+        case .closeUnchanged:       return .closeOthers // approximation
+        case .save:                 return .save
+        case .saveAs:               return .saveAs
+        case .rename:               return .rename
+        case .moveToTrash:          return .moveToTrash
+        case .reload:               return .reload
+        case .print:                return .print
+        case .toggleReadOnly, .clearReadOnly: return .toggleReadOnly
+        case .copyFullPath:         return .copyFullPath
+        case .copyFilename:         return .copyFilename
+        case .copyDirPath:          return .copyDirectoryPath
+        case .moveToStart:          return .moveToStart
+        case .moveToEnd:            return .moveToEnd
+        case .openContainingFolder, .openAsFolderWorkspace: return .openContainingFolder
+        case .openInTerminal:       return .openContainingFolderInTerminal
+        case .openInDefaultViewer:  return .openContainingFolder
+        case .applyColor1:          return .setColor(1)
+        case .applyColor2:          return .setColor(2)
+        case .applyColor3:          return .setColor(3)
+        case .applyColor4:          return .setColor(4)
+        case .applyColor5:          return .setColor(5)
+        case .removeColor:          return .setColor(nil)
+        case .pinTab, .unpinTab:    return .togglePin
+        }
+    }
+
+    private func specMenuItem(_ title: String, specAction: TabContextMenuAction) -> NSMenuItem {
+        if specAction == .close {
+            return ClosureMenuItem(title: Localization.string(.fileClose, default: "Close")) { [weak self] in self?.onClose() }
+        }
+        let tabAction = tabContextActionFor(specAction)
+        return ClosureMenuItem(title: title) { [weak self] in self?.onContextAction(tabAction) }
+    }
+
+    private func isActionEnabled(_ action: TabContextMenuAction, isFile: Bool) -> Bool {
+        switch action {
+        case .rename, .moveToTrash, .reload, .openContainingFolder,
+             .openInTerminal, .openAsFolderWorkspace, .openInDefaultViewer,
+             .copyFullPath, .copyDirPath:
+            return isFile
+        default:
+            return true
+        }
+    }
+
+    private func buildDefaultContextMenu() -> NSMenu {
         let menu = NSMenu(title: "")
         let isFile = { if case .file = self.item.identity { return true }; return false }()
 

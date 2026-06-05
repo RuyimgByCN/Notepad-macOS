@@ -3464,6 +3464,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyScintillaKeyRemaps(scintillaKeyMapStore.load())
     }
 
+    func applyTabContextMenuSpec(_ spec: TabContextMenuSpec?) {
+        tabBarView.tabContextMenuSpec = spec
+    }
+
     func applyStylePreferences(_ preferences: StylePreferences) {
         stylePreferences = preferences
         highlight()

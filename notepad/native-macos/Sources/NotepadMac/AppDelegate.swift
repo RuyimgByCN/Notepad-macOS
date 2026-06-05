@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var recentlyClosedDocuments: [URL] = []
     private var closeCompletions: [ObjectIdentifier: [() -> Void]] = [:]
     private var didCompleteLaunch = false
+    private var tabContextMenuSpec: TabContextMenuSpec?
 private var appearanceObservation: NSKeyValueObservation?
     private lazy var preferencesPanel = PreferencesPanelController(
         preferencesStore: preferencesStore,
@@ -155,6 +156,7 @@ private var appearanceObservation: NSKeyValueObservation?
         installAppearanceObserver()
         refreshRunMenu()
         refreshMacroMenu()
+        tabContextMenuSpec = TabContextMenuSpec.loadFromUserDirectory()
         // Apply custom shortcuts after main menu is built
         DispatchQueue.main.async { [weak self] in
             self?.shortcutMapperPanel.applyStoredShortcuts()
@@ -1408,6 +1410,7 @@ private var appearanceObservation: NSKeyValueObservation?
             newWindow.setFrame(currentFrame, display: false)
         }
 
+        controller.applyTabContextMenuSpec(tabContextMenuSpec)
         windows.append(controller)
         rebuildTabState(activeIdentity: controller.tabIdentity)
         // Switch to the new tab; activate() handles showing/hiding windows atomically.
