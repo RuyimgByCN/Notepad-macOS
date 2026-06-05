@@ -1310,7 +1310,7 @@ enum AppMenu {
     }
 
     @MainActor
-    static func refreshRecentFiles(maxCount: Int = 20, showFullPath: Bool = false) {
+    static func refreshRecentFiles(maxCount: Int = 20, showFullPath: Bool = false, customDisplayLength: Int = 0) {
         guard let installedOpenRecentMenu, let installedDelegate else { return }
 
         installedOpenRecentMenu.removeAllItems()
@@ -1338,9 +1338,15 @@ enum AppMenu {
 
         let capped = min(max(1, maxCount), recentURLs.count)
         for url in recentURLs.prefix(capped) {
-            let title = showFullPath
-                ? url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
-                : url.lastPathComponent
+            let fullPath = url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+            let title: String
+            if !showFullPath {
+                title = url.lastPathComponent
+            } else if customDisplayLength > 0 && fullPath.count > customDisplayLength {
+                title = "..." + String(fullPath.suffix(customDisplayLength))
+            } else {
+                title = fullPath
+            }
             let item = NSMenuItem(
                 title: title,
                 action: #selector(AppDelegate.openRecentFile(_:)),

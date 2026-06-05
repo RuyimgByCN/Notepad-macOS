@@ -1710,7 +1710,8 @@ private var appearanceObservation: NSKeyValueObservation?
         let prefs = preferencesStore.load()
         AppMenu.refreshRecentFiles(
             maxCount: prefs.recentFilesMaxCount,
-            showFullPath: prefs.recentFilesShowFullPath
+            showFullPath: prefs.recentFilesShowFullPath,
+            customDisplayLength: prefs.recentFilesCustomDisplayLength
         )
     }
 
