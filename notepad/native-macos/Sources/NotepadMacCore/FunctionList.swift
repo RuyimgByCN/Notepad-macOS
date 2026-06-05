@@ -81,6 +81,12 @@ public struct FunctionListDefinition: Equatable, Sendable {
             "kotlin.xml"
         case "sql", "mysql", "plsql", "mssql":
             "sql.xml"
+        case "powershell", "ps1", "psm1", "psd1":
+            "powershell.xml"
+        case "perl", "pm", "pl":
+            "perl.xml"
+        case "vb", "vbs", "bas":
+            "vb.xml"
         default:
             "\(languageName.lowercased()).xml"
         }
@@ -150,6 +156,14 @@ public enum FunctionListExtractor {
             extractR(from: text)
         case "scala":
             extractScala(from: text)
+        case "powershell", "ps1", "psm1", "psd1":
+            extractPowerShell(from: text)
+        case "perl", "pm", "pl":
+            extractPerl(from: text)
+        case "markdown", "md", "mkd", "mdown":
+            extractMarkdown(from: text)
+        case "vb", "vbs", "bas", "vba":
+            extractVisualBasic(from: text)
         default:
             definition == nil ? [] : extractCStyle(from: text)
         }
@@ -351,6 +365,50 @@ public enum FunctionListExtractor {
         )
         let functionSymbols = matches(
             pattern: #"(?m)^\s*(?:(?:override|private|protected|abstract|implicit|lazy|final)\s+)*def\s+([A-Za-z_][A-Za-z0-9_]*)\b"#,
+            in: text, kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractPowerShell(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?mi)^[ \t]*(?:class)\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text, kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?mi)^[ \t]*(?:function|filter)\s+(?:[A-Za-z]+-)?([A-Za-z_][A-Za-z0-9_-]*)"#,
+            in: text, kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractPerl(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?m)^[ \t]*package\s+([A-Za-z_][A-Za-z0-9_:]*)"#,
+            in: text, kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^[ \t]*sub\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text, kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractMarkdown(from text: String) -> [FunctionListSymbol] {
+        // Use headings (## Title) as navigation anchors, mapped to .function kind
+        let h1 = matches(pattern: #"(?m)^#\s+(.+)$"#, in: text, kind: .type)
+        let h2 = matches(pattern: #"(?m)^##\s+(.+)$"#, in: text, kind: .function)
+        let h3 = matches(pattern: #"(?m)^###\s+(.+)$"#, in: text, kind: .function)
+        return sortedUnique(h1 + h2 + h3)
+    }
+
+    private static func extractVisualBasic(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?mi)^[ \t]*(?:(?:Public|Private|Friend|Protected)\s+)?(?:Class|Module)\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text, kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?mi)^[ \t]*(?:(?:Public|Private|Protected|Friend|Static)\s+)*(?:Sub|Function|Property\s+(?:Get|Set|Let))\s+([A-Za-z_][A-Za-z0-9_]*)"#,
             in: text, kind: .function
         )
         return sortedUnique(typeSymbols + functionSymbols)

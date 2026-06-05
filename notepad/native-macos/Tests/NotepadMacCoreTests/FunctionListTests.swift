@@ -347,3 +347,91 @@ private func upstreamFunctionListURL(_ fileName: String) -> URL {
     #expect(names.contains("UserController"))
     #expect(names.contains("fetchAll"))
 }
+
+@Test func extractsPowerShellSymbols() {
+    let code = """
+    function Get-UserInfo {
+        param($userId)
+        return $userId
+    }
+
+    filter Convert-ToUpper {
+        $_.ToUpper()
+    }
+
+    class ApiClient {
+        [string]$BaseUrl
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "powershell", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Get-UserInfo") || names.contains("UserInfo"))
+    #expect(names.contains("Convert-ToUpper") || names.contains("ToUpper") || symbols.contains { $0.name.contains("Convert") })
+    #expect(names.contains("ApiClient"))
+}
+
+@Test func extractsPerlSymbols() {
+    let code = """
+    package MyApp::Utils;
+
+    sub validate_email {
+        my ($email) = @_;
+        return $email =~ /@/;
+    }
+
+    sub format_date {
+        return localtime();
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "perl", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("MyApp::Utils"))
+    #expect(names.contains("validate_email"))
+    #expect(names.contains("format_date"))
+}
+
+@Test func extractsMarkdownHeadings() {
+    let code = """
+    # Introduction
+
+    ## Getting Started
+
+    ### Installation
+
+    ## Configuration
+
+    # Conclusion
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "markdown", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Introduction"))
+    #expect(names.contains("Getting Started"))
+    #expect(names.contains("Installation"))
+    #expect(names.contains("Configuration"))
+    #expect(names.contains("Conclusion"))
+}
+
+@Test func extractsVisualBasicSymbols() {
+    let code = """
+    Public Class UserService
+        Public Function GetUser(id As Integer) As User
+            Return Nothing
+        End Function
+
+        Private Sub ValidateInput(name As String)
+        End Sub
+    End Class
+
+    Module Helpers
+        Public Function FormatDate() As String
+            Return Date.Now.ToString()
+        End Function
+    End Module
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "vb", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("UserService"))
+    #expect(names.contains("GetUser"))
+    #expect(names.contains("ValidateInput"))
+    #expect(names.contains("Helpers"))
+}
