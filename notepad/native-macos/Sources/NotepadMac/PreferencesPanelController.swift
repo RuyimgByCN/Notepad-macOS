@@ -123,6 +123,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let lineNumberDynamicWidthButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let columnSelectionToMultiEditingButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let showBookmarkMarginButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let showEdgeLineButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let edgeLineColumnLabel = NSTextField(labelWithString: "")
+    private let edgeLineColumnField = NSTextField(string: "80")
+    private let edgeLineColumnStepper = NSStepper()
     private let autoCompleteLabel = NSTextField(labelWithString: "")
     private let autoCompleteField = NSTextField(string: "3")
     private let autoCompleteStepper = NSStepper()
@@ -321,6 +325,16 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         lineNumberDynamicWidthButton.title = "Dynamic line number margin width"
         columnSelectionToMultiEditingButton.title = "Column selection converts to multi-cursor editing"
         showBookmarkMarginButton.title = "Show bookmark margin"
+        showEdgeLineButton.title = "Show edge line"
+        edgeLineColumnLabel.stringValue = "Edge column:"
+        edgeLineColumnField.stringValue = "80"
+        edgeLineColumnField.isEditable = true
+        edgeLineColumnField.isBordered = true
+        edgeLineColumnField.bezelStyle = .roundedBezel
+        edgeLineColumnStepper.minValue = 1
+        edgeLineColumnStepper.maxValue = 999
+        edgeLineColumnStepper.increment = 1
+        edgeLineColumnStepper.valueWraps = false
         linePaddingLabel.stringValue = Localization.string(.preferencesLinePadding, default: "Line padding:")
         autoCompleteLabel.stringValue = Localization.string(.preferencesAutoCompleteFrom, default: "Auto-complete from Nth character (0=off):")
         largeFileSectionLabel.stringValue = Localization.string(.preferencesLargeFileSection, default: "Large File")
@@ -530,6 +544,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         foldMarginStylePopup.removeAllItems()
         foldMarginStylePopup.addItems(withTitles: ["Simple arrows", "Box tree", "Circle tree"])
 
+        edgeLineColumnField.formatter = integerFormatter
+        edgeLineColumnStepper.target = self
+        edgeLineColumnStepper.action = #selector(controlChanged(_:))
+
         linePaddingSegmented.segmentCount = 6
         for i in 0...5 { linePaddingSegmented.setLabel("\(i)px", forSegment: i) }
         linePaddingSegmented.trackingMode = .selectOne
@@ -584,6 +602,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton,
          selectedTextDragDropButton, lineNumberDynamicWidthButton, columnSelectionToMultiEditingButton,
          showBookmarkMarginButton,
+         showEdgeLineButton, edgeLineColumnLabel, edgeLineColumnField, edgeLineColumnStepper,
          linePaddingLabel, linePaddingSegmented,
          autoCompleteLabel, autoCompleteField, autoCompleteStepper,
          largeFileSectionLabel, largeFileMBLabel, largeFileMBField, largeFileMBStepper,
@@ -794,8 +813,21 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             showBookmarkMarginButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             showBookmarkMarginButton.topAnchor.constraint(equalTo: columnSelectionToMultiEditingButton.bottomAnchor, constant: 10),
 
+            showEdgeLineButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            showEdgeLineButton.topAnchor.constraint(equalTo: showBookmarkMarginButton.bottomAnchor, constant: 10),
+
+            edgeLineColumnLabel.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            edgeLineColumnLabel.topAnchor.constraint(equalTo: showEdgeLineButton.bottomAnchor, constant: 8),
+
+            edgeLineColumnField.leadingAnchor.constraint(equalTo: edgeLineColumnLabel.trailingAnchor, constant: 8),
+            edgeLineColumnField.centerYAnchor.constraint(equalTo: edgeLineColumnLabel.centerYAnchor),
+            edgeLineColumnField.widthAnchor.constraint(equalToConstant: 60),
+
+            edgeLineColumnStepper.leadingAnchor.constraint(equalTo: edgeLineColumnField.trailingAnchor, constant: 4),
+            edgeLineColumnStepper.centerYAnchor.constraint(equalTo: edgeLineColumnField.centerYAnchor),
+
             linePaddingLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
-            linePaddingLabel.topAnchor.constraint(equalTo: showBookmarkMarginButton.bottomAnchor, constant: 14),
+            linePaddingLabel.topAnchor.constraint(equalTo: edgeLineColumnLabel.bottomAnchor, constant: 14),
 
             linePaddingSegmented.leadingAnchor.constraint(equalTo: linePaddingLabel.trailingAnchor, constant: 12),
             linePaddingSegmented.centerYAnchor.constraint(equalTo: linePaddingLabel.centerYAnchor),
@@ -1298,6 +1330,9 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         lineNumberDynamicWidthButton.state = preferences.lineNumberDynamicWidth ? .on : .off
         columnSelectionToMultiEditingButton.state = preferences.columnSelectionToMultiEditing ? .on : .off
         showBookmarkMarginButton.state = preferences.showBookmarkMargin ? .on : .off
+        showEdgeLineButton.state = preferences.showEdgeLine ? .on : .off
+        edgeLineColumnField.intValue = Int32(preferences.edgeLineColumn)
+        edgeLineColumnStepper.intValue = Int32(preferences.edgeLineColumn)
         linePaddingSegmented.selectedSegment = max(0, min(5, preferences.linePadding))
         autoCompleteField.intValue = Int32(preferences.autoCompleteFromNthChar)
         autoCompleteStepper.intValue = Int32(preferences.autoCompleteFromNthChar)
@@ -1380,6 +1415,12 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             autoCompleteField.intValue = autoCompleteStepper.intValue
         }
 
+        if sender as? NSTextField === edgeLineColumnField {
+            edgeLineColumnStepper.intValue = edgeLineColumnField.intValue
+        } else if edgeLineColumnStepper.intValue != edgeLineColumnField.intValue {
+            edgeLineColumnField.intValue = edgeLineColumnStepper.intValue
+        }
+
         if sender as? NSTextField === largeFileMBField {
             largeFileMBStepper.intValue = largeFileMBField.intValue
         } else if largeFileMBStepper.intValue != largeFileMBField.intValue {
@@ -1452,8 +1493,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             tabSize: Int(tabSizeField.intValue),
             insertSpacesInsteadOfTabs: insertSpacesButton.state == .on,
             showLineNumberMargin: existing.showLineNumberMargin,
-            showEdgeLine: existing.showEdgeLine,
-            edgeLineColumn: existing.edgeLineColumn,
+            showEdgeLine: showEdgeLineButton.state == .on,
+            edgeLineColumn: max(1, Int(edgeLineColumnField.intValue)),
             enableAutoPair: autoPairButton.state == .on,
             autoPairParentheses: autoPairParenthesesButton.state == .on,
             autoPairBrackets: autoPairBracketsButton.state == .on,

@@ -1143,6 +1143,7 @@ private var appearanceObservation: NSKeyValueObservation?
 
     @objc func showDebugInfo(_ sender: Any?) {
         let active = activeEditorController()
+        let _ = preferencesStore.load()
         let debugText = HelpSupport.debugInfoText(
             documentName: active?.windowListSortName ?? Localization.string(.editorUntitledDocumentName, default: "Untitled"),
             documentPath: active?.sessionFileURL?.path,
@@ -1153,7 +1154,12 @@ private var appearanceObservation: NSKeyValueObservation?
             documentLanguage: active?.languageDisplayName,
             activePluginCount: 0,
             savedCommandCount: savedRunCommandStore.load().count,
-            namedMacroCount: active?.namedMacros().count ?? 0
+            namedMacroCount: active?.namedMacros().count ?? 0,
+            currentTheme: active?.currentThemeName,
+            scintillaVersion: active?.scintillaVersion,
+            lexillaVersion: active?.lexillaVersion,
+            preferencesPath: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+                .appendingPathComponent("NotepadMac/preferences.json").path
         )
         let alert = NSAlert()
         alert.messageText = Localization.string(.helpDebugInfoPanelTitle, default: "Debug Info")

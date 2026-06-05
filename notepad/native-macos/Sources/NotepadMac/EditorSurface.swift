@@ -116,6 +116,9 @@ protocol EditorSurface: AnyObject {
     func applySmartHighlight(_ word: String, matchCase: Bool, wholeWord: Bool)
     func clearSmartHighlight()
 
+    // MARK: - Insert/Overtype mode
+    var isOvertype: Bool { get }
+
     // MARK: - NPC (Non-Printing Characters) display
     var supportsNpcDisplay: Bool { get }
     func applyNpcDisplay(_ show: Bool)
@@ -367,6 +370,8 @@ final class TextViewEditorSurface: EditorSurface {
     func nextChangedLine(from line: Int) -> Int? { nil }
     func previousChangedLine(from line: Int) -> Int? { nil }
     func clearChangeHistory() {}
+
+    var isOvertype: Bool { false }
 
     var supportsNpcDisplay: Bool { false }
     func applyNpcDisplay(_ show: Bool) {}
@@ -1435,6 +1440,12 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setChangeHistory, parameter: 1, value: 0)
     }
 
+    // MARK: - Insert/Overtype mode
+
+    var isOvertype: Bool {
+        (bridge.getGeneralProperty(ScintillaMessage.getOvertype, parameter: 0) ?? 0) != 0
+    }
+
     // MARK: - NPC (Non-Printing Characters) display
 
     var supportsNpcDisplay: Bool { true }
@@ -2405,6 +2416,7 @@ private enum ScintillaMessage {
     static let setIndentationGuides: Int32 = 2132
     static let setCaretLineBackAlpha: Int32 = 2470
     static let setCaretLineVisibleAlways: Int32 = 2655
+    static let getOvertype: Int32 = 2115
     static let lineFromPosition: Int32 = 2166
     static let scrollCaret: Int32 = 2169
     static let getFoldLevel: Int32 = 2223

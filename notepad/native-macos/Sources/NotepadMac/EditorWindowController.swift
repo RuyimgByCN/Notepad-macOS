@@ -4804,6 +4804,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if isMonitoringMode {
             parts.append(Localization.string(.editorStatusMonitoring, default: "Monitoring"))
         }
+        if editorSurface.isOvertype {
+            parts.append("OVR")
+        }
+        let defaultFontSize = preferencesStore.load().editorFontSize
+        let zoomPct = Int((fontSize / defaultFontSize * 100).rounded())
+        if zoomPct != 100 {
+            parts.append("Zoom: \(zoomPct)%")
+        }
         if !bookmarks.isEmpty {
             parts.append(String(
                 format: Localization.string(.editorStatusBookmarks, default: "Bookmarks %d"),
