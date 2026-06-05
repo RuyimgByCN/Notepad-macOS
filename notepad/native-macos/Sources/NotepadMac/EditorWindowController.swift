@@ -4776,11 +4776,22 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         ]
         let selLen = editorSurface.selectedRange.length
         if selLen > 0 {
-            parts.append(String(
-                format: Localization.string(.editorStatusSelection, default: "Sel: %d"),
-                locale: Locale.current,
-                selLen
-            ))
+            let selText = (editorSurface.text as NSString).substring(with: editorSurface.selectedRange)
+            let selLines = selText.components(separatedBy: "\n").count
+            if selLines > 1 {
+                parts.append(String(
+                    format: Localization.string(.editorStatusSelectionMultiLine, default: "Sel: %d | %d lines"),
+                    locale: Locale.current,
+                    selLen,
+                    selLines
+                ))
+            } else {
+                parts.append(String(
+                    format: Localization.string(.editorStatusSelection, default: "Sel: %d"),
+                    locale: Locale.current,
+                    selLen
+                ))
+            }
         }
         parts += [
             language.displayName,

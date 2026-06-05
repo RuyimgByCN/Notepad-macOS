@@ -40,6 +40,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
     private let findButton = NSButton(title: "", target: nil, action: nil)
     private let replaceButton = NSButton(title: "", target: nil, action: nil)
     private let replaceAllButton = NSButton(title: "", target: nil, action: nil)
+    private let countButton = NSButton(title: "", target: nil, action: nil)
     private let bookmarkAllButton = NSButton(title: "", target: nil, action: nil)
     private let replaceAllInAllButton = NSButton(title: "", target: nil, action: nil)
     private lazy var historyButton = NSButton(title: "\u{25BE}", target: self, action: #selector(showFindHistory(_:)))
@@ -321,6 +322,25 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
         )
     }
 
+    @objc private func countMatches(_ sender: Any?) {
+        guard !findField.stringValue.isEmpty else {
+            statusField.stringValue = Localization.string(.findStatusEnterText, default: "Enter text to find.")
+            return
+        }
+        saveSearchPreferences()
+        let text = editor?.editorSurface.text ?? ""
+        let matches = TextSearch.findAll(findField.stringValue, in: text, options: options)
+        if matches.isEmpty {
+            statusField.stringValue = Localization.string(.findStatusNoMatches, default: "No matches.")
+        } else {
+            statusField.stringValue = localizedString(
+                .findStatusMatchCount,
+                default: "%d match(es).",
+                matches.count
+            )
+        }
+    }
+
     @objc private func bookmarkAll(_ sender: Any?) {
         guard !findField.stringValue.isEmpty else {
             statusField.stringValue = Localization.string(.findStatusEnterText, default: "Enter text to find.")
@@ -431,6 +451,8 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
         replaceButton.action = #selector(replaceNext(_:))
         replaceAllButton.target = self
         replaceAllButton.action = #selector(replaceAll(_:))
+        countButton.target = self
+        countButton.action = #selector(countMatches(_:))
         bookmarkAllButton.target = self
         bookmarkAllButton.action = #selector(bookmarkAll(_:))
         replaceAllInAllButton.target = self
@@ -445,7 +467,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
         historyButton.setAccessibilityLabel("Find History")
 
         dotMatchesNewlineButton.toolTip = "Only applies to Regex search mode"
-        [findLabel, replaceLabel, directionLabel, findField, replaceField, matchCaseButton, wholeWordButton, wrapAroundButton, inSelectionButton, directionControl, searchModeControl, dotMatchesNewlineButton, findButton, replaceButton, replaceAllButton, replaceAllInAllButton, bookmarkAllButton, statusField, historyButton, replaceHistoryButton].forEach {
+        [findLabel, replaceLabel, directionLabel, findField, replaceField, matchCaseButton, wholeWordButton, wrapAroundButton, inSelectionButton, directionControl, searchModeControl, dotMatchesNewlineButton, findButton, replaceButton, replaceAllButton, replaceAllInAllButton, countButton, bookmarkAllButton, statusField, historyButton, replaceHistoryButton].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             contentView.addSubview($0)
         }
@@ -518,6 +540,9 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
             bookmarkAllButton.leadingAnchor.constraint(equalTo: findField.leadingAnchor),
             bookmarkAllButton.topAnchor.constraint(equalTo: findButton.bottomAnchor, constant: 10),
 
+            countButton.leadingAnchor.constraint(equalTo: bookmarkAllButton.trailingAnchor, constant: 10),
+            countButton.centerYAnchor.constraint(equalTo: bookmarkAllButton.centerYAnchor),
+
             statusField.leadingAnchor.constraint(equalTo: findField.leadingAnchor),
             statusField.trailingAnchor.constraint(equalTo: findField.trailingAnchor),
             statusField.topAnchor.constraint(equalTo: bookmarkAllButton.bottomAnchor, constant: 12)
@@ -542,6 +567,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
         replaceButton.title = Localization.string(.findReplaceButton, default: "Replace")
         replaceAllButton.title = Localization.string(.findReplaceAllButton, default: "Replace All")
         replaceAllInAllButton.title = Localization.string(.findReplaceAllInAllButton, default: "In All Open Docs")
+        countButton.title = Localization.string(.findCountButton, default: "Count")
         bookmarkAllButton.title = Localization.string(.findBookmarkAllButton, default: "Bookmark All")
     }
 
