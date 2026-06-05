@@ -26,7 +26,7 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
     // MARK: - Category
 
     enum Category: Int {
-        case mainMenu = 0, macros = 1, runCommands = 2
+        case mainMenu = 0, macros = 1, runCommands = 2, pluginCommands = 3
     }
     private var currentCategory: Category = .mainMenu
 
@@ -46,16 +46,21 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
     private let shortcutStore: CustomShortcutStore
     private let macroShortcutStore: MacroShortcutStore
     private let savedRunCommandStore: SavedRunCommandStore
+    private let pluginCommandShortcutStore: PluginCommandShortcutStore
+    /// Plugin catalog for enumerating plugin commands in the Plugin Commands tab
+    var pluginCatalog: PluginCatalog?
     var onShortcutsChanged: (() -> Void)?
     /// Called when macro menu should be rebuilt (e.g. after shortcut change)
     var onMacroShortcutsChanged: (() -> Void)?
 
     init(shortcutStore: CustomShortcutStore = CustomShortcutStore(),
          macroShortcutStore: MacroShortcutStore = MacroShortcutStore(),
-         savedRunCommandStore: SavedRunCommandStore = SavedRunCommandStore()) {
+         savedRunCommandStore: SavedRunCommandStore = SavedRunCommandStore(),
+         pluginCommandShortcutStore: PluginCommandShortcutStore = PluginCommandShortcutStore()) {
         self.shortcutStore = shortcutStore
         self.macroShortcutStore = macroShortcutStore
         self.savedRunCommandStore = savedRunCommandStore
+        self.pluginCommandShortcutStore = pluginCommandShortcutStore
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 540, height: 500),
             styleMask: [.titled, .closable, .resizable, .utilityWindow],
@@ -102,6 +107,8 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
             buildMacroEntries()
         case .runCommands:
             buildRunCommandEntries()
+        case .pluginCommands:
+            buildPluginCommandEntries()
         }
     }
 
@@ -147,6 +154,29 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
         if allEntries.isEmpty {
             allEntries = [Entry(title: "(No saved run commands)", menuItem: nil, keyEquivalent: "", modifierFlags: 0, isCustom: false)]
         }
+    }
+
+    private func buildPluginCommandEntries() {
+        let catalog = pluginCatalog ?? PluginCatalog.scan(directories: PluginCatalog.defaultPluginDirectories())
+        let plugins = catalog.plugins.filter { $0.commands.count > 0 }
+        guard !plugins.isEmpty else {
+            allEntries = [Entry(title: "(No plugin commands)", menuItem: nil, keyEquivalent: "", modifierFlags: 0, isCustom: false)]
+            return
+        }
+        var entries: [Entry] = []
+        for plugin in plugins {
+            for cmd in plugin.commands {
+                let sc = pluginCommandShortcutStore.shortcut(forPlugin: plugin.identifier, command: cmd.identifier)
+                entries.append(Entry(
+                    title: "\(plugin.displayName): \(cmd.title)",
+                    menuItem: nil,
+                    keyEquivalent: sc?.keyEquivalent ?? "",
+                    modifierFlags: sc?.modifierFlags ?? 0,
+                    isCustom: sc != nil
+                ))
+            }
+        }
+        allEntries = entries
     }
 
     private func collectEntries(from items: [NSMenuItem], into result: inout [Entry], customMap: [String: CustomShortcut]) {
@@ -242,6 +272,15 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
                 savedRunCommandStore.save(commands)
             }
             onShortcutsChanged?()
+        case .pluginCommands:
+            let parts = entry.title.components(separatedBy: ": ")
+            guard parts.count >= 2 else { break }
+            let pluginName = parts[0]
+            let commandTitle = parts.dropFirst().joined(separator: ": ")
+            if let plugin = pluginCatalog?.plugins.first(where: { $0.displayName == pluginName }),
+               let cmd = plugin.commands.first(where: { $0.title == commandTitle }) {
+                pluginCommandShortcutStore.clearShortcut(forPlugin: plugin.identifier, command: cmd.identifier)
+            }
         }
         buildEntries()
         applyFilter()
@@ -345,6 +384,27 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
             }
             shortcutDisplay = MacroShortcut(macroName: "", keyEquivalent: keyEq, modifierFlags: mods).displayString
             onShortcutsChanged?()
+        case .pluginCommands:
+            let parts = entry.title.components(separatedBy: ": ")
+            guard parts.count >= 2 else {
+                shortcutDisplay = ""
+                break
+            }
+            let pluginName = parts[0]
+            let commandTitle = parts.dropFirst().joined(separator: ": ")
+            if let plugin = pluginCatalog?.plugins.first(where: { $0.displayName == pluginName }),
+               let cmd = plugin.commands.first(where: { $0.title == commandTitle }) {
+                let sc = PluginCommandShortcut(
+                    pluginIdentifier: plugin.identifier,
+                    commandIdentifier: cmd.identifier,
+                    keyEquivalent: keyEq,
+                    modifierFlags: mods
+                )
+                pluginCommandShortcutStore.setShortcut(sc)
+                shortcutDisplay = sc.displayString
+            } else {
+                shortcutDisplay = ""
+            }
         }
         buildEntries()
         applyFilter()
@@ -455,10 +515,11 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
     private func configureContent() {
         guard let root = window?.contentView else { return }
 
-        categoryControl.segmentCount = 3
+        categoryControl.segmentCount = 4
         categoryControl.setLabel("Main Menu", forSegment: 0)
         categoryControl.setLabel("Macros", forSegment: 1)
         categoryControl.setLabel("Run Commands", forSegment: 2)
+        categoryControl.setLabel("Plugins", forSegment: 3)
         categoryControl.trackingMode = .selectOne
         categoryControl.selectedSegment = 0
         categoryControl.target = self
