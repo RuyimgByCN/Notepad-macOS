@@ -688,6 +688,7 @@ enum Localization {
         case themeClearDarkMode = "theme.clearDarkMode"
         case languageMenu = "menu.language"
         case languageUserDefined = "language.userDefined"
+        case languageOpenUDLDirectory = "language.openUDLDirectory"
         case menuRun = "menu.run"
         case runMenuCommand = "run.command"
         case runPanelTitle = "run.panelTitle"

@@ -1625,6 +1625,11 @@ enum AppMenu {
             action: #selector(AppDelegate.showUserDefinedLanguages(_:)),
             keyEquivalent: ""
         ).target = delegate
+        menu.addItem(
+            withTitle: Localization.string(.languageOpenUDLDirectory, default: "Open UDL Directory..."),
+            action: #selector(AppDelegate.openUDLDirectory(_:)),
+            keyEquivalent: ""
+        ).target = delegate
         menu.addItem(NSMenuItem.separator())
 
         let sorted = catalog.languages.sorted(by: { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending })

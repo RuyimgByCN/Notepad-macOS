@@ -997,6 +997,15 @@ private var appearanceObservation: NSKeyValueObservation?
         userDefinedLanguagePanel.show()
     }
 
+    @objc func openUDLDirectory(_ sender: Any?) {
+        let fm = FileManager.default
+        let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appending(path: "Library/Application Support")
+        let udlDir = appSupport.appending(path: "NotepadMac/userDefinedLanguages")
+        try? fm.createDirectory(at: udlDir, withIntermediateDirectories: true)
+        NSWorkspace.shared.open(udlDir)
+    }
+
     @objc func showMD5Generator(_ sender: Any?) {
         showHashGenerator(.md5)
     }
