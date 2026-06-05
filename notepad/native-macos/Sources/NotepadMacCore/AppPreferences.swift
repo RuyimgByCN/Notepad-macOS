@@ -102,6 +102,12 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let showNpcCharacters: Bool
     public let smartHighlightMatchCase: Bool
     public let smartHighlightWholeWord: Bool
+    /// When true, "Mark All" respects match-case
+    public let markAllMatchCase: Bool
+    /// When true, "Mark All" matches whole words only
+    public let markAllWholeWord: Bool
+    /// When true, compress the Language menu by hiding rarely-used entries
+    public let langMenuCompact: Bool
     public let caretWidth: Int      // 1 = thin, 2 = medium, 3 = thick
     public let enableVirtualSpace: Bool
     public let backspaceUnindents: Bool
@@ -249,6 +255,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         showNpcCharacters: Bool = false,
         smartHighlightMatchCase: Bool = false,
         smartHighlightWholeWord: Bool = true,
+        markAllMatchCase: Bool = false,
+        markAllWholeWord: Bool = false,
+        langMenuCompact: Bool = true,
         caretWidth: Int = 1,
         enableVirtualSpace: Bool = false,
         backspaceUnindents: Bool = true,
@@ -352,6 +361,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.showNpcCharacters = showNpcCharacters
         self.smartHighlightMatchCase = smartHighlightMatchCase
         self.smartHighlightWholeWord = smartHighlightWholeWord
+        self.markAllMatchCase = markAllMatchCase
+        self.markAllWholeWord = markAllWholeWord
+        self.langMenuCompact = langMenuCompact
         self.caretWidth = max(Self.minimumCaretWidth, min(caretWidth, Self.maximumCaretWidth))
         self.enableVirtualSpace = enableVirtualSpace
         self.backspaceUnindents = backspaceUnindents
@@ -525,6 +537,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             showNpcCharacters: showNpcCharacters,
             smartHighlightMatchCase: smartHighlightMatchCase ?? self.smartHighlightMatchCase,
             smartHighlightWholeWord: smartHighlightWholeWord ?? self.smartHighlightWholeWord,
+            markAllMatchCase: markAllMatchCase,
+            markAllWholeWord: markAllWholeWord,
+            langMenuCompact: langMenuCompact,
             caretWidth: caretWidth ?? self.caretWidth,
             enableVirtualSpace: enableVirtualSpace ?? self.enableVirtualSpace,
             backspaceUnindents: backspaceUnindents,
@@ -643,6 +658,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             showNpcCharacters: showNpcCharacters,
             smartHighlightMatchCase: smartHighlightMatchCase,
             smartHighlightWholeWord: smartHighlightWholeWord,
+            markAllMatchCase: markAllMatchCase,
+            markAllWholeWord: markAllWholeWord,
+            langMenuCompact: langMenuCompact,
             caretWidth: caretWidth,
             enableVirtualSpace: enableVirtualSpace,
             backspaceUnindents: backspaceUnindents,
@@ -763,6 +781,9 @@ public final class PreferencesStore {
         static let showNpcCharacters = "notepadMac.showNpcCharacters"
         static let smartHighlightMatchCase = "notepadMac.smartHighlightMatchCase"
         static let smartHighlightWholeWord = "notepadMac.smartHighlightWholeWord"
+        static let markAllMatchCase = "notepadMac.markAllMatchCase"
+        static let markAllWholeWord = "notepadMac.markAllWholeWord"
+        static let langMenuCompact = "notepadMac.langMenuCompact"
         static let caretWidth = "notepadMac.caretWidth"
         static let enableVirtualSpace = "notepadMac.enableVirtualSpace"
         static let backspaceUnindents = "notepadMac.backspaceUnindents"
@@ -878,6 +899,9 @@ public final class PreferencesStore {
             showNpcCharacters: defaults.object(forKey: Key.showNpcCharacters) as? Bool ?? AppPreferences.defaultValue.showNpcCharacters,
             smartHighlightMatchCase: defaults.object(forKey: Key.smartHighlightMatchCase) as? Bool ?? AppPreferences.defaultValue.smartHighlightMatchCase,
             smartHighlightWholeWord: defaults.object(forKey: Key.smartHighlightWholeWord) as? Bool ?? AppPreferences.defaultValue.smartHighlightWholeWord,
+            markAllMatchCase: defaults.object(forKey: Key.markAllMatchCase) as? Bool ?? AppPreferences.defaultValue.markAllMatchCase,
+            markAllWholeWord: defaults.object(forKey: Key.markAllWholeWord) as? Bool ?? AppPreferences.defaultValue.markAllWholeWord,
+            langMenuCompact: defaults.object(forKey: Key.langMenuCompact) as? Bool ?? AppPreferences.defaultValue.langMenuCompact,
             caretWidth: defaults.object(forKey: Key.caretWidth) as? Int ?? AppPreferences.defaultValue.caretWidth,
             enableVirtualSpace: defaults.object(forKey: Key.enableVirtualSpace) as? Bool ?? AppPreferences.defaultValue.enableVirtualSpace,
             backspaceUnindents: defaults.object(forKey: Key.backspaceUnindents) as? Bool ?? AppPreferences.defaultValue.backspaceUnindents,
@@ -988,6 +1012,9 @@ public final class PreferencesStore {
         defaults.set(preferences.showNpcCharacters, forKey: Key.showNpcCharacters)
         defaults.set(preferences.smartHighlightMatchCase, forKey: Key.smartHighlightMatchCase)
         defaults.set(preferences.smartHighlightWholeWord, forKey: Key.smartHighlightWholeWord)
+        defaults.set(preferences.markAllMatchCase, forKey: Key.markAllMatchCase)
+        defaults.set(preferences.markAllWholeWord, forKey: Key.markAllWholeWord)
+        defaults.set(preferences.langMenuCompact, forKey: Key.langMenuCompact)
         defaults.set(preferences.caretWidth, forKey: Key.caretWidth)
         defaults.set(preferences.enableVirtualSpace, forKey: Key.enableVirtualSpace)
         defaults.set(preferences.backspaceUnindents, forKey: Key.backspaceUnindents)

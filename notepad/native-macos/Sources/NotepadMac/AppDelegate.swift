@@ -115,7 +115,7 @@ private var appearanceObservation: NSKeyValueObservation?
     ) { [weak self] in
         guard let self else { return }
         self.reloadLanguageCatalog()
-        AppMenu.refreshLanguages(catalog: self.languageCatalog)
+        AppMenu.refreshLanguages(catalog: self.languageCatalog, compact: preferencesStore.load().langMenuCompact)
         self.windows.forEach { $0.applyLanguageCatalog(self.languageCatalog) }
     }
 
@@ -1704,6 +1704,7 @@ private var appearanceObservation: NSKeyValueObservation?
 
         windows.forEach { $0.applyPreferences(preferences) }
         refreshRecentFilesMenu()
+        AppMenu.refreshLanguages(catalog: languageCatalog, compact: preferences.langMenuCompact)
     }
 
     private func refreshRecentFilesMenu() {

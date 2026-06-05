@@ -1366,11 +1366,11 @@ enum AppMenu {
     }
 
     @MainActor
-    static func refreshLanguages(catalog: LanguageCatalog) {
+    static func refreshLanguages(catalog: LanguageCatalog, compact: Bool = false) {
         guard let installedLanguageMenu, let installedDelegate else { return }
 
         installedLanguageMenu.removeAllItems()
-        populateLanguages(menu: installedLanguageMenu, delegate: installedDelegate, catalog: catalog)
+        populateLanguages(menu: installedLanguageMenu, delegate: installedDelegate, catalog: catalog, compact: compact)
     }
 
     @MainActor
@@ -1541,10 +1541,19 @@ enum AppMenu {
     }
 
     @MainActor
+    // Languages shown in the top-level menu when compact mode is on
+    private static let commonLanguageNames: Set<String> = [
+        "normal", "c", "cpp", "csharp", "java", "javascript", "typescript",
+        "python", "ruby", "php", "swift", "go", "rust", "bash", "html",
+        "xml", "json", "yaml", "toml", "css", "sql", "markdown"
+    ]
+
+    @MainActor
     private static func populateLanguages(
         menu: NSMenu,
         delegate: AppDelegate,
-        catalog: LanguageCatalog
+        catalog: LanguageCatalog,
+        compact: Bool = false
     ) {
         menu.addItem(
             withTitle: Localization.string(.languageUserDefined, default: "User Defined Languages..."),
@@ -1553,14 +1562,33 @@ enum AppMenu {
         ).target = delegate
         menu.addItem(NSMenuItem.separator())
 
-        for language in catalog.languages.sorted(by: { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }) {
-            let item = NSMenuItem(
-                title: language.displayName,
-                action: #selector(EditorWindowController.setSyntaxLanguage(_:)),
-                keyEquivalent: ""
-            )
-            item.representedObject = language.name
-            menu.addItem(item)
+        let sorted = catalog.languages.sorted(by: { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending })
+        if compact {
+            let common = sorted.filter { commonLanguageNames.contains($0.name) }
+            let rare = sorted.filter { !commonLanguageNames.contains($0.name) }
+            for language in common {
+                let item = NSMenuItem(title: language.displayName, action: #selector(EditorWindowController.setSyntaxLanguage(_:)), keyEquivalent: "")
+                item.representedObject = language.name
+                menu.addItem(item)
+            }
+            if !rare.isEmpty {
+                menu.addItem(NSMenuItem.separator())
+                let othersMenu = NSMenu(title: "")
+                for language in rare {
+                    let item = NSMenuItem(title: language.displayName, action: #selector(EditorWindowController.setSyntaxLanguage(_:)), keyEquivalent: "")
+                    item.representedObject = language.name
+                    othersMenu.addItem(item)
+                }
+                let othersItem = NSMenuItem(title: "Others", action: nil, keyEquivalent: "")
+                othersItem.submenu = othersMenu
+                menu.addItem(othersItem)
+            }
+        } else {
+            for language in sorted {
+                let item = NSMenuItem(title: language.displayName, action: #selector(EditorWindowController.setSyntaxLanguage(_:)), keyEquivalent: "")
+                item.representedObject = language.name
+                menu.addItem(item)
+            }
         }
     }
 

@@ -97,6 +97,9 @@ final class PreferencesPanelController: NSWindowController {
     private let clickableLinksButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let smartHighlightMatchCaseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let smartHighlightWholeWordButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let markAllMatchCaseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let markAllWholeWordButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let langMenuCompactButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let caretWidthLabel = NSTextField(labelWithString: "")
     private let caretWidthSegmented = NSSegmentedControl()
     private let caretNoBlinkButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -253,6 +256,9 @@ final class PreferencesPanelController: NSWindowController {
         clickableLinksButton.title = Localization.string(.preferencesClickableLinks, default: "Highlight clickable links")
         smartHighlightMatchCaseButton.title = Localization.string(.preferencesSmartHighlightMatchCase, default: "Smart highlight: match case")
         smartHighlightWholeWordButton.title = Localization.string(.preferencesSmartHighlightWholeWord, default: "Smart highlight: whole word only")
+        markAllMatchCaseButton.title = "Mark All: match case"
+        markAllWholeWordButton.title = "Mark All: whole word only"
+        langMenuCompactButton.title = "Compact Language menu (hide rarely-used entries)"
         caretWidthLabel.stringValue = Localization.string(.preferencesCaretWidth, default: "Caret width:")
         if caretWidthSegmented.segmentCount == 3 {
             caretWidthSegmented.setLabel(Localization.string(.preferencesCaretWidthThin, default: "Thin"), forSegment: 0)
@@ -517,6 +523,7 @@ final class PreferencesPanelController: NSWindowController {
          autoPairCurlyBracketsButton, autoPairSingleQuotesButton, autoPairDoubleQuotesButton,
          xmlTagMatchButton, clickableLinksButton,
          smartHighlightMatchCaseButton, smartHighlightWholeWordButton,
+         markAllMatchCaseButton, markAllWholeWordButton, langMenuCompactButton,
          caretWidthLabel, caretWidthSegmented, caretNoBlinkButton,
          currentLineFrameLabel, currentLineFrameSegmented,
          lineWrapIndentLabel, lineWrapIndentPopup,
@@ -653,8 +660,17 @@ final class PreferencesPanelController: NSWindowController {
             smartHighlightWholeWordButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             smartHighlightWholeWordButton.topAnchor.constraint(equalTo: smartHighlightMatchCaseButton.bottomAnchor, constant: 10),
 
+            markAllMatchCaseButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            markAllMatchCaseButton.topAnchor.constraint(equalTo: smartHighlightWholeWordButton.bottomAnchor, constant: 10),
+
+            markAllWholeWordButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            markAllWholeWordButton.topAnchor.constraint(equalTo: markAllMatchCaseButton.bottomAnchor, constant: 6),
+
+            langMenuCompactButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            langMenuCompactButton.topAnchor.constraint(equalTo: markAllWholeWordButton.bottomAnchor, constant: 10),
+
             caretWidthLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
-            caretWidthLabel.topAnchor.constraint(equalTo: smartHighlightWholeWordButton.bottomAnchor, constant: 14),
+            caretWidthLabel.topAnchor.constraint(equalTo: langMenuCompactButton.bottomAnchor, constant: 14),
             caretWidthLabel.widthAnchor.constraint(equalToConstant: 92),
 
             caretWidthSegmented.leadingAnchor.constraint(equalTo: caretWidthLabel.trailingAnchor, constant: 12),
@@ -1141,6 +1157,9 @@ final class PreferencesPanelController: NSWindowController {
         clickableLinksButton.state = preferences.enableClickableLinks ? .on : .off
         smartHighlightMatchCaseButton.state = preferences.smartHighlightMatchCase ? .on : .off
         smartHighlightWholeWordButton.state = preferences.smartHighlightWholeWord ? .on : .off
+        markAllMatchCaseButton.state = preferences.markAllMatchCase ? .on : .off
+        markAllWholeWordButton.state = preferences.markAllWholeWord ? .on : .off
+        langMenuCompactButton.state = preferences.langMenuCompact ? .on : .off
         caretWidthSegmented.selectedSegment = max(0, min(2, preferences.caretWidth - 1))
         caretNoBlinkButton.state = preferences.caretNoBlink ? .on : .off
         currentLineFrameSegmented.selectedSegment = max(0, min(3, preferences.currentLineFrameWidth))
@@ -1341,6 +1360,9 @@ final class PreferencesPanelController: NSWindowController {
             showNpcCharacters: existing.showNpcCharacters,
             smartHighlightMatchCase: smartHighlightMatchCaseButton.state == .on,
             smartHighlightWholeWord: smartHighlightWholeWordButton.state == .on,
+            markAllMatchCase: markAllMatchCaseButton.state == .on,
+            markAllWholeWord: markAllWholeWordButton.state == .on,
+            langMenuCompact: langMenuCompactButton.state == .on,
             caretWidth: caretWidthSegmented.selectedSegment + 1,
             enableVirtualSpace: virtualSpaceButton.state == .on,
             backspaceUnindents: backspaceUnindentsButton.state == .on,
