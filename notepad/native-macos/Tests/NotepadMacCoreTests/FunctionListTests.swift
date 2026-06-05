@@ -727,3 +727,155 @@ private func upstreamFunctionListURL(_ fileName: String) -> URL {
     #expect(names.contains("MYFUNC"))
     #expect(names.contains("HELPER"))
 }
+
+@Test func extractsObjectiveCSymbols() {
+    let code = """
+    @interface MyViewController : UIViewController
+    @end
+
+    @implementation MyViewController
+    - (void)viewDidLoad {
+        [super viewDidLoad];
+    }
+
+    + (instancetype)sharedController {
+        return nil;
+    }
+
+    - (NSString *)titleForRow:(NSInteger)row {
+        return @"";
+    }
+    @end
+
+    @protocol MyDelegate
+    @end
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "objective-c", definition: nil)
+    let names = symbols.map(\.name)
+    let kinds = symbols.map(\.kind)
+    #expect(names.contains("MyViewController"))
+    #expect(names.contains("MyDelegate"))
+    #expect(kinds.contains(.type))
+    #expect(names.contains(where: { $0.hasPrefix("viewDidLoad") || $0.hasPrefix("sharedController") || $0.hasPrefix("titleForRow") }))
+}
+
+@Test func extractsCOBOLFreeParagraphs() {
+    let code = """
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. HELLO.
+
+    PROCEDURE DIVISION.
+        MAIN-LOGIC SECTION.
+        PROCESS-INPUT.
+            DISPLAY "Hello".
+            STOP RUN.
+        VALIDATE-DATA SECTION.
+        CHECK-FIELD.
+            CONTINUE.
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "cobol-free", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains(where: { $0.hasPrefix("MAIN-LOGIC") || $0.hasPrefix("VALIDATE-DATA") }))
+    #expect(!names.isEmpty)
+}
+
+@Test func extractsElixirSymbols() {
+    let code = """
+    defmodule MyApp.Server do
+      def start_link(opts) do
+        GenServer.start_link(__MODULE__, opts)
+      end
+
+      defp handle_state(state) do
+        state
+      end
+    end
+
+    defmodule MyApp.Worker do
+      def perform(job) do
+        :ok
+      end
+    end
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "elixir", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("MyApp.Server"))
+    #expect(names.contains("MyApp.Worker"))
+    #expect(names.contains("start_link"))
+    #expect(names.contains("perform"))
+}
+
+@Test func extractsErlangFunctions() {
+    let code = """
+    -module(calculator).
+    -export([add/2, subtract/2, multiply/2]).
+
+    add(X, Y) ->
+        X + Y.
+
+    subtract(X, Y) ->
+        X - Y.
+
+    multiply(X, Y) ->
+        X * Y.
+
+    internal_helper(X) ->
+        X * 2.
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "erlang", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("add"))
+    #expect(names.contains("subtract"))
+    #expect(names.contains("multiply"))
+    #expect(names.contains("internal_helper"))
+}
+
+@Test func extractsOCamlSymbols() {
+    let code = """
+    type point = { x: float; y: float }
+
+    type shape =
+      | Circle of float
+      | Rectangle of float * float
+
+    let distance p1 p2 =
+      sqrt ((p2.x -. p1.x) ** 2.0 +. (p2.y -. p1.y) ** 2.0)
+
+    let rec factorial n =
+      if n <= 1 then 1 else n * factorial (n - 1)
+
+    let area = function
+      | Circle r -> Float.pi *. r *. r
+      | Rectangle (w, h) -> w *. h
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "ocaml", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("point"))
+    #expect(names.contains("shape"))
+    #expect(names.contains("distance"))
+    #expect(names.contains("factorial"))
+}
+
+@Test func extractsFSharpSymbols() {
+    let code = """
+    type Vector2D = { X: float; Y: float }
+
+    type Shape =
+        | Circle of float
+        | Rectangle of float * float
+
+    let add x y = x + y
+
+    let rec fib n =
+        if n <= 1 then n else fib (n-1) + fib (n-2)
+
+    module MathUtils =
+        let square x = x * x
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "fsharp", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Vector2D"))
+    #expect(names.contains("Shape"))
+    #expect(names.contains("add"))
+    #expect(names.contains("fib"))
+}

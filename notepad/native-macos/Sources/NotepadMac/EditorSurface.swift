@@ -44,6 +44,7 @@ protocol EditorSurface: AnyObject {
     func applyScrollBeyondLastLine(_ enabled: Bool)
     func applySelectedTextDragDrop(_ enabled: Bool)
     func applyLineNumberDynamicWidth(_ enabled: Bool)
+    func applyBookmarkMarginVisible(_ visible: Bool)
     func applyColumnSelectionToMultiEditing(_ enabled: Bool)
     func showInlineAutoComplete(prefix: String, words: [String])
     func cancelInlineAutoComplete()
@@ -155,6 +156,10 @@ protocol EditorSurface: AnyObject {
     // MARK: - Copy/Cut behavior
     func applyCopyLineWithoutSelection(_ enabled: Bool)
 
+    /// Returns styled segments of the selected text for rich copy (HTML/RTF).
+    /// Falls back to a single plain segment when style info is unavailable.
+    func styledSegments(ofSelection range: NSRange) -> [StyledSegment]
+
     // MARK: - Scintilla key remapping
     func applyScintillaKeyRemaps(_ remaps: [ScintillaKeyRemap])
 
@@ -247,6 +252,7 @@ final class TextViewEditorSurface: EditorSurface {
     func applyScrollBeyondLastLine(_ enabled: Bool) {}
     func applySelectedTextDragDrop(_ enabled: Bool) {}
     func applyLineNumberDynamicWidth(_ enabled: Bool) {}
+    func applyBookmarkMarginVisible(_ visible: Bool) {}
     func applyColumnSelectionToMultiEditing(_ enabled: Bool) {}
     func showInlineAutoComplete(prefix: String, words: [String]) {}
     func cancelInlineAutoComplete() {}
@@ -392,6 +398,12 @@ final class TextViewEditorSurface: EditorSurface {
     func applyLinePadding(_ pixels: Int) {}
     func applyBidirectional(_ mode: Int) {}
     func applyCopyLineWithoutSelection(_ enabled: Bool) {}
+    func styledSegments(ofSelection range: NSRange) -> [StyledSegment] {
+        let nsText = textView.string as NSString
+        let text = (range.location + range.length <= nsText.length)
+            ? nsText.substring(with: range) : ""
+        return [StyledSegment(text: text, foreColor: 0x000000, backColor: 0xFFFFFF, bold: false, italic: false)]
+    }
     func applyScintillaKeyRemaps(_ remaps: [ScintillaKeyRemap]) {}
     func setContextMenu(_ menu: NSMenu?) { textView.menu = menu }
     func scrollToSelection() {
@@ -675,6 +687,11 @@ final class ScintillaEditorSurface: EditorSurface {
         // When enabled, set to 0 so the existing applyEditorSurface logic sizes it.
         let marginWidth = enabled ? 0 : 40
         bridge.setGeneralProperty(ScintillaMessage.setMarginWidth, parameter: 0, value: CLong(marginWidth))
+    }
+
+    func applyBookmarkMarginVisible(_ visible: Bool) {
+        let width: CLong = visible ? 16 : 0
+        bridge.setGeneralProperty(ScintillaMessage.setMarginWidth, parameter: ScintillaMargin.bookmark, value: width)
     }
 
     func applyColumnSelectionToMultiEditing(_ enabled: Bool) {
@@ -1753,6 +1770,80 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setCopyAllowsLineSelection, parameter: enabled ? 1 : 0, value: 0)
     }
 
+    func styledSegments(ofSelection range: NSRange) -> [StyledSegment] {
+        let fullText = text
+        let nsText = fullText as NSString
+        guard range.location + range.length <= nsText.length,
+              let startByte = scintillaPosition(in: fullText, utf16Location: range.location),
+              let endByte = scintillaPosition(in: fullText, utf16Location: NSMaxRange(range)),
+              startByte < endByte
+        else {
+            let text = nsText.substring(with: range)
+            return [StyledSegment(text: text, foreColor: 0x000000, backColor: 0xFFFFFF, bold: false, italic: false)]
+        }
+
+        // Limit: style extraction per byte is expensive via dynamic dispatch;
+        // fall back to plain segment for very large selections (>32 KB).
+        let byteCount = Int(endByte - startByte)
+        guard byteCount <= 32_768 else {
+            let text = nsText.substring(with: range)
+            return [StyledSegment(text: text, foreColor: 0x000000, backColor: 0xFFFFFF, bold: false, italic: false)]
+        }
+
+        // Build per-byte style array and collect unique style IDs.
+        var byteStyles = [UInt8](repeating: 0, count: byteCount)
+        var uniqueStyles = Set<UInt8>()
+        for offset in 0..<byteCount {
+            let pos = startByte + CLong(offset)
+            let style = UInt8(truncatingIfNeeded: bridge.getGeneralProperty(ScintillaMessage.getStyleAt, parameter: pos) ?? 0)
+            byteStyles[offset] = style
+            uniqueStyles.insert(style)
+        }
+
+        // Query style properties for each unique style.
+        var styleInfo: [UInt8: (fore: Int, back: Int, bold: Bool, italic: Bool)] = [:]
+        for s in uniqueStyles {
+            let rawFore = Int(bridge.getGeneralProperty(ScintillaMessage.styleGetFore, parameter: CLong(s)) ?? 0)
+            let rawBack = Int(bridge.getGeneralProperty(ScintillaMessage.styleGetBack, parameter: CLong(s)) ?? 0)
+            // Scintilla colours are 0x00BBGGRR; convert to 0x00RRGGBB.
+            let fore = Self.bgrToRGB(rawFore)
+            let back = Self.bgrToRGB(rawBack)
+            let bold = (bridge.getGeneralProperty(ScintillaMessage.styleGetBold, parameter: CLong(s)) ?? 0) != 0
+            let italic = (bridge.getGeneralProperty(ScintillaMessage.styleGetItalic, parameter: CLong(s)) ?? 0) != 0
+            styleInfo[s] = (fore: fore, back: back, bold: bold, italic: italic)
+        }
+
+        // Group consecutive bytes with the same style and convert to text segments.
+        var segments: [StyledSegment] = []
+        var runStart = 0
+        for i in 1...byteCount {
+            if i == byteCount || byteStyles[i] != byteStyles[runStart] {
+                let byteBegin = Int(startByte) + runStart
+                let byteEnd = Int(startByte) + i
+                let utf8 = fullText.utf8
+                let startIdx = utf8.index(utf8.startIndex, offsetBy: byteBegin)
+                let endIdx = utf8.index(utf8.startIndex, offsetBy: byteEnd)
+                if let sStart = String.Index(startIdx, within: fullText),
+                   let sEnd = String.Index(endIdx, within: fullText) {
+                    let segText = String(fullText[sStart..<sEnd])
+                    if let info = styleInfo[byteStyles[runStart]] {
+                        segments.append(StyledSegment(text: segText, foreColor: info.fore, backColor: info.back, bold: info.bold, italic: info.italic))
+                    }
+                }
+                runStart = i
+            }
+        }
+        return segments
+    }
+
+    /// Convert Scintilla 0x00BBGGRR colour to 0x00RRGGBB.
+    private static func bgrToRGB(_ bgr: Int) -> Int {
+        let r = bgr & 0xFF
+        let g = (bgr >> 8) & 0xFF
+        let b = (bgr >> 16) & 0xFF
+        return (r << 16) | (g << 8) | b
+    }
+
     func applyScintillaKeyRemaps(_ remaps: [ScintillaKeyRemap]) {
         for remap in remaps {
             if remap.key == 0 {
@@ -2444,6 +2535,12 @@ private enum ScintillaMessage {
     static let setBidirectional: Int32 = 2709
     static let setCopyAllowsLineSelection: Int32 = 2660
     static let setDragDropEnabled: Int32 = 2819
+    // Style query
+    static let getStyleAt: Int32 = 2498
+    static let styleGetFore: Int32 = 2481
+    static let styleGetBack: Int32 = 2482
+    static let styleGetBold: Int32 = 2483
+    static let styleGetItalic: Int32 = 2484
 }
 
 

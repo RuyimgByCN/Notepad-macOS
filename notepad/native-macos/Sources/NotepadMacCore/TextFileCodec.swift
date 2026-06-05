@@ -309,6 +309,20 @@ public enum TextFileCodec {
         throw ReadError.unsupportedEncoding
     }
 
+    /// Read a file forcing a specific encoding (for "Reload as Encoding").
+    public static func read(_ url: URL, forcingEncoding option: TextEncodingOption) throws -> LoadedTextFile {
+        let data = try Data(contentsOf: url)
+        guard let text = String(data: data, encoding: option.encoding) else {
+            throw ReadError.unsupportedEncoding
+        }
+        return LoadedTextFile(
+            text: text,
+            encoding: option.encoding,
+            lineEnding: LineEnding.detect(in: text),
+            hasByteOrderMark: data.hasByteOrderMark
+        )
+    }
+
     public static func write(
         _ text: String,
         to url: URL,

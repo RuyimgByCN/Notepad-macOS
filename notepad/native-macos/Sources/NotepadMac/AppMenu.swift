@@ -373,9 +373,17 @@ enum AppMenu {
 
         // Paste Special submenu
         let (pasteSpecialItem, pasteSpecialMenu) = makeSubmenu(.editPasteSpecialMenu, "Paste Special")
+        pasteSpecialMenu.addItem(withTitle: Localization.string(.editPasteAsPlainText, default: "Paste as Plain Text"), action: #selector(EditorWindowController.pasteAsPlainText(_:)), keyEquivalent: "V").keyEquivalentModifierMask = [.command, .shift, .option]
+        pasteSpecialMenu.addItem(NSMenuItem.separator())
         pasteSpecialMenu.addItem(withTitle: Localization.string(.editPasteHTMLContent, default: "Paste HTML Content"), action: #selector(EditorWindowController.pasteHtmlContent(_:)), keyEquivalent: "")
         pasteSpecialMenu.addItem(withTitle: Localization.string(.editPasteRTFContent, default: "Paste RTF Content"), action: #selector(EditorWindowController.pasteRtfContent(_:)), keyEquivalent: "")
         editMenu.addItem(pasteSpecialItem)
+
+        // Copy Special submenu
+        let (copySpecialItem, copySpecialMenu) = makeSubmenu(.editCopySpecialMenu, "Copy Special")
+        copySpecialMenu.addItem(withTitle: Localization.string(.editCopyAsHTML, default: "Copy as HTML"), action: #selector(EditorWindowController.copySelectionAsHTML(_:)), keyEquivalent: "")
+        copySpecialMenu.addItem(withTitle: Localization.string(.editCopyAsRTF, default: "Copy as RTF"), action: #selector(EditorWindowController.copySelectionAsRTF(_:)), keyEquivalent: "")
+        editMenu.addItem(copySpecialItem)
 
         // On Selection submenu
         let (onSelItem, onSelMenu) = makeSubmenu(.editOnSelectionMenu, "On Selection")
@@ -481,6 +489,18 @@ enum AppMenu {
             action: #selector(EditorWindowController.toggleByteOrderMark(_:)),
             keyEquivalent: ""
         )
+        // Reload as Encoding submenu
+        let reloadAsItem = NSMenuItem(title: Localization.string(.encodingReloadAs, default: "Reload as Encoding"), action: nil, keyEquivalent: "")
+        let reloadAsMenu = NSMenu(title: Localization.string(.encodingReloadAs, default: "Reload as Encoding"))
+        reloadAsItem.submenu = reloadAsMenu
+        for option in TextEncodingOption.allCases where option.encoding != .ascii {
+            reloadAsMenu.addItem(
+                withTitle: option.displayName,
+                action: #selector(EditorWindowController.reloadAsEncoding(_:)),
+                keyEquivalent: ""
+            ).representedObject = option.rawValue
+        }
+        encodingMenu.addItem(reloadAsItem)
         encodingMenu.addItem(NSMenuItem.separator())
         let lineEndingMenuItem = NSMenuItem(
             title: Localization.string(.lineEndingMenu, default: "EOL Conversion"),
@@ -666,6 +686,12 @@ enum AppMenu {
         bookmarkMenu.addItem(
             withTitle: Localization.string(.bookmarkClearAll, default: "Clear All Bookmarks"),
             action: #selector(EditorWindowController.clearBookmarks(_:)),
+            keyEquivalent: ""
+        )
+        bookmarkMenu.addItem(NSMenuItem.separator())
+        bookmarkMenu.addItem(
+            withTitle: Localization.string(.bookmarkAllMatches, default: "Bookmark All Matches..."),
+            action: #selector(EditorWindowController.bookmarkAllMatchesFromMenu(_:)),
             keyEquivalent: ""
         )
         bookmarkMenu.addItem(NSMenuItem.separator())
@@ -939,6 +965,7 @@ enum AppMenu {
         viewMenu.addItem(withTitle: Localization.string(.viewToggleLineWrap, default: "Toggle Line Wrap"), action: #selector(EditorWindowController.toggleLineWrap(_:)), keyEquivalent: "l")
         viewMenu.addItem(withTitle: Localization.string(.viewHighlightCurrentLine, default: "Highlight Current Line"), action: #selector(EditorWindowController.toggleCurrentLineHighlight(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewShowLineNumberMargin, default: "Show Line Number Margin"), action: #selector(EditorWindowController.toggleLineNumberMargin(_:)), keyEquivalent: "")
+        viewMenu.addItem(withTitle: Localization.string(.viewShowBookmarkMargin, default: "Show Bookmark Margin"), action: #selector(EditorWindowController.toggleBookmarkMargin(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewShowEdgeLine, default: "Show Edge Line"), action: #selector(EditorWindowController.toggleEdgeLine(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewChangeHistory, default: "Change History"), action: #selector(EditorWindowController.toggleChangeHistory(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewSmartHighlight, default: "Smart Highlight"), action: #selector(EditorWindowController.toggleSmartHighlight(_:)), keyEquivalent: "")
@@ -1001,6 +1028,7 @@ enum AppMenu {
             keyEquivalent: ""
         ).target = delegate
         viewMenu.addItem(withTitle: Localization.string(.viewFunctionList, default: "Function List..."), action: #selector(EditorWindowController.showFunctionList(_:)), keyEquivalent: "")
+        viewMenu.addItem(withTitle: Localization.string(.viewExportFunctionList, default: "Export Function List..."), action: #selector(EditorWindowController.exportFunctionList(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewFoundResults, default: "Found Results..."), action: #selector(AppDelegate.showFoundResultsPanel(_:)), keyEquivalent: "").target = delegate
         viewMenu.addItem(withTitle: Localization.string(.viewDocumentStatistics, default: "Document Statistics..."), action: #selector(EditorWindowController.showDocumentStatistics(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewMonitoring, default: "Monitoring (tail -f)"), action: #selector(EditorWindowController.toggleMonitoringMode(_:)), keyEquivalent: "")
@@ -1012,6 +1040,7 @@ enum AppMenu {
         viewMenu.addItem(NSMenuItem.separator())
 
         // --- Window chrome ---
+        viewMenu.addItem(withTitle: Localization.string(.viewShowToolbar, default: "Show Toolbar"), action: #selector(EditorWindowController.toggleToolbarVisibility(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewToggleStatusBar, default: "Show Status Bar"), action: #selector(EditorWindowController.toggleStatusBar(_:)), keyEquivalent: "")
         viewMenu.addItem(NSMenuItem.separator())
 

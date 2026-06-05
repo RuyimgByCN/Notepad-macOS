@@ -38,7 +38,11 @@ enum HelpSupport {
         documentLanguage: String? = nil,
         activePluginCount: Int = 0,
         savedCommandCount: Int = 0,
-        namedMacroCount: Int = 0
+        namedMacroCount: Int = 0,
+        currentTheme: String? = nil,
+        scintillaVersion: String? = nil,
+        lexillaVersion: String? = nil,
+        preferencesPath: String? = nil
     ) -> String {
         let bundle = Bundle.main
         let appVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Dev"
@@ -100,6 +104,10 @@ enum HelpSupport {
             "Saved macros: \(namedMacroCount)",
             "Command line: \(cmdLine.isEmpty ? "(none)" : cmdLine)",
         ]
+        if let theme = currentTheme { lines.append("Theme: \(theme)") }
+        if let sciVer = scintillaVersion { lines.append("Scintilla: \(sciVer)") }
+        if let lexVer = lexillaVersion { lines.append("Lexilla: \(lexVer)") }
+        if let prefsPath = preferencesPath { lines.append("Preferences: \(prefsPath)") }
         return lines.joined(separator: "\n")
     }
 

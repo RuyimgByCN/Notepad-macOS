@@ -115,6 +115,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var autoPairDoubleQuotes = false
     private var enablesClickableLinks = true
     private var showsLineNumberMargin = true
+    private var showsBookmarkMargin = true
     private var showsEdgeLine = false
     private var edgeLineColumn = 80
     private var showsStatusBar = true
@@ -206,6 +207,19 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     var languageDisplayName: String {
         language.displayName
+    }
+
+    var currentThemeName: String? {
+        // Theme name is managed by AppDelegate; not stored in AppPreferences
+        nil
+    }
+
+    var scintillaVersion: String? {
+        editorSurface is ScintillaEditorSurface ? "Cocoa (bundled)" : nil
+    }
+
+    var lexillaVersion: String? {
+        editorSurface is ScintillaEditorSurface ? "Cocoa (bundled)" : nil
     }
 
     var windowListSortPath: String {
@@ -367,6 +381,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.htmlXmlCloseTagEnabled = preferences.htmlXmlCloseTagEnabled
         self.enablesClickableLinks = preferences.enableClickableLinks
         self.showsLineNumberMargin = preferences.showLineNumberMargin
+        self.showsBookmarkMargin = preferences.showBookmarkMargin
         self.showsEdgeLine = preferences.showEdgeLine
         self.edgeLineColumn = preferences.edgeLineColumn
         self.smartHighlightMatchCase = preferences.smartHighlightUseFindSettings
@@ -431,6 +446,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.syncBookmarkMarkers(bookmarks)
         isDirty = true
         if showsLineNumberMargin { editorSurface.applyLineNumberMargin(true) }
+        editorSurface.applyBookmarkMarginVisible(showsBookmarkMargin)
         updateFirstLineTabName()
         updateTitle()
         highlight()
@@ -767,6 +783,29 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             updateStatus()
         } catch {
             // File unreadable; no change
+        }
+    }
+
+    /// Encoding > Reload as Encoding — reload current file interpreting it as a specific encoding.
+    @objc func reloadAsEncoding(_ sender: Any?) {
+        guard let menuItem = sender as? NSMenuItem,
+              let rawValue = menuItem.representedObject as? String,
+              let option = TextEncodingOption(rawValue: rawValue),
+              let url = fileURL
+        else { return }
+        do {
+            let loaded = try TextFileCodec.read(url, forcingEncoding: option)
+            encoding = loaded.encoding
+            savePolicy = TextFileSavePolicy.loaded(loaded)
+            editorSurface.text = loaded.text
+            isDirty = false
+            updateTitle()
+            updateStatus()
+        } catch {
+            presentMissingFeatureResource(
+                String(format: "Failed to reload file as %@: %@",
+                       option.displayName, error.localizedDescription)
+            )
         }
     }
 
@@ -1125,6 +1164,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyLineNumberMargin(showsLineNumberMargin)
     }
 
+    @objc func toggleBookmarkMargin(_ sender: Any?) {
+        showsBookmarkMargin.toggle()
+        saveCurrentEditorPreferences()
+        editorSurface.applyBookmarkMarginVisible(showsBookmarkMargin)
+    }
+
     @objc func toggleEdgeLine(_ sender: Any?) {
         guard editorSurface.supportsAdvancedViewOptions else { return }
         showsEdgeLine.toggle()
@@ -1195,6 +1240,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         showsStatusBar.toggle()
         saveCurrentEditorPreferences()
         applyStatusBarVisibility()
+    }
+
+    @objc func toggleToolbarVisibility(_ sender: Any?) {
+        guard let window = window else { return }
+        window.toolbar?.isVisible.toggle()
+        UserDefaults.standard.set(window.toolbar?.isVisible ?? true, forKey: "notepadMac.toolbarVisible")
     }
 
     @objc private func statusBarDoubleClicked(_ sender: Any?) {
@@ -1287,6 +1338,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return
         }
         insertText(attributed.string)
+    }
+
+    /// Paste as Plain Text — strips all formatting, inserts only the plain text string.
+    @objc func pasteAsPlainText(_ sender: Any?) {
+        let pb = NSPasteboard.general
+        guard let plain = pb.string(forType: .string) else {
+            beepIfEnabled()
+            return
+        }
+        insertText(plain)
     }
 
     @objc func pasteRtfContent(_ sender: Any?) {
@@ -1779,6 +1840,45 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func clearAllStyles(_ sender: Any?) {
         editorSurface.clearAllSearchIndicators()
+        updateStatus()
+    }
+
+    /// Context-menu "Find All" — highlights every occurrence of the query.
+    @objc func findAllInDocument(_ sender: Any?) {
+        let query = resolveFindQuery()
+        guard !query.isEmpty else {
+            beepIfEnabled()
+            return
+        }
+        let options = TextSearch.Options(matchCase: false, wholeWord: false, wraps: false, direction: .down)
+        let text = editorSurface.text
+        let matches = TextSearch.findAll(query, in: text, options: options)
+        guard !matches.isEmpty else {
+            beepIfEnabled()
+            return
+        }
+        // Highlight all matches using style-1 mark indicator.
+        editorSurface.markAllWithIndicator(.style1, ranges: matches)
+        // Move caret to first match.
+        editorSurface.setSelectedRange(matches[0])
+        updateStatus()
+    }
+
+    /// Context-menu "Mark All" — marks every occurrence with style 1 indicator.
+    @objc func markAllFromContextMenu(_ sender: Any?) {
+        let query = resolveFindQuery()
+        guard !query.isEmpty else {
+            beepIfEnabled()
+            return
+        }
+        let options = TextSearch.Options(matchCase: false, wholeWord: false, wraps: false, direction: .down)
+        let text = editorSurface.text
+        let matches = TextSearch.findAll(query, in: text, options: options)
+        guard !matches.isEmpty else {
+            beepIfEnabled()
+            return
+        }
+        editorSurface.markAllWithIndicator(.style1, ranges: matches)
         updateStatus()
     }
 
@@ -2529,6 +2629,37 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         copyToPasteboard(EditMenuSupport.documentClipboardString(for: fileURL, mode: .directoryPath))
     }
 
+    // MARK: - Copy as HTML / RTF
+
+    @objc func copySelectionAsHTML(_ sender: Any?) {
+        let range = editorSurface.selectedRange
+        guard range.length > 0 else { return }
+        let segments = editorSurface.styledSegments(ofSelection: range)
+        guard !segments.isEmpty else { return }
+
+        let html = RichTextConversion.htmlFromSegments(segments)
+        let plainText = segments.map(\.text).joined()
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(html, forType: .html)
+        pasteboard.setString(plainText, forType: .string)
+    }
+
+    @objc func copySelectionAsRTF(_ sender: Any?) {
+        let range = editorSurface.selectedRange
+        guard range.length > 0 else { return }
+        let segments = editorSurface.styledSegments(ofSelection: range)
+        guard !segments.isEmpty else { return }
+
+        let rtf = RichTextConversion.rtfFromSegments(segments)
+        let plainText = segments.map(\.text).joined()
+        guard let rtfData = rtf.data(using: .ascii) else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setData(rtfData, forType: .rtf)
+        pasteboard.setString(plainText, forType: .string)
+    }
+
     @objc func generateMD5SelectionIntoClipboard(_ sender: Any?) {
         copySelectionDigestToPasteboard(using: .md5)
     }
@@ -2905,6 +3036,54 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         ) { [weak self] symbol in
             self?.editorSurface.setSelectedRange(symbol.range)
             self?.updateStatus()
+        }
+    }
+
+    /// View > Export Function List... — extract symbols and save to a text file.
+    @objc func exportFunctionList(_ sender: Any?) {
+        guard let definition = FunctionListDefinition.loadDefault(languageName: language.name) else {
+            presentMissingFeatureResource(
+                String(
+                    format: Localization.string(
+                        .editorMissingFunctionList,
+                        default: "No function-list definition is available for %@."
+                    ),
+                    locale: Locale.current,
+                    language.displayName
+                )
+            )
+            return
+        }
+
+        let symbols = FunctionListExtractor.extract(
+            from: editorSurface.text,
+            languageName: language.name,
+            definition: definition
+        )
+
+        guard !symbols.isEmpty else {
+            presentMissingFeatureResource(
+                "No functions found in this document."
+            )
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = (displayName as NSString).deletingPathExtension + "_functions.txt"
+        panel.beginSheetModal(for: window!) { response in
+            guard response == .OK, let url = panel.url else { return }
+            let lines = symbols.map { symbol in
+                "\(symbol.line)\t\(symbol.kind.rawValue)\t\(symbol.name)"
+            }
+            let content = lines.joined(separator: "\n")
+            do {
+                try content.write(to: url, atomically: true, encoding: .utf8)
+            } catch {
+                self.presentMissingFeatureResource(
+                    String(format: "Failed to export function list: %@", error.localizedDescription)
+                )
+            }
         }
     }
 
@@ -3388,6 +3567,21 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         return (matches.count, matchingLines.count)
     }
 
+    /// Search > Bookmark > Bookmark All Matches — bookmarks every line containing a match.
+    @objc func bookmarkAllMatchesFromMenu(_ sender: Any?) {
+        let query = resolveFindQuery()
+        guard !query.isEmpty else {
+            beepIfEnabled()
+            return
+        }
+        let options = TextSearch.Options(matchCase: false, wholeWord: false, wraps: false, direction: .down)
+        let result = performBookmarkAllMatches(query: query, options: options)
+        guard result.matchCount > 0 else {
+            beepIfEnabled()
+            return
+        }
+    }
+
     func performIncrementalFind(query: String) -> Bool {
         editorSurface.hideIncrementalHighlight()
         guard !query.isEmpty else { return false }
@@ -3417,6 +3611,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         showsWrapSymbol = preferences.showWrapSymbol
         showsChangeHistory = preferences.showChangeHistory
         showsLineNumberMargin = preferences.showLineNumberMargin
+        showsBookmarkMargin = preferences.showBookmarkMargin
         showsEdgeLine = preferences.showEdgeLine
         edgeLineColumn = preferences.edgeLineColumn
         enablesAutoPair = preferences.enableAutoPair
@@ -3476,6 +3671,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         applyTabSettings(preferences.tabSize, insertSpaces: preferences.insertSpacesInsteadOfTabs)
         applyAdvancedViewOptions()
         editorSurface.applyLineNumberMargin(showsLineNumberMargin)
+        editorSurface.applyBookmarkMarginVisible(showsBookmarkMargin)
         editorSurface.applyEdgeLine(showsEdgeLine, column: edgeLineColumn)
         editorSurface.applyAutoCompleteChooseSingle(autoCompleteChooseSingle)
         editorSurface.applyAutoCompleteTABFillup(autoCompleteTABFillup)
@@ -3651,6 +3847,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case #selector(toggleLineNumberMargin(_:)):
             menuItem.state = showsLineNumberMargin ? .on : .off
             return true
+        case #selector(toggleBookmarkMargin(_:)):
+            menuItem.state = showsBookmarkMargin ? .on : .off
+            return true
         case #selector(toggleEdgeLine(_:)):
             menuItem.state = showsEdgeLine ? .on : .off
             return editorSurface.supportsAdvancedViewOptions
@@ -3779,6 +3978,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
              #selector(openInDefaultViewer(_:)),
              #selector(openContainingFolder(_:)):
             return isFileBacked
+        case #selector(toggleToolbarVisibility(_:)):
+            menuItem.state = (window?.toolbar?.isVisible ?? true) ? .on : .off
+            return true
+        case #selector(copySelectionAsHTML(_:)), #selector(copySelectionAsRTF(_:)):
+            return editorSurface.selectedRange.length > 0
+        case #selector(exportFunctionList(_:)):
+            return FunctionListDefinition.loadDefault(languageName: language.name) != nil
         default:
             break
         }
@@ -3798,6 +4004,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func configureToolbar() {
         window?.toolbar = editorToolbar.makeToolbar()
         window?.toolbarStyle = .unifiedCompact
+        // Restore saved toolbar visibility preference
+        let saved = UserDefaults.standard.object(forKey: "notepadMac.toolbarVisible") as? Bool ?? true
+        window?.toolbar?.isVisible = saved
     }
 
     private func configureContent() {
@@ -3971,11 +4180,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .paste:              return std(#selector(NSText.paste(_:)))
         case .delete:             return std(#selector(NSText.delete(_:)))
         case .selectAll:          return std(#selector(NSText.selectAll(_:)))
-        case .copyAsHTML:         return nil // not yet implemented
-        case .copyAsRTF:          return nil // not yet implemented
+        case .copyAsHTML:         return selfItem(#selector(copySelectionAsHTML(_:)))
+        case .copyAsRTF:          return selfItem(#selector(copySelectionAsRTF(_:)))
         case .duplicateLine:      return selfItem(#selector(duplicateLineOrSelection(_:)))
         case .deleteLine:         return selfItem(#selector(deleteLineOrSelection(_:)))
-        case .joinLines:          return nil // not yet implemented
+        case .joinLines:          return selfItem(#selector(joinSelectedLines(_:)))
         case .upperCase:          return selfItem(#selector(uppercaseSelection(_:)))
         case .lowerCase:          return selfItem(#selector(lowercaseSelection(_:)))
         case .properCase:         return selfItem(#selector(properCaseSelection(_:)))
@@ -3983,11 +4192,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .find:               return selfItem(#selector(showFindPanel(_:)))
         case .findNext:           return selfItem(#selector(findNext(_:)))
         case .findPrevious:       return selfItem(#selector(findPrevious(_:)))
-        case .findAll:            return nil // not yet implemented
+        case .findAll:            return selfItem(#selector(findAllInDocument(_:)))
         case .replace:            return selfItem(#selector(showReplacePanel(_:)))
         case .findInFiles:        return selfItem(#selector(showFindInFilesPanel(_:)))
         case .goToLine:           return selfItem(#selector(showGoToLinePanel(_:)))
-        case .markAllFind:        return nil // not yet implemented
+        case .markAllFind:        return selfItem(#selector(markAllFromContextMenu(_:)))
         case .searchOnInternet:   return selfItem(#selector(searchOnInternet(_:)))
         case .toggleFold:         return selfItem(#selector(toggleFoldAtCurrentLine(_:)))
         case .foldAll:            return selfItem(#selector(foldAll(_:)))
@@ -4524,7 +4733,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 enableAutoPair: enablesAutoPair,
                 enableXmlTagMatch: enablesXmlTagMatch,
                 enableClickableLinks: enablesClickableLinks,
-                showNpcCharacters: showsNpcCharacters
+                showNpcCharacters: showsNpcCharacters,
+                showBookmarkMargin: showsBookmarkMargin
             )
         preferencesStore.save(preferences)
     }

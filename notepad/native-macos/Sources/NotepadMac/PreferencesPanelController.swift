@@ -122,6 +122,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let selectedTextDragDropButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let lineNumberDynamicWidthButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let columnSelectionToMultiEditingButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let showBookmarkMarginButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoCompleteLabel = NSTextField(labelWithString: "")
     private let autoCompleteField = NSTextField(string: "3")
     private let autoCompleteStepper = NSStepper()
@@ -319,6 +320,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         selectedTextDragDropButton.title = "Allow dragging selected text within editor"
         lineNumberDynamicWidthButton.title = "Dynamic line number margin width"
         columnSelectionToMultiEditingButton.title = "Column selection converts to multi-cursor editing"
+        showBookmarkMarginButton.title = "Show bookmark margin"
         linePaddingLabel.stringValue = Localization.string(.preferencesLinePadding, default: "Line padding:")
         autoCompleteLabel.stringValue = Localization.string(.preferencesAutoCompleteFrom, default: "Auto-complete from Nth character (0=off):")
         largeFileSectionLabel.stringValue = Localization.string(.preferencesLargeFileSection, default: "Large File")
@@ -581,6 +583,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          foldMarginStyleLabel, foldMarginStylePopup,
          virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton,
          selectedTextDragDropButton, lineNumberDynamicWidthButton, columnSelectionToMultiEditingButton,
+         showBookmarkMarginButton,
          linePaddingLabel, linePaddingSegmented,
          autoCompleteLabel, autoCompleteField, autoCompleteStepper,
          largeFileSectionLabel, largeFileMBLabel, largeFileMBField, largeFileMBStepper,
@@ -788,8 +791,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             columnSelectionToMultiEditingButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             columnSelectionToMultiEditingButton.topAnchor.constraint(equalTo: lineNumberDynamicWidthButton.bottomAnchor, constant: 10),
 
+            showBookmarkMarginButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            showBookmarkMarginButton.topAnchor.constraint(equalTo: columnSelectionToMultiEditingButton.bottomAnchor, constant: 10),
+
             linePaddingLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
-            linePaddingLabel.topAnchor.constraint(equalTo: columnSelectionToMultiEditingButton.bottomAnchor, constant: 14),
+            linePaddingLabel.topAnchor.constraint(equalTo: showBookmarkMarginButton.bottomAnchor, constant: 14),
 
             linePaddingSegmented.leadingAnchor.constraint(equalTo: linePaddingLabel.trailingAnchor, constant: 12),
             linePaddingSegmented.centerYAnchor.constraint(equalTo: linePaddingLabel.centerYAnchor),
@@ -1291,6 +1297,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         selectedTextDragDropButton.state = preferences.selectedTextDragDrop ? .on : .off
         lineNumberDynamicWidthButton.state = preferences.lineNumberDynamicWidth ? .on : .off
         columnSelectionToMultiEditingButton.state = preferences.columnSelectionToMultiEditing ? .on : .off
+        showBookmarkMarginButton.state = preferences.showBookmarkMargin ? .on : .off
         linePaddingSegmented.selectedSegment = max(0, min(5, preferences.linePadding))
         autoCompleteField.intValue = Int32(preferences.autoCompleteFromNthChar)
         autoCompleteStepper.intValue = Int32(preferences.autoCompleteFromNthChar)
@@ -1550,7 +1557,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             lineNumberDynamicWidth: lineNumberDynamicWidthButton.state == .on,
             columnSelectionToMultiEditing: columnSelectionToMultiEditingButton.state == .on,
             appearanceMode: appearanceModeSegmented.selectedSegment,
-            taskListCustomTags: taskListTagsField.stringValue
+            taskListCustomTags: taskListTagsField.stringValue,
+            showBookmarkMargin: showBookmarkMarginButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()

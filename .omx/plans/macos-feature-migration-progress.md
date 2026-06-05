@@ -69,7 +69,7 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 | 部分迁移 | 50 项（绝大多数模块已有可用子集） |
 | 待迁移 | 2 项（多实例启动转发、插件 host 通信 API） |
 | Swift 源码（mac 端） | `Sources/NotepadMac` 41 文件 + `Sources/NotepadMacCore` 37 文件 |
-| 自动化测试 | 27 个测试文件，320 个测试用例（2026-06-05） |
+| 自动化测试 | 27 个测试文件，341 个测试用例（2026-06-06） |
 | 支持编码（Convert to / Encode in） | **28 种**（`TextEncodingOption`，含 CJK、Windows-125x、ISO-8859-2/15、KOI8-R、OEM CP437/CP850/CP866） |
 | 打包资源复用 | langs/stylers.model.xml、22 themes、34 APIs、48 functionList、94 nativeLang |
 | 命令行已解析 flag | `-nosession`、`-noPlugin`、`-alwaysOnTop`、`-ro`/`-fullReadOnly`、`-monitor`、`-multiInst`（接受）、`-openFoldersAsWorkspace`、`-l`/`-udl`、`-n`/`-c`/`-p`、`-x`/`-y` |
@@ -84,10 +84,10 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 | 上游菜单 | mac 端状态 | 已覆盖要点 | 主要缺口 |
 | --- | --- | --- | --- |
 | **File** | 部分迁移 | New/Open/Save/Save As/Save All/Close 系列/Print/Session/Workspace 入口/Recent/高级路径操作 | 自定义 open/save 过滤器与 checkbox、批量 glob/递归打开、`.lnk` 等价、权限提升重开 |
-| **Edit** | 部分迁移 | 行操作/排序/注释/列编辑/矩形面板/多选子菜单/粘贴 HTML·RTF/剪贴板历史/只读/RTL·LTR/Begin·End Select/自动完成 | Column Mode 菜单 parity、Binary clipboard、ANSI Character Panel、Begin/End Select in Column Mode |
-| **Search** | 部分迁移 | Find/Replace/Incremental/Find in Files/Mark/Style 1-5/书签/Change History 导航/Found Results 工作台/Find in Projects·Finder/Found Results next·prev/In-Selection 可配置阈值/Keep Find Dialog Open/**Find dialog 透明度**（P1 完成） | — (P1 search 全部完成) |
-| **View** | 部分迁移 | 折叠/换行/Function List/Document Map/Doc List/File Browser/全屏/置顶/Post-It/智能高亮/XML tag/空白符显示 | 克隆/多视图/sync scroll/monitoring/browser preview/Project Panel 1-3/NPC 细分 |
-| **Encoding** | 部分迁移 | Convert to + Encode in（**28 编码**，含 OEM CP437/CP850/CP866）、EOL 转换、UTF-8 BOM 开关 | uchardet 自动检测、ANSI 专用菜单布局、剩余 OEM codepage |
+| **Edit** | 部分迁移 | 行操作/排序/注释/列编辑/矩形面板/多选子菜单/粘贴 HTML·RTF/**Copy as HTML·RTF（Copy Special 子菜单）**/剪贴板历史/只读/RTL·LTR/Begin·End Select/自动完成/**上下文菜单 Join Lines/Find All/Mark All** | Binary clipboard、ANSI Character Panel、Begin/End Select in Column Mode |
+| **Search** | 部分迁移 | Find/Replace/Incremental/Find in Files/Mark/Style 1-5/书签/Change History 导航/Found Results 工作台/Find in Projects·Finder/Found Results next·prev/In-Selection 可配置阈值/Keep Find Dialog Open/**Find dialog 透明度**/**Bookmark All Matches 菜单入口** | — (P1 search 全部完成) |
+| **View** | 部分迁移 | 折叠/换行/Function List/Document Map/Doc List/File Browser/全屏/置顶/Post-It/智能高亮/XML tag/空白符显示/**Show Toolbar 开关（持久化）**/**Show Bookmark Margin 开关** | 克隆/多视图/sync scroll/browser preview/Project Panel 1-3/NPC 细分 |
+| **Encoding** | 部分迁移 | Convert to + Encode in（**28 编码**，含 OEM CP437/CP850/CP866）、EOL 转换、UTF-8 BOM 开关、**Auto-Detect**、**Reload as Encoding** 子菜单 | uchardet 自动检测、ANSI 专用菜单布局、剩余 OEM codepage |
 | **Language** | 部分迁移 | 动态语言菜单、UDL 管理面板、Style Configurator、Theme 菜单 | 完整 UDL 字段、external lexer、语言菜单 compact 偏好 |
 | **Settings** | 部分迁移 | Preferences 面板（字体/缩进/查找/备份/大文件/新文档/本地化/auto-complete mode·chooseSingle·TABFillup/in-selection threshold/tabbar/keepFindDialogOpen/**findDialogTransparency**/**Print header·footer·colorMode·fontSize**/**delimiter**/**statusBarVisible/shortTitle/saveAllConfirm/autoCompleteIgnoreNumbers** 等）、Shortcut Mapper（可编辑）、Import Theme、Window Tab、Print sub-section | shortcuts.xml 导入导出、contextMenu.xml、Macros/Run/Plugin/Scintilla Shortcut Mapper tabs |
 | **Tools** | 部分迁移 | MD5/SHA-1/SHA-256/SHA-512（文本/文件/选区） | — |
@@ -95,7 +95,7 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 | **Run** | 部分迁移 | Run 面板、变量展开、历史、保存命令、动态 Run 菜单 | Shortcut Mapper 集成、browse file、elevation |
 | **Plugins** | 部分迁移 | Plugin Admin、Open Folder、Import Plugin、Import Style Theme | `NPPM_*` API、Windows DLL 桥接、updater 事务 |
 | **Window** | 部分迁移 | Tab 导航/排序/Pin/Tab Color/Windows 对话框/Ctrl+Tab MRU | TabBar owner-draw、tab contextMenu.xml、droplist MRU |
-| **Help** | 部分迁移 | 命令行说明、主页/手册/论坛、Debug Info、About | 真实更新检查、crash dump、Debug Info 全字段 |
+| **Help** | 部分迁移 | 命令行说明、主页/手册/论坛、Debug Info（**含 Scintilla/Lexilla 版本、Preferences 路径**）、About | 真实更新检查、crash dump |
 
 ## 上游模块边界清单
 
@@ -219,7 +219,7 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 | `ScintillaComponent/Finder` Search Result 面板 | dockable Scintilla result view、foldable search/file headers、delete result/group、open all、copy/copy pathnames、wrap long lines、purge before every search、Find in Finder、result path extraction、same-line occurrence navigation、NPC/style refresh、read-only result buffer toggle。 | macOS 侧的结果表要升级为结果工作台；需要保留 occurrence mapping、文件路径集合、过滤后的二次搜索、复制/删除/折叠/样式刷新和键盘导航。 |
 | `WinControls/FindCharsInRange` | Non-ASCII 128-255、ASCII 0-127、custom 0-255 range、up/down direction、wrap around、range value error 本地化、Scintilla selection/ensure-visible 语义。 | macOS 已有 code point 自定义范围面板，但还要补上游 byte-range 预设、方向、wrap、错误文案和 core/UI 测试，避免 Unicode scalar 语义与上游 0-255 byte 语义混淆。 |
 | Search Mark/Style/Change History | Mark all one/all using style 1-5、clear/go/copy/delete by style、**Change History next/previous/clear（Search 子菜单）已迁移**；Found Results 工作台语义仍缺。 | 复用 Scintilla indicator/marker/change-history；主题 Mark Style 需完整映射。 |
-| Encoding 菜单 + `uchardet` | uchardet 自动检测、ANSI 专用菜单布局、OEM/DOS codepage 全集；Convert to/Encode in（25 编码）、BOM、EOL **已迁移** | 扩展 `TextEncodingOption`；可接 uchardet 或系统 charset detection |
+| Encoding 菜单 + `uchardet` | uchardet 自动检测、ANSI 专用菜单布局、OEM/DOS codepage 全集；Convert to/Encode in（**28 编码**）、BOM、EOL、**Auto-Detect**、**Reload as Encoding** **已迁移** | 扩展 `TextEncodingOption`；可接 uchardet 或系统 charset detection |
 | View 菜单 | **Post-It 已迁移**；仍缺 launch in browser、zoom restore/sync、clone/move/focus other view、NPC/Control Characters 细分、Project Panel 1-3、monitoring(tail -f)、sync scroll | 多视图/克隆需定义 buffer 共享语义 |
 | Window 菜单 | **Sort（8 模式）、Windows 对话框、Tab 导航/Move、Ctrl+Tab MRU 已迁移**；仍缺 TabBar droplist MRU、Recent Window 独立命令 | 在 AppKit tab/window state 上扩展 |
 | `WinControls/TabBar` + tab context/droplist | owner-draw tabbar、close/pin button image/order、hover/drag/drop/delete/pin notifications、vertical/multiline/reduced tab、tab to start/end、droplist MRU、custom tab context menu、tab drop context menu、per-state enable/check/localization。 | Tab/Window parity 不只是菜单命令；tab UI state、context menu XML、本地化和 dirty/read-only/monitoring 状态联动需要一起迁移。 |
@@ -515,3 +515,9 @@ scripts/smoke-packaged-app.sh
 | 2026-06-05 | P15：UDL Numbers（7 字段：prefix1/2、extras1/2、suffix1/2、range）→ Scintilla 关键字集 1-7；UDL Folders in Code（9 字段：code1/code2/comment open/middle/close）→ Scintilla 关键字集 10-18；SCLEX_USER lexer 自动检测（udlkw/udl_ 前缀键名）；修复 beepIfEnabled() 无限递归 bug；修复 zoomRestore validateMenuItem 硬编码字号 13；In-Selection 手动勾选阈值警告（inSelectionToggled + findInSelectionSmallWarning 本地化键）；Function List 新增 Makefile/GDScript/VHDL/Raku/SAS/Assembly/AutoIt/COBOL 共 8 种语言提取器（7 个测试）；修复 htmlXmlCloseTagEnabled 偏好未接入 close-tag 插入逻辑 bug；测试基线 314 |
 | 2026-06-05 | P16：Language > Open UDL Directory 命令（AppMenu + Localization + AppDelegate.openUDLDirectory 实现，打开 ~/Library/Application Support/NotepadMac/userDefinedLanguages/ ）；Function List 新增 BaanC/Hollywood/KRL/Universe BASIC/Sinumerik/NppExec 共 6 种语言提取器 + COBOL 补测试（6 个新测试）；测试基线 320 |
 | 2026-06-05 | P17：UDL Delimiters 1-8 支持（SCE_USER_KWLIST_DELIMITERS = keyword set 27）：EditorSurface 映射 "udl_delimiters"→27；UserDefinedLanguage 将 additionalKeywordLists["Delimiters"] 原始编码字符串直传 keywordGroups；UDL 编辑面板新增等宽 delimiters 字段（Notepad++ 格式占位符），高度从 1180 调至 1220，saveEdit 闭包写回；测试基线 320 |
+| 2026-06-05 | P18：UDL nesting bitmask 支持（SCI_SETPROPERTY "userDefine.nesting.XX"）：LanguageDefinition 新增 nestingProperties:[Int:Int]；init(userDefinedLanguage) 从 WordsStyle styleID + nesting 属性填充；applyHighlight 发送所有 nesting 属性；Fortran77 固定格式提取器（extractFortran77，跳过 C/c/* 注释行）；SCI_SETDRAGDROPENABLED(2819) 接入 applySelectedTextDragDrop；UDL Comments 关键字列表解析 lineComment/blockCommentStart/blockCommentEnd（格式 "00line 03block_open 04block_close"）；测试基线 324 |
+| 2026-06-05 | P19：Copy as HTML / Copy as RTF（EditorSurface.styledSegments 通过 SCI_GETSTYLEAT + SCI_STYLEGETFORE/BACK/BOLD/ITALIC 提取选区样式段，RichTextConversion 工具类生成 HTML/RTF，同时写入 public.html + public.rtf + public.utf8-plain-text 到剪贴板；32KB 选区限制 + plain-text fallback）；Edit 菜单新增 Copy Special 子菜单（Copy as HTML / Copy as RTF）；上下文菜单接线 Join Lines（joinSelectedLines）、Find All（findAllInDocument，标记全部匹配项到 style-1 indicator）、Mark All（markAllFromContextMenu）；View 菜单新增 Show Toolbar 开关（toggleToolbarVisibility + UserDefaults 持久化 + configureToolbar 恢复）；toolbarVisible 偏好字段进入 AppPreferences；validateMenuItem 补齐 toggleToolbarVisibility（勾选状态）+ copySelectionAsHTML/RTF（要求有选区）；10 个 RichTextConversion 单元测试；测试基线 334 |
+| 2026-06-05 | P20：Search > Bookmark > Bookmark All Matches 菜单入口（bookmarkAllMatchesFromMenu，使用 resolveFindQuery + performBookmarkAllMatches 为所有匹配行添加书签）；测试基线 334 |
+| 2026-06-05 | P21：Encoding > Reload as Encoding 子菜单（reloadAsEncoding，TextFileCodec.read(_:forcingEncoding:) 新增加载方法，按指定编码重新加载当前文件并替换编辑器内容）；View > Show Bookmark Margin 开关（toggleBookmarkMargin + applyBookmarkMarginVisible，Scintilla margin 1 宽度 16/0 切换 + validateMenuItem 勾选状态）；Debug Info 增强（Scintilla/Lexilla 版本、Preferences 路径、Theme 字段 + EditorWindowController 暴露属性 + 1 个新测试）；测试基线 335 |
+| 2026-06-05 | P22：Edit > Paste Special 子菜单（Paste as Plain Text 命令 pasteAsPlainText，读取 NSPasteboard public.utf8-plain-text 写入编辑器，绕过富文本格式）；View > Export Function List 命令（exportFunctionList，将当前语言 FunctionListExtractor 符号表输出为 .txt 文件到 NSSavePanel，格式 "name [type/function] L.行号"）；上下文菜单 copyAsHTML/copyAsRTF 接线完成（P9 遗留 nil）；Localization 新增 editCopySpecialMenu/editPasteAsPlainText/editCopyAsHTML/editCopyAsRTF/editFindAll/editMarkAll/bookmarkAllMatches/viewShowBookmarkMargin/viewShowToolbar/viewExportFunctionList/encodingReloadAs/encodingReloadFailed 键；Show Toolbar 菜单项从硬编码字符串改为 Localization.string(.viewShowToolbar)；测试基线 335 |
+| 2026-06-06 | P23：showBookmarkMargin 偏好完整持久化（AppPreferences 新增 showBookmarkMargin Bool 字段 + copy/withViewToggles/withBookmarkMarginVisible + PreferencesStore Key + load/save + applyPreferences 调用 applyBookmarkMarginVisible + saveCurrentEditorPreferences 传参）；Preferences 编辑 tab 新增 "Show bookmark margin" 复选框（showBookmarkMarginButton，load/save 完整绑定）；exportFunctionList validateMenuItem（依据 FunctionListDefinition.loadDefault 可用性启用菜单项）；Function List 新增 6 种语言提取器：Objective-C（@interface/@implementation/@protocol + [-+] 方法）、COBOL Free-form（SECTION/段落标签）、Elixir（defmodule/def/defp）、Erlang（模块级函数头）、OCaml（type/let/and/rec 绑定）、F#（type/let/and 绑定）+ 对应 6 个单元测试（extractsObjectiveCSymbols/extractsCOBOLFreeParagraphs/extractsElixirSymbols/extractsErlangFunctions/extractsOCamlSymbols/extractsFSharpSymbols）；测试基线 341 |

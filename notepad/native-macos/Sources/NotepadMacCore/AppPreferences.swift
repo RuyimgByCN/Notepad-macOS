@@ -228,6 +228,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let appearanceMode: Int
     /// Comma-separated list of tags for the Task List scanner (empty = use defaults)
     public let taskListCustomTags: String
+    /// When false, the toolbar is hidden on editor windows
+    public let toolbarVisible: Bool
+    /// When false, the bookmark/margin marker column is hidden
+    public let showBookmarkMargin: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -340,7 +344,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         lineNumberDynamicWidth: Bool = false,
         columnSelectionToMultiEditing: Bool = false,
         appearanceMode: Int = 0,
-        taskListCustomTags: String = ""
+        taskListCustomTags: String = "",
+        toolbarVisible: Bool = true,
+        showBookmarkMargin: Bool = true
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -453,6 +459,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.columnSelectionToMultiEditing = columnSelectionToMultiEditing
         self.appearanceMode = max(0, min(2, appearanceMode))
         self.taskListCustomTags = taskListCustomTags
+        self.toolbarVisible = toolbarVisible
+        self.showBookmarkMargin = showBookmarkMargin
     }
 
     /// Parse languageTabOverrides string into a dictionary.
@@ -525,7 +533,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         smartHighlightMatchCase: Bool? = nil,
         smartHighlightWholeWord: Bool? = nil,
         caretWidth: Int? = nil,
-        enableVirtualSpace: Bool? = nil
+        enableVirtualSpace: Bool? = nil,
+        showBookmarkMargin: Bool? = nil
     ) -> AppPreferences {
         AppPreferences(
             editorFontSize: editorFontSize ?? self.editorFontSize,
@@ -631,7 +640,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             muteAllSounds: muteAllSounds,
             selectedTextDragDrop: selectedTextDragDrop,
             lineNumberDynamicWidth: lineNumberDynamicWidth,
-            columnSelectionToMultiEditing: columnSelectionToMultiEditing
+            columnSelectionToMultiEditing: columnSelectionToMultiEditing,
+            taskListCustomTags: taskListCustomTags,
+            toolbarVisible: toolbarVisible,
+            showBookmarkMargin: showBookmarkMargin ?? self.showBookmarkMargin
         )
     }
 
@@ -648,7 +660,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         enableAutoPair: Bool,
         enableXmlTagMatch: Bool,
         enableClickableLinks: Bool,
-        showNpcCharacters: Bool
+        showNpcCharacters: Bool,
+        showBookmarkMargin: Bool
     ) -> AppPreferences {
         // Use copy() to ensure all newer fields are preserved
         AppPreferences(
@@ -756,8 +769,15 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             muteAllSounds: muteAllSounds,
             selectedTextDragDrop: selectedTextDragDrop,
             lineNumberDynamicWidth: lineNumberDynamicWidth,
-            columnSelectionToMultiEditing: columnSelectionToMultiEditing
+            columnSelectionToMultiEditing: columnSelectionToMultiEditing,
+            taskListCustomTags: taskListCustomTags,
+            toolbarVisible: toolbarVisible,
+            showBookmarkMargin: showBookmarkMargin
         )
+    }
+
+    public func withBookmarkMarginVisible(_ visible: Bool) -> AppPreferences {
+        copy(showBookmarkMargin: visible)
     }
 
     public func withSmartHighlightOptions(matchCase: Bool, wholeWord: Bool) -> AppPreferences {
@@ -893,6 +913,8 @@ public final class PreferencesStore {
         static let columnSelectionToMultiEditing = "notepadMac.columnSelectionToMultiEditing"
         static let appearanceMode = "notepadMac.appearanceMode"
         static let taskListCustomTags = "notepadMac.taskListCustomTags"
+        static let toolbarVisible = "notepadMac.toolbarVisible"
+        static let showBookmarkMargin = "notepadMac.showBookmarkMargin"
     }
 
     private let defaults: UserDefaults
@@ -1009,7 +1031,9 @@ public final class PreferencesStore {
             lineNumberDynamicWidth: defaults.object(forKey: Key.lineNumberDynamicWidth) as? Bool ?? false,
             columnSelectionToMultiEditing: defaults.object(forKey: Key.columnSelectionToMultiEditing) as? Bool ?? false,
             appearanceMode: defaults.object(forKey: Key.appearanceMode) as? Int ?? 0,
-            taskListCustomTags: defaults.string(forKey: Key.taskListCustomTags) ?? ""
+            taskListCustomTags: defaults.string(forKey: Key.taskListCustomTags) ?? "",
+            toolbarVisible: defaults.object(forKey: Key.toolbarVisible) as? Bool ?? true,
+            showBookmarkMargin: defaults.object(forKey: Key.showBookmarkMargin) as? Bool ?? true
         )
     }
 
@@ -1132,6 +1156,8 @@ public final class PreferencesStore {
         defaults.set(preferences.columnSelectionToMultiEditing, forKey: Key.columnSelectionToMultiEditing)
         defaults.set(preferences.appearanceMode, forKey: Key.appearanceMode)
         defaults.set(preferences.taskListCustomTags, forKey: Key.taskListCustomTags)
+        defaults.set(preferences.toolbarVisible, forKey: Key.toolbarVisible)
+        defaults.set(preferences.showBookmarkMargin, forKey: Key.showBookmarkMargin)
         defaults.synchronize()
     }
 

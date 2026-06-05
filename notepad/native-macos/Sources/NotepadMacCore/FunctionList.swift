@@ -69,7 +69,7 @@ public struct FunctionListDefinition: Equatable, Sendable {
         switch languageName.lowercased() {
         case "javascript", "javascript.js", "js", "jsx", "mjs":
             "javascript.js.xml"
-        case "objective-c", "objc":
+        case "objective-c", "objc", "objectivec", "m", "mm":
             "objc.xml"
         case "bash", "shell", "sh":
             "bash.xml"
@@ -145,6 +145,16 @@ public struct FunctionListDefinition: Equatable, Sendable {
             "sinumerik.xml"
         case "nppexec":
             "nppexec.xml"
+        case "cobol-free", "cobol_free", "cobolfree":
+            "cobol-free.xml"
+        case "elixir", "ex", "exs":
+            "elixir.xml"
+        case "erlang", "erl", "hrl":
+            "erlang.xml"
+        case "fsharp", "f#", "fs", "fsx":
+            "fsharp.xml"
+        case "ocaml", "ml", "mli":
+            "ocaml.xml"
         default:
             "\(languageName.lowercased()).xml"
         }
@@ -280,6 +290,18 @@ public enum FunctionListExtractor {
             extractSinumerik(from: text)
         case "nppexec":
             extractNppExec(from: text)
+        case "objective-c", "objc", "objectivec", "m", "mm":
+            extractObjectiveC(from: text)
+        case "cobol-free", "cobol_free", "cobolfree", "free-form-cobol":
+            extractCOBOLFree(from: text)
+        case "elixir", "ex", "exs":
+            extractElixir(from: text)
+        case "erlang", "erl", "hrl":
+            extractErlang(from: text)
+        case "ocaml", "ml", "mli":
+            extractOCaml(from: text)
+        case "fsharp", "f#", "fs", "fsx":
+            extractFSharp(from: text)
         default:
             definition == nil ? [] : extractCStyle(from: text)
         }
@@ -964,5 +986,83 @@ extension FunctionListExtractor {
             kind: .function
         )
         return sortedUnique(scriptSymbols + labelSymbols)
+    }
+
+    private static func extractObjectiveC(from text: String) -> [FunctionListSymbol] {
+        let classSymbols = matches(
+            pattern: #"(?m)^@(?:interface|implementation|protocol)\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text,
+            kind: .type
+        )
+        let methodSymbols = matches(
+            pattern: #"(?m)^[-+]\s*\([^)]+\)\s*([A-Za-z_][A-Za-z0-9_:]*)"#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(classSymbols + methodSymbols)
+    }
+
+    private static func extractCOBOLFree(from text: String) -> [FunctionListSymbol] {
+        let sectionSymbols = matches(
+            pattern: #"(?mi)^\s*([A-Za-z0-9][\w-]*)\s+SECTION\s*\."#,
+            in: text,
+            kind: .type
+        )
+        let paragraphSymbols = matches(
+            pattern: #"(?mi)^([A-Za-z][A-Za-z0-9-]*)\s*\."#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(sectionSymbols + paragraphSymbols)
+    }
+
+    private static func extractElixir(from text: String) -> [FunctionListSymbol] {
+        let moduleSymbols = matches(
+            pattern: #"(?m)^\s*defmodule\s+([\w.]+)"#,
+            in: text,
+            kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^\s*def(?:p)?\s+([A-Za-z_][A-Za-z0-9_?!]*)"#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(moduleSymbols + functionSymbols)
+    }
+
+    private static func extractErlang(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?m)^([a-z][A-Za-z0-9_]*)\s*\("#,
+            in: text,
+            kind: .function
+        )
+    }
+
+    private static func extractOCaml(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?m)^\s*type\s+([A-Za-z_][A-Za-z0-9_']*)"#,
+            in: text,
+            kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^\s*(?:let|and)\s+(?:rec\s+)?([A-Za-z_][A-Za-z0-9_']*)\s*(?:=|\?|~|[A-Za-z_\(])"#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractFSharp(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?m)^\s*type\s+([A-Za-z_][A-Za-z0-9_'<>]*)"#,
+            in: text,
+            kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^\s*(?:let|and)\s+(?:rec\s+)?([A-Za-z_][A-Za-z0-9_']*)\s"#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols)
     }
 }
