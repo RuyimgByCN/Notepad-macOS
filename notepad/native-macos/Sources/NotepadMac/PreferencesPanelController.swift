@@ -68,6 +68,7 @@ final class PreferencesPanelController: NSWindowController {
     private let autoCompleteIgnoreNumbersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let openDirFollowsDocButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let folderDropAsWorkspaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let folderDropRecursiveOpenButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let defaultLangLabel = NSTextField(labelWithString: "")
     private let defaultLangPopup = NSPopUpButton()
     private let additionalEdgeColumnsLabel = NSTextField(labelWithString: "")
@@ -343,6 +344,7 @@ final class PreferencesPanelController: NSWindowController {
         printLineNumbersButton.title = "Print line numbers"
         openDirFollowsDocButton.title = Localization.string(.preferencesOpenDirFollowsDoc, default: "Open dialog starts in the current document's directory")
         folderDropAsWorkspaceButton.title = Localization.string(.preferencesFolderDropAsWorkspace, default: "Open dropped folder as workspace")
+        folderDropRecursiveOpenButton.title = "Recursively open all files when dropping a folder"
         defaultLangLabel.stringValue = Localization.string(.preferencesDefaultLanguage, default: "Default language for new documents:")
         additionalEdgeColumnsLabel.stringValue = "Extra vertical edges (columns):"
         recentFilesShowFullPathButton.title = "Show full path in recent files menu"
@@ -557,7 +559,7 @@ final class PreferencesPanelController: NSWindowController {
          printHeaderSectionLabel, printHeaderLeftField, printHeaderCenterField, printHeaderRightField,
          printFooterSectionLabel, printFooterLeftField, printFooterCenterField, printFooterRightField,
          printColorModeLabel, printColorModePopup, printFontSizeLabel, printFontSizeField, printFontSizeStepper,
-         openDirFollowsDocButton, folderDropAsWorkspaceButton,
+         openDirFollowsDocButton, folderDropAsWorkspaceButton, folderDropRecursiveOpenButton,
          defaultLangLabel, defaultLangPopup,
          fileChangeDetectionButton
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; sessionCV.addSubview($0) }
@@ -908,8 +910,11 @@ final class PreferencesPanelController: NSWindowController {
             folderDropAsWorkspaceButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             folderDropAsWorkspaceButton.topAnchor.constraint(equalTo: openDirFollowsDocButton.bottomAnchor, constant: 10),
 
+            folderDropRecursiveOpenButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            folderDropRecursiveOpenButton.topAnchor.constraint(equalTo: folderDropAsWorkspaceButton.bottomAnchor, constant: 8),
+
             defaultLangLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
-            defaultLangLabel.topAnchor.constraint(equalTo: folderDropAsWorkspaceButton.bottomAnchor, constant: 14),
+            defaultLangLabel.topAnchor.constraint(equalTo: folderDropRecursiveOpenButton.bottomAnchor, constant: 14),
 
             defaultLangPopup.leadingAnchor.constraint(equalTo: defaultLangLabel.trailingAnchor, constant: 10),
             defaultLangPopup.centerYAnchor.constraint(equalTo: defaultLangLabel.centerYAnchor),
@@ -1186,6 +1191,7 @@ final class PreferencesPanelController: NSWindowController {
         printLineNumbersButton.state = preferences.printLineNumbers ? .on : .off
         openDirFollowsDocButton.state = preferences.openDirectoryFollowsDocument ? .on : .off
         folderDropAsWorkspaceButton.state = preferences.folderDropOpensAsWorkspace ? .on : .off
+        folderDropRecursiveOpenButton.state = preferences.folderDropRecursiveOpen ? .on : .off
         populateDefaultLangPopup(selected: preferences.defaultNewDocumentLanguageName)
         virtualSpaceButton.state = preferences.enableVirtualSpace ? .on : .off
         backspaceUnindentsButton.state = preferences.backspaceUnindents ? .on : .off
@@ -1392,6 +1398,7 @@ final class PreferencesPanelController: NSWindowController {
             openDirectoryFollowsDocument: openDirFollowsDocButton.state == .on,
             defaultNewDocumentLanguageName: selectedDefaultLangName,
             folderDropOpensAsWorkspace: folderDropAsWorkspaceButton.state == .on,
+            folderDropRecursiveOpen: folderDropRecursiveOpenButton.state == .on,
             extraURLSchemes: extraURLSchemesField.stringValue,
             newDocumentOnLaunch: newDocumentOnLaunchButton.state == .on,
             printLineNumbers: printLineNumbersButton.state == .on,

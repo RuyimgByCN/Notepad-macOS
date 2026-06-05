@@ -145,6 +145,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let extraURLSchemes: String
     /// When a folder is dropped or passed as argument, open it as a workspace instead of failing
     public let folderDropOpensAsWorkspace: Bool
+    /// When true, dropping a folder recursively opens all files within it (instead of ignoring)
+    public let folderDropRecursiveOpen: Bool
     /// When session restore is off and no files are provided, create a new empty document on launch
     public let newDocumentOnLaunch: Bool
     /// Opacity for Post-It mode window (0.0=transparent, 1.0=opaque)
@@ -287,6 +289,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         openDirectoryFollowsDocument: Bool = false,
         defaultNewDocumentLanguageName: String = "",
         folderDropOpensAsWorkspace: Bool = false,
+        folderDropRecursiveOpen: Bool = false,
         extraURLSchemes: String = "",
         newDocumentOnLaunch: Bool = true,
         postItAlpha: Double = 0.75,
@@ -393,6 +396,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.openDirectoryFollowsDocument = openDirectoryFollowsDocument
         self.defaultNewDocumentLanguageName = defaultNewDocumentLanguageName
         self.folderDropOpensAsWorkspace = folderDropOpensAsWorkspace
+        self.folderDropRecursiveOpen = folderDropRecursiveOpen
         self.extraURLSchemes = extraURLSchemes
         self.newDocumentOnLaunch = newDocumentOnLaunch
         self.postItAlpha = max(0.2, min(1.0, postItAlpha))
@@ -569,6 +573,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             openDirectoryFollowsDocument: openDirectoryFollowsDocument,
             defaultNewDocumentLanguageName: defaultNewDocumentLanguageName,
             folderDropOpensAsWorkspace: folderDropOpensAsWorkspace,
+            folderDropRecursiveOpen: folderDropRecursiveOpen,
             extraURLSchemes: extraURLSchemes,
             newDocumentOnLaunch: newDocumentOnLaunch,
             postItAlpha: postItAlpha,
@@ -690,6 +695,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             openDirectoryFollowsDocument: openDirectoryFollowsDocument,
             defaultNewDocumentLanguageName: defaultNewDocumentLanguageName,
             folderDropOpensAsWorkspace: folderDropOpensAsWorkspace,
+            folderDropRecursiveOpen: folderDropRecursiveOpen,
             extraURLSchemes: extraURLSchemes,
             newDocumentOnLaunch: newDocumentOnLaunch,
             postItAlpha: postItAlpha,
@@ -814,6 +820,7 @@ public final class PreferencesStore {
         static let openDirectoryFollowsDocument = "notepadMac.openDirectoryFollowsDocument"
         static let defaultNewDocumentLanguageName = "notepadMac.defaultNewDocumentLanguageName"
         static let folderDropOpensAsWorkspace = "notepadMac.folderDropOpensAsWorkspace"
+        static let folderDropRecursiveOpen = "notepadMac.folderDropRecursiveOpen"
         static let extraURLSchemes = "notepadMac.extraURLSchemes"
         static let newDocumentOnLaunch = "notepadMac.newDocumentOnLaunch"
         static let postItAlpha = "notepadMac.postItAlpha"
@@ -931,6 +938,7 @@ public final class PreferencesStore {
             openDirectoryFollowsDocument: defaults.object(forKey: Key.openDirectoryFollowsDocument) as? Bool ?? false,
             defaultNewDocumentLanguageName: defaults.string(forKey: Key.defaultNewDocumentLanguageName) ?? "",
             folderDropOpensAsWorkspace: defaults.object(forKey: Key.folderDropOpensAsWorkspace) as? Bool ?? false,
+            folderDropRecursiveOpen: defaults.object(forKey: Key.folderDropRecursiveOpen) as? Bool ?? false,
             extraURLSchemes: defaults.string(forKey: Key.extraURLSchemes) ?? "",
             newDocumentOnLaunch: defaults.object(forKey: Key.newDocumentOnLaunch) as? Bool ?? true,
             postItAlpha: defaults.object(forKey: Key.postItAlpha) as? Double ?? 0.75,
@@ -1045,6 +1053,7 @@ public final class PreferencesStore {
         defaults.set(preferences.openDirectoryFollowsDocument, forKey: Key.openDirectoryFollowsDocument)
         defaults.set(preferences.defaultNewDocumentLanguageName, forKey: Key.defaultNewDocumentLanguageName)
         defaults.set(preferences.folderDropOpensAsWorkspace, forKey: Key.folderDropOpensAsWorkspace)
+        defaults.set(preferences.folderDropRecursiveOpen, forKey: Key.folderDropRecursiveOpen)
         defaults.set(preferences.extraURLSchemes, forKey: Key.extraURLSchemes)
         defaults.set(preferences.newDocumentOnLaunch, forKey: Key.newDocumentOnLaunch)
         defaults.set(preferences.postItAlpha, forKey: Key.postItAlpha)

@@ -612,8 +612,11 @@ private var appearanceObservation: NSKeyValueObservation?
         // Handle directory URLs
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
-            if preferencesStore.load().folderDropOpensAsWorkspace {
+            let prefs = preferencesStore.load()
+            if prefs.folderDropOpensAsWorkspace {
                 loadWorkspaceFolder(url)
+            } else if prefs.folderDropRecursiveOpen {
+                openFolderRecursively(url)
             }
             // Don't open directories as text files regardless
             return nil
@@ -2239,6 +2242,37 @@ private var appearanceObservation: NSKeyValueObservation?
             showWorkspace(try WorkspaceDocument.folderWorkspace(from: url))
         } catch {
             NSApp.presentError(error)
+        }
+    }
+
+    private func openFolderRecursively(_ folderURL: URL) {
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(
+            at: folderURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        var fileURLs: [URL] = []
+        for case let fileURL as URL in enumerator {
+            guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
+                  values.isRegularFile == true else { continue }
+            fileURLs.append(fileURL)
+        }
+
+        guard !fileURLs.isEmpty else { return }
+
+        if fileURLs.count > 200 {
+            let alert = NSAlert()
+            alert.messageText = "Open \(fileURLs.count) files?"
+            alert.informativeText = "The folder '\(folderURL.lastPathComponent)' contains \(fileURLs.count) files. Opening all of them may slow down the application."
+            alert.addButton(withTitle: "Open All")
+            alert.addButton(withTitle: "Cancel")
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+
+        for url in fileURLs {
+            openFile(url)
         }
     }
 
