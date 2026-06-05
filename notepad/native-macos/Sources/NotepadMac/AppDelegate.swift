@@ -1715,7 +1715,8 @@ private var appearanceObservation: NSKeyValueObservation?
         AppMenu.refreshRecentFiles(
             maxCount: prefs.recentFilesMaxCount,
             showFullPath: prefs.recentFilesShowFullPath,
-            customDisplayLength: prefs.recentFilesCustomDisplayLength
+            customDisplayLength: prefs.recentFilesCustomDisplayLength,
+            inSubmenu: prefs.recentFilesInSubmenu
         )
     }
 

@@ -27,6 +27,11 @@ enum AppMenu {
     @MainActor
     private static weak var installedOpenRecentMenu: NSMenu?
     @MainActor
+    private static weak var installedOpenRecentItem: NSMenuItem?
+    @MainActor
+    private static weak var installedFileMenu: NSMenu?
+    private static let inlineRecentTag = 9900
+    @MainActor
     private static weak var installedWindowMenu: NSMenu?
     @MainActor
     private static weak var installedWindowListMenu: NSMenu?
@@ -93,6 +98,8 @@ enum AppMenu {
         recentItem.submenu = recentMenu
         recentItem.isEnabled = true
         installedOpenRecentMenu = recentMenu
+        installedOpenRecentItem = recentItem
+        installedFileMenu = fileMenu
         refreshRecentFiles()
         fileMenu.addItem(recentItem)
         fileMenu.addItem(NSMenuItem.separator())
@@ -1310,59 +1317,100 @@ enum AppMenu {
     }
 
     @MainActor
-    static func refreshRecentFiles(maxCount: Int = 20, showFullPath: Bool = false, customDisplayLength: Int = 0) {
+    static func refreshRecentFiles(
+        maxCount: Int = 20,
+        showFullPath: Bool = false,
+        customDisplayLength: Int = 0,
+        inSubmenu: Bool = true
+    ) {
         guard let installedOpenRecentMenu, let installedDelegate else { return }
 
+        // Remove any previously inserted inline items from File menu
+        installedFileMenu?.items
+            .filter { $0.tag == inlineRecentTag }
+            .forEach { installedFileMenu?.removeItem($0) }
+
+        installedOpenRecentItem?.isHidden = !inSubmenu
         installedOpenRecentMenu.removeAllItems()
+
         let recentURLs = NSDocumentController.shared.recentDocumentURLs
             .filter(\.isFileURL)
 
+        func makeTitle(for url: URL) -> String {
+            let fullPath = url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+            if !showFullPath { return url.lastPathComponent }
+            if customDisplayLength > 0 && fullPath.count > customDisplayLength {
+                return "..." + String(fullPath.suffix(customDisplayLength))
+            }
+            return fullPath
+        }
+
         if recentURLs.isEmpty {
-            let noRecentItem = NSMenuItem(
-                title: Localization.string(.fileNoRecentFiles, default: "No recent files"),
-                action: nil,
-                keyEquivalent: ""
-            )
-            noRecentItem.isEnabled = false
-            installedOpenRecentMenu.addItem(noRecentItem)
+            if inSubmenu {
+                let noRecentItem = NSMenuItem(
+                    title: Localization.string(.fileNoRecentFiles, default: "No recent files"),
+                    action: nil, keyEquivalent: ""
+                )
+                noRecentItem.isEnabled = false
+                installedOpenRecentMenu.addItem(noRecentItem)
+                installedOpenRecentMenu.addItem(NSMenuItem.separator())
+                let clearItem = NSMenuItem(
+                    title: Localization.string(.fileClearRecentFiles, default: "Clear Menu"),
+                    action: #selector(AppDelegate.clearRecentFiles(_:)), keyEquivalent: ""
+                )
+                clearItem.target = installedDelegate
+                installedOpenRecentMenu.addItem(clearItem)
+            }
+            return
+        }
+
+        let capped = min(max(1, maxCount), recentURLs.count)
+
+        if inSubmenu {
+            for url in recentURLs.prefix(capped) {
+                let item = NSMenuItem(title: makeTitle(for: url),
+                                     action: #selector(AppDelegate.openRecentFile(_:)),
+                                     keyEquivalent: "")
+                item.target = installedDelegate
+                item.representedObject = url.path
+                item.toolTip = url.path
+                installedOpenRecentMenu.addItem(item)
+            }
             installedOpenRecentMenu.addItem(NSMenuItem.separator())
+            installedOpenRecentMenu.addItem(
+                withTitle: Localization.string(.fileClearRecentFiles, default: "Clear Menu"),
+                action: #selector(AppDelegate.clearRecentFiles(_:)),
+                keyEquivalent: ""
+            ).target = installedDelegate
+        } else {
+            // Inline mode: insert items directly into File menu after "Open..."
+            guard let fileMenu = installedFileMenu,
+                  let openItem = fileMenu.items.first(where: { $0.action == #selector(AppDelegate.openDocument(_:)) }) else { return }
+            var insertIdx = (fileMenu.index(of: openItem)) + 1
+            for url in recentURLs.prefix(capped) {
+                let item = NSMenuItem(title: makeTitle(for: url),
+                                     action: #selector(AppDelegate.openRecentFile(_:)),
+                                     keyEquivalent: "")
+                item.target = installedDelegate
+                item.representedObject = url.path
+                item.toolTip = url.path
+                item.tag = inlineRecentTag
+                fileMenu.insertItem(item, at: insertIdx)
+                insertIdx += 1
+            }
+            let sepItem = NSMenuItem.separator()
+            sepItem.tag = inlineRecentTag
+            fileMenu.insertItem(sepItem, at: insertIdx)
+            insertIdx += 1
             let clearItem = NSMenuItem(
                 title: Localization.string(.fileClearRecentFiles, default: "Clear Menu"),
                 action: #selector(AppDelegate.clearRecentFiles(_:)),
                 keyEquivalent: ""
             )
             clearItem.target = installedDelegate
-            installedOpenRecentMenu.addItem(clearItem)
-            return
+            clearItem.tag = inlineRecentTag
+            fileMenu.insertItem(clearItem, at: insertIdx)
         }
-
-        let capped = min(max(1, maxCount), recentURLs.count)
-        for url in recentURLs.prefix(capped) {
-            let fullPath = url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
-            let title: String
-            if !showFullPath {
-                title = url.lastPathComponent
-            } else if customDisplayLength > 0 && fullPath.count > customDisplayLength {
-                title = "..." + String(fullPath.suffix(customDisplayLength))
-            } else {
-                title = fullPath
-            }
-            let item = NSMenuItem(
-                title: title,
-                action: #selector(AppDelegate.openRecentFile(_:)),
-                keyEquivalent: ""
-            )
-            item.target = installedDelegate
-            item.representedObject = url.path
-            item.toolTip = url.path
-            installedOpenRecentMenu.addItem(item)
-        }
-        installedOpenRecentMenu.addItem(NSMenuItem.separator())
-        installedOpenRecentMenu.addItem(
-            withTitle: Localization.string(.fileClearRecentFiles, default: "Clear Menu"),
-            action: #selector(AppDelegate.clearRecentFiles(_:)),
-            keyEquivalent: ""
-        ).target = installedDelegate
     }
 
     @MainActor
