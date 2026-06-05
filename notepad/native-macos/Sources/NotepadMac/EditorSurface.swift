@@ -924,12 +924,12 @@ final class ScintillaEditorSurface: EditorSurface {
             bridge.setReferenceProperty(ScintillaMessage.setILexer, parameter: 0, value: nil)
         }
 
-        for (index, keywords) in language.scintillaKeywordSets.prefix(ScintillaKeyword.maximumSets).enumerated() {
+        for (scintillaIndex, keywords) in language.scintillaKeywordSets where scintillaIndex < ScintillaKeyword.maximumSets {
             let keywordText = keywords.joined(separator: " ")
             keywordText.withCString { pointer in
                 bridge.setReferenceProperty(
                     ScintillaMessage.setKeywords,
-                    parameter: CLong(index),
+                    parameter: CLong(scintillaIndex),
                     value: UnsafeRawPointer(pointer)
                 )
             }
@@ -2547,21 +2547,56 @@ private enum ScintillaMarkerSymbol {
 }
 
 private extension LanguageDefinition {
-    var scintillaKeywordSets: [[String]] {
-        keywordGroups
-            .sorted { lhs, rhs in
-                keywordGroupPriority(lhs.key) < keywordGroupPriority(rhs.key)
-            }
-            .map(\.value)
-            .filter { !$0.isEmpty }
+    /// Returns (scintillaKeywordSetIndex, keywords) pairs in ascending index order.
+    /// For UDL languages (groups prefixed "udl_" or "udlkw"), the indices map to
+    /// SCE_USER_KWLIST_* constants so SCLEX_USER receives keywords at the right slots.
+    /// For standard languages, indices match the sequential position after priority sort,
+    /// which is what Lexilla's lexers expect.
+    var scintillaKeywordSets: [(index: Int, keywords: [String])] {
+        if isUserDefinedLanguage {
+            return keywordGroups
+                .compactMap { name, words -> (Int, [String])? in
+                    guard let idx = udlKeywordSetIndex(name), !words.isEmpty else { return nil }
+                    return (idx, words)
+                }
+                .sorted { $0.0 < $1.0 }
+        }
+        return keywordGroups
+            .sorted { keywordGroupPriority($0.key) < keywordGroupPriority($1.key) }
+            .filter { !$1.isEmpty }
+            .enumerated()
+            .map { (index: $0.offset, keywords: $0.element.value) }
+    }
+
+    var isUserDefinedLanguage: Bool {
+        keywordGroups.keys.contains { $0.hasPrefix("udlkw") || $0.hasPrefix("udl_") }
+    }
+
+    private func udlKeywordSetIndex(_ name: String) -> Int? {
+        switch name {
+        case "udl_comments":            return 0
+        case "udl_operators1":          return 8
+        case "udl_operators2":          return 9
+        case "udl_fold_code1_open":     return 10
+        case "udl_fold_code1_middle":   return 11
+        case "udl_fold_code1_close":    return 12
+        case "udl_fold_code2_open":     return 13
+        case "udl_fold_code2_middle":   return 14
+        case "udl_fold_code2_close":    return 15
+        case "udl_fold_comment_open":   return 16
+        case "udl_fold_comment_middle": return 17
+        case "udl_fold_comment_close":  return 18
+        default: break
+        }
+        if name.hasPrefix("udlkw"), let n = Int(name.dropFirst(5)), (1...8).contains(n) {
+            return 18 + n  // udlkw1→19 (SCE_USER_KWLIST_KEYWORDS1), …, udlkw8→26
+        }
+        return nil
     }
 
     func keywordGroupPriority(_ name: String) -> Int {
         if name == "instre1" { return 0 }
         if name == "instre2" { return 1 }
-        if name.hasPrefix("udlkw"), let number = Int(name.dropFirst(5)) {
-            return number - 1  // udlkw1 → 0, udlkw2 → 1, …, udlkw8 → 7
-        }
         if name.hasPrefix("type"), let number = Int(name.dropFirst("type".count)) {
             return 1 + number
         }

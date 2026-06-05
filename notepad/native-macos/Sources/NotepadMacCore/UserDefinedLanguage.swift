@@ -552,18 +552,50 @@ public final class UserDefinedLanguageStore {
 extension LanguageDefinition {
     init(userDefinedLanguage language: UserDefinedLanguage) {
         var keywordGroups: [String: [String]] = [:]
+
+        // Keywords1–8 → SCE_USER_KWLIST_KEYWORDS1 (19) … KEYWORDS8 (26)
         if !language.keywords.isEmpty {
             keywordGroups["udlkw1"] = language.keywords
         }
         for i in 2...8 {
-            let listKey = "Keywords\(i)"
-            if let text = language.additionalKeywordLists[listKey], !text.isEmpty {
+            if let text = language.additionalKeywordLists["Keywords\(i)"], !text.isEmpty {
                 let words = text.split(separator: " ").map(String.init).filter { !$0.isEmpty }
-                if !words.isEmpty {
-                    keywordGroups["udlkw\(i)"] = words
-                }
+                if !words.isEmpty { keywordGroups["udlkw\(i)"] = words }
             }
         }
+
+        // Comments → SCE_USER_KWLIST_COMMENTS (0); raw descriptor string, pass verbatim
+        if let raw = language.additionalKeywordLists["Comments"], !raw.isEmpty {
+            keywordGroups["udl_comments"] = [raw]
+        }
+
+        // Operators → SCE_USER_KWLIST_OPERATORS1 (8), OPERATORS2 (9)
+        for (key, group) in [("Operators1", "udl_operators1"), ("Operators2", "udl_operators2")] {
+            if let text = language.additionalKeywordLists[key], !text.isEmpty {
+                let ops = text.split(separator: " ").map(String.init).filter { !$0.isEmpty }
+                if !ops.isEmpty { keywordGroups[group] = ops }
+            }
+        }
+
+        // Folders in code/comment → SCE_USER_KWLIST_FOLDERS_IN_CODE1_OPEN (10) … COMMENT_CLOSE (18)
+        let folderMap: [(String, String)] = [
+            ("Folders in code1, open",    "udl_fold_code1_open"),
+            ("Folders in code1, middle",  "udl_fold_code1_middle"),
+            ("Folders in code1, close",   "udl_fold_code1_close"),
+            ("Folders in code2, open",    "udl_fold_code2_open"),
+            ("Folders in code2, middle",  "udl_fold_code2_middle"),
+            ("Folders in code2, close",   "udl_fold_code2_close"),
+            ("Folders in comment, open",  "udl_fold_comment_open"),
+            ("Folders in comment, middle","udl_fold_comment_middle"),
+            ("Folders in comment, close", "udl_fold_comment_close"),
+        ]
+        for (udlKey, groupName) in folderMap {
+            if let text = language.additionalKeywordLists[udlKey], !text.isEmpty {
+                let words = text.split(separator: " ").map(String.init).filter { !$0.isEmpty }
+                if !words.isEmpty { keywordGroups[groupName] = words }
+            }
+        }
+
         self.init(
             name: language.name,
             displayName: language.displayName,

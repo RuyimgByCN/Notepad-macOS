@@ -1,6 +1,11 @@
 public extension LanguageDefinition {
     var lexillaLexerName: String? {
-        NotepadPlusLexillaMapping.lexerName(for: name)
+        // User-defined languages (UDL) detected by their keyword group naming convention.
+        // EditorSurface also uses isUserDefinedLanguage (private) for the same check.
+        if keywordGroups.keys.contains(where: { $0.hasPrefix("udlkw") || $0.hasPrefix("udl_") }) {
+            return "user"
+        }
+        return NotepadPlusLexillaMapping.lexerName(for: name)
     }
 }
 

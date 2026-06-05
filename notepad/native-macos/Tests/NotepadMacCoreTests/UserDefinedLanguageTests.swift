@@ -643,6 +643,74 @@ import Testing
     #expect(catalog.language(for: ".udlrs")?.name == "rust")
 }
 
+@Test func udlFolderMarkersMapToCorrectScintillaKeywordGroupNames() throws {
+    let language = try #require(
+        UserDefinedLanguage(
+            name: "MyFoldLang",
+            extensions: ["mfl"],
+            keywords: ["kw1"],
+            additionalKeywordLists: [
+                "Folders in code1, open":    "begin if",
+                "Folders in code1, middle":  "else",
+                "Folders in code1, close":   "end endif",
+                "Folders in code2, open":    "do",
+                "Folders in code2, close":   "done",
+                "Folders in comment, open":  "#region",
+                "Folders in comment, close": "#endregion",
+                "Operators1":                "+ - * /",
+                "Operators2":                "% &",
+                "Comments":                  "00// 01 02((EOL))",
+            ]
+        )
+    )
+    let def = LanguageDefinition(userDefinedLanguage: language)
+
+    // isUserDefinedLanguage detected via "udlkw" prefix
+    #expect(def.keywordGroups["udlkw1"] == ["kw1"])
+
+    // Folder markers stored under udl_fold_* group names
+    #expect(def.keywordGroups["udl_fold_code1_open"] == ["begin", "if"])
+    #expect(def.keywordGroups["udl_fold_code1_middle"] == ["else"])
+    #expect(def.keywordGroups["udl_fold_code1_close"] == ["end", "endif"])
+    #expect(def.keywordGroups["udl_fold_code2_open"] == ["do"])
+    #expect(def.keywordGroups["udl_fold_code2_middle"] == nil)
+    #expect(def.keywordGroups["udl_fold_code2_close"] == ["done"])
+    #expect(def.keywordGroups["udl_fold_comment_open"] == ["#region"])
+    #expect(def.keywordGroups["udl_fold_comment_close"] == ["#endregion"])
+
+    // Operators stored under udl_operators_* group names
+    #expect(def.keywordGroups["udl_operators1"] == ["+", "-", "*", "/"])
+    #expect(def.keywordGroups["udl_operators2"] == ["%", "&"])
+
+    // Comments stored as single-element (raw format string)
+    #expect(def.keywordGroups["udl_comments"] == ["00// 01 02((EOL))"])
+}
+
+@Test func udlFolderMarkersRoundTripThroughXMLImportExport() throws {
+    let xml = """
+    <UserLang name="FoldTest" ext="ft">
+        <KeywordLists>
+            <Keywords name="Keywords1">alpha beta</Keywords>
+            <Keywords name="Folders in code1, open">begin if</Keywords>
+            <Keywords name="Folders in code1, close">end endif</Keywords>
+            <Keywords name="Folders in comment, open">#region</Keywords>
+            <Keywords name="Operators1">+ - * /</Keywords>
+        </KeywordLists>
+        <Styles></Styles>
+    </UserLang>
+    """
+    let language = try UserDefinedLanguageIO.importLanguage(from: xml)
+    #expect(language.additionalKeywordLists["Folders in code1, open"] == "begin if")
+    #expect(language.additionalKeywordLists["Folders in code1, close"] == "end endif")
+    #expect(language.additionalKeywordLists["Folders in comment, open"] == "#region")
+    #expect(language.additionalKeywordLists["Operators1"] == "+ - * /")
+
+    let exported = UserDefinedLanguageIO.exportLanguage(language)
+    #expect(exported.contains("Folders in code1, open"))
+    #expect(exported.contains("begin if"))
+    #expect(exported.contains("Folders in comment, open"))
+}
+
 @Test func languageCatalogDeduplicatesUserDefinedLanguageNamesCaseInsensitively() throws {
     let userLanguage = try #require(
         UserDefinedLanguage(

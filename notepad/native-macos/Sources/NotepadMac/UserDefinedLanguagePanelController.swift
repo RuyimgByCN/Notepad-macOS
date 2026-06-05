@@ -452,6 +452,36 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         let operators2Field = NSTextField(string: language.additionalKeywordLists["Operators2"] ?? "")
         operators2Field.placeholderString = "Optional second operators list"
         operators2Field.setAccessibilityLabel("Operators2 keyword list")
+
+        // Folder markers for code folding (SCE_USER_KWLIST_FOLDERS_IN_CODE1/2/COMMENT)
+        let foldCode1OpenField = NSTextField(string: language.additionalKeywordLists["Folders in code1, open"] ?? "")
+        foldCode1OpenField.placeholderString = "e.g. { begin if"
+        foldCode1OpenField.setAccessibilityLabel("Folders in code1, open")
+        let foldCode1MiddleField = NSTextField(string: language.additionalKeywordLists["Folders in code1, middle"] ?? "")
+        foldCode1MiddleField.placeholderString = "e.g. else elseif"
+        foldCode1MiddleField.setAccessibilityLabel("Folders in code1, middle")
+        let foldCode1CloseField = NSTextField(string: language.additionalKeywordLists["Folders in code1, close"] ?? "")
+        foldCode1CloseField.placeholderString = "e.g. } end endif"
+        foldCode1CloseField.setAccessibilityLabel("Folders in code1, close")
+        let foldCode2OpenField = NSTextField(string: language.additionalKeywordLists["Folders in code2, open"] ?? "")
+        foldCode2OpenField.placeholderString = "Optional second open markers"
+        foldCode2OpenField.setAccessibilityLabel("Folders in code2, open")
+        let foldCode2MiddleField = NSTextField(string: language.additionalKeywordLists["Folders in code2, middle"] ?? "")
+        foldCode2MiddleField.placeholderString = "Optional second middle markers"
+        foldCode2MiddleField.setAccessibilityLabel("Folders in code2, middle")
+        let foldCode2CloseField = NSTextField(string: language.additionalKeywordLists["Folders in code2, close"] ?? "")
+        foldCode2CloseField.placeholderString = "Optional second close markers"
+        foldCode2CloseField.setAccessibilityLabel("Folders in code2, close")
+        let foldCommentOpenField = NSTextField(string: language.additionalKeywordLists["Folders in comment, open"] ?? "")
+        foldCommentOpenField.placeholderString = "Open fold markers inside comments"
+        foldCommentOpenField.setAccessibilityLabel("Folders in comment, open")
+        let foldCommentMiddleField = NSTextField(string: language.additionalKeywordLists["Folders in comment, middle"] ?? "")
+        foldCommentMiddleField.placeholderString = "Middle fold markers inside comments"
+        foldCommentMiddleField.setAccessibilityLabel("Folders in comment, middle")
+        let foldCommentCloseField = NSTextField(string: language.additionalKeywordLists["Folders in comment, close"] ?? "")
+        foldCommentCloseField.placeholderString = "Close fold markers inside comments"
+        foldCommentCloseField.setAccessibilityLabel("Folders in comment, close")
+
         let styleFieldSets = Self.structuredStyleDescriptors.map { descriptor in
             Self.structuredStyleFields(for: descriptor, language: language)
         }
@@ -497,6 +527,15 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             "Comments",
             "Operators 1",
             "Operators 2",
+            "Fold code1 open",
+            "Fold code1 middle",
+            "Fold code1 close",
+            "Fold code2 open",
+            "Fold code2 middle",
+            "Fold code2 close",
+            "Fold comment open",
+            "Fold comment mid",
+            "Fold comment close",
             Localization.string(.udlStructuredWordsStyle, default: "Structured WordsStyle"),
             Localization.string(.udlWordsStyleRaw, default: "Raw WordsStyle")
         ].map { label -> NSTextField in
@@ -518,20 +557,29 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             [labels[9], commentsField],
             [labels[10], operatorsField],
             [labels[11], operators2Field],
-            [labels[12], styleGrid],
-            [labels[13], wordStylesScrollView]
+            [labels[12], foldCode1OpenField],
+            [labels[13], foldCode1MiddleField],
+            [labels[14], foldCode1CloseField],
+            [labels[15], foldCode2OpenField],
+            [labels[16], foldCode2MiddleField],
+            [labels[17], foldCode2CloseField],
+            [labels[18], foldCommentOpenField],
+            [labels[19], foldCommentMiddleField],
+            [labels[20], foldCommentCloseField],
+            [labels[21], styleGrid],
+            [labels[22], wordStylesScrollView]
         ])
         grid.translatesAutoresizingMaskIntoConstraints = false
         grid.rowSpacing = 8
         grid.columnSpacing = 10
         grid.xPlacement = .fill
-        for rowIndex in 0..<12 {
+        for rowIndex in 0..<21 {
             grid.row(at: rowIndex).yPlacement = .center
         }
-        grid.row(at: 12).yPlacement = .top
-        grid.row(at: 13).yPlacement = .top
+        grid.row(at: 21).yPlacement = .top
+        grid.row(at: 22).yPlacement = .top
 
-        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 650, height: 720))
+        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 650, height: 980))
         accessoryView.addSubview(grid)
         NSLayoutConstraint.activate([
             grid.leadingAnchor.constraint(equalTo: accessoryView.leadingAnchor),
@@ -566,6 +614,15 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             setOrRemove(key: "Comments", value: commentsField.stringValue)
             setOrRemove(key: "Operators1", value: operatorsField.stringValue)
             setOrRemove(key: "Operators2", value: operators2Field.stringValue)
+            setOrRemove(key: "Folders in code1, open",    value: foldCode1OpenField.stringValue)
+            setOrRemove(key: "Folders in code1, middle",  value: foldCode1MiddleField.stringValue)
+            setOrRemove(key: "Folders in code1, close",   value: foldCode1CloseField.stringValue)
+            setOrRemove(key: "Folders in code2, open",    value: foldCode2OpenField.stringValue)
+            setOrRemove(key: "Folders in code2, middle",  value: foldCode2MiddleField.stringValue)
+            setOrRemove(key: "Folders in code2, close",   value: foldCode2CloseField.stringValue)
+            setOrRemove(key: "Folders in comment, open",  value: foldCommentOpenField.stringValue)
+            setOrRemove(key: "Folders in comment, middle",value: foldCommentMiddleField.stringValue)
+            setOrRemove(key: "Folders in comment, close", value: foldCommentCloseField.stringValue)
             guard let editedBase = language.updating(
                 extensionsText: extensionsField.stringValue,
                 keywordsText: keywordsField.stringValue,
