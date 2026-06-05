@@ -129,6 +129,8 @@ public struct FunctionListDefinition: Equatable, Sendable {
             "autoit.xml"
         case "cobol", "cbl", "cob", "cpy":
             "cobol.xml"
+        case "inno", "iss":
+            "inno.xml"
         default:
             "\(languageName.lowercased()).xml"
         }
@@ -248,6 +250,8 @@ public enum FunctionListExtractor {
             extractAutoIt(from: text)
         case "cobol", "cbl", "cob", "cpy":
             extractCOBOL(from: text)
+        case "inno", "iss":
+            extractInnoSetup(from: text)
         default:
             definition == nil ? [] : extractCStyle(from: text)
         }
@@ -844,5 +848,24 @@ extension FunctionListExtractor {
             in: text,
             kind: .function
         )
+    }
+
+    private static func extractInnoSetup(from text: String) -> [FunctionListSymbol] {
+        let sectionSymbols = matches(
+            pattern: #"(?m)^\[(\w+)\]"#,
+            in: text,
+            kind: .type
+        )
+        let funcSymbols = matches(
+            pattern: #"(?mi)^\h*function\h+([A-Za-z_]\w*)\h*\("#,
+            in: text,
+            kind: .function
+        )
+        let procSymbols = matches(
+            pattern: #"(?mi)^\h*procedure\h+([A-Za-z_]\w*)\h*[;(]"#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(sectionSymbols + funcSymbols + procSymbols)
     }
 }

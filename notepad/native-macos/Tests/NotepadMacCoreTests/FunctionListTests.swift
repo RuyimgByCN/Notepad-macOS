@@ -436,6 +436,33 @@ private func upstreamFunctionListURL(_ fileName: String) -> URL {
     #expect(names.contains("Helpers"))
 }
 
+@Test func extractsInnoSetupSymbols() {
+    let code = """
+    [Setup]
+    AppName=MyApp
+    AppVersion=1.0
+
+    [Code]
+    function InitializeSetup(): Boolean;
+    begin
+        Result := True;
+    end;
+
+    procedure CurStepChanged(CurStep: TSetupStep);
+    begin
+        // nothing
+    end;
+
+    [Files]
+    Source: "myapp.exe"; DestDir: "{app}"
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "inno", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("InitializeSetup"))
+    #expect(names.contains("CurStepChanged"))
+    #expect(names.contains("Setup") || names.contains("Code") || names.contains("Files"))
+}
+
 @Test func extractsSASMacrosAndFunctions() {
     let code = """
     %macro compute_stats(dataset, var);
