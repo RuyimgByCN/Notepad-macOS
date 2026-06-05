@@ -970,6 +970,7 @@ enum AppMenu {
         // --- Panels ---
         viewMenu.addItem(withTitle: Localization.string(.viewDocumentList, default: "Document List..."), action: #selector(AppDelegate.showDocumentList(_:)), keyEquivalent: "").target = delegate
         viewMenu.addItem(withTitle: Localization.string(.viewDocumentMap, default: "Document Map..."), action: #selector(EditorWindowController.showDocumentMap(_:)), keyEquivalent: "")
+        viewMenu.addItem(withTitle: Localization.string(.viewTaskList, default: "Task List..."), action: #selector(EditorWindowController.showTaskList(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewFileBrowser, default: "File Browser..."), action: #selector(AppDelegate.showFileBrowser(_:)), keyEquivalent: "").target = delegate
         viewMenu.addItem(withTitle: Localization.string(.viewLocateCurrentFile, default: "Locate Current File"), action: #selector(AppDelegate.locateCurrentFile(_:)), keyEquivalent: "").target = delegate
         // Project Panel 2 and 3 (additional workspace panels)

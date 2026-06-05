@@ -431,6 +431,7 @@ enum Localization {
         case viewToggleStatusBar = "view.toggleStatusBar"
         case viewDocumentList = "view.documentList"
         case viewDocumentMap = "view.documentMap"
+        case viewTaskList = "view.taskList"
         case viewFileBrowser = "view.fileBrowser"
         case viewProjectPanel2 = "view.projectPanel2"
         case viewProjectPanel3 = "view.projectPanel3"

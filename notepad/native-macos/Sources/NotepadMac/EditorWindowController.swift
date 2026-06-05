@@ -37,6 +37,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private lazy var callTipPanel = CallTipPanelController()
     private lazy var functionListPanel = FunctionListPanelController()
     private lazy var documentMapPanel = DocumentMapPanelController()
+    private lazy var taskListPanel = TaskListPanelController()
     private lazy var columnEditorPanel = ColumnEditorPanelController()
     private lazy var rectangularSelectionPanel = RectangularSelectionPanelController()
     private lazy var clipboardHistoryPanel = ClipboardHistoryPanelController()
@@ -449,6 +450,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                     text: self.editorSurface.text,
                     currentLine: self.caretLocation().line
                 )
+                if self.taskListPanel.isVisible {
+                    self.taskListPanel.update(
+                        documentName: self.displayName,
+                        text: self.editorSurface.text
+                    )
+                }
             }
         }
     }
@@ -2888,6 +2895,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             documentName: displayName
         ) { [weak self] symbol in
             self?.editorSurface.setSelectedRange(symbol.range)
+            self?.updateStatus()
+        }
+    }
+
+    @objc func showTaskList(_ sender: Any?) {
+        taskListPanel.show(
+            documentName: displayName,
+            text: editorSurface.text
+        ) { [weak self] entry in
+            self?.editorSurface.setSelectedRange(NSRange(location: entry.utf16Location, length: 0))
             self?.updateStatus()
         }
     }
