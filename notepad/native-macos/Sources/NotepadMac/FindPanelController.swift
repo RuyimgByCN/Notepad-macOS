@@ -87,8 +87,9 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
             let surface = editor.editorSurface
             let selection = surface.selectedRange
             let text = surface.text as NSString
+            let prefs = preferencesStore.load()
             // Auto-check "In Selection" when selection spans multiple lines or meets the configured threshold
-            let threshold = preferencesStore.load().inSelectionThreshold
+            let threshold = prefs.inSelectionThreshold
             let selText = selection.length > 0 && NSMaxRange(selection) <= text.length
                 ? text.substring(with: selection) : ""
             let selHasNewline = selText.contains("\n") || selText.contains("\r")
@@ -100,9 +101,11 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
                 inSelectionAnchor = nil
             }
             if selection.length > 0, NSMaxRange(selection) <= text.length {
-                findField.stringValue = selHasNewline ? "" : selText
-            } else {
-                // Auto-select word under caret
+                if prefs.fillFindFromSelection {
+                    findField.stringValue = selHasNewline ? "" : selText
+                }
+            } else if prefs.autoSelectWordUnderCaret {
+                // Auto-select word under caret when preference is enabled
                 let loc = min(selection.location, text.length)
                 var start = loc
                 var end = loc

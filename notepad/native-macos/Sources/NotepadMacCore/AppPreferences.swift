@@ -169,6 +169,12 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let findDialogMonospace: Bool
     /// When true, Ctrl+C/Cmd+C with no selection copies the entire current line (Scintilla)
     public let copyLineWithoutSelection: Bool
+    /// When true, opening Find dialog auto-fills the search field with selected text
+    public let fillFindFromSelection: Bool
+    /// When true, opening Find dialog with no selection auto-selects the word under the caret
+    public let autoSelectWordUnderCaret: Bool
+    /// When true, Find in Files ignores unsaved changes in open documents
+    public let findInFilesIgnoreUnsaved: Bool
     /// When true, smart highlighting uses the Find dialog's match-case/whole-word settings
     public let smartHighlightUseFindSettings: Bool
     /// URL highlight style: 0=underline, 1=box, 2=full-box
@@ -270,6 +276,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         fileChangeDetectionEnabled: Bool = true,
         findDialogMonospace: Bool = false,
         copyLineWithoutSelection: Bool = true,
+        fillFindFromSelection: Bool = true,
+        autoSelectWordUnderCaret: Bool = false,
+        findInFilesIgnoreUnsaved: Bool = false,
         smartHighlightUseFindSettings: Bool = false,
         urlIndicatorStyle: Int = 0,
         languageTabOverrides: String = "",
@@ -361,6 +370,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.fileChangeDetectionEnabled = fileChangeDetectionEnabled
         self.findDialogMonospace = findDialogMonospace
         self.copyLineWithoutSelection = copyLineWithoutSelection
+        self.fillFindFromSelection = fillFindFromSelection
+        self.autoSelectWordUnderCaret = autoSelectWordUnderCaret
+        self.findInFilesIgnoreUnsaved = findInFilesIgnoreUnsaved
         self.smartHighlightUseFindSettings = smartHighlightUseFindSettings
         self.urlIndicatorStyle = max(0, min(2, urlIndicatorStyle))
         self.languageTabOverrides = languageTabOverrides
@@ -522,6 +534,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             fileChangeDetectionEnabled: fileChangeDetectionEnabled,
             findDialogMonospace: findDialogMonospace,
             copyLineWithoutSelection: copyLineWithoutSelection,
+            fillFindFromSelection: fillFindFromSelection,
+            autoSelectWordUnderCaret: autoSelectWordUnderCaret,
+            findInFilesIgnoreUnsaved: findInFilesIgnoreUnsaved,
             smartHighlightUseFindSettings: smartHighlightUseFindSettings,
             urlIndicatorStyle: urlIndicatorStyle,
             languageTabOverrides: languageTabOverrides,
@@ -628,6 +643,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             fileChangeDetectionEnabled: fileChangeDetectionEnabled,
             findDialogMonospace: findDialogMonospace,
             copyLineWithoutSelection: copyLineWithoutSelection,
+            fillFindFromSelection: fillFindFromSelection,
+            autoSelectWordUnderCaret: autoSelectWordUnderCaret,
+            findInFilesIgnoreUnsaved: findInFilesIgnoreUnsaved,
             smartHighlightUseFindSettings: smartHighlightUseFindSettings,
             urlIndicatorStyle: urlIndicatorStyle,
             languageTabOverrides: languageTabOverrides,
@@ -743,6 +761,9 @@ public final class PreferencesStore {
         static let fileChangeDetectionEnabled = "notepadMac.fileChangeDetectionEnabled"
         static let findDialogMonospace = "notepadMac.findDialogMonospace"
         static let copyLineWithoutSelection = "notepadMac.copyLineWithoutSelection"
+        static let fillFindFromSelection = "notepadMac.fillFindFromSelection"
+        static let autoSelectWordUnderCaret = "notepadMac.autoSelectWordUnderCaret"
+        static let findInFilesIgnoreUnsaved = "notepadMac.findInFilesIgnoreUnsaved"
         static let smartHighlightUseFindSettings = "notepadMac.smartHighlightUseFindSettings"
         static let urlIndicatorStyle = "notepadMac.urlIndicatorStyle"
         static let languageTabOverrides = "notepadMac.languageTabOverrides"
@@ -839,6 +860,9 @@ public final class PreferencesStore {
             fileChangeDetectionEnabled: defaults.object(forKey: Key.fileChangeDetectionEnabled) as? Bool ?? true,
             findDialogMonospace: defaults.object(forKey: Key.findDialogMonospace) as? Bool ?? false,
             copyLineWithoutSelection: defaults.object(forKey: Key.copyLineWithoutSelection) as? Bool ?? true,
+            fillFindFromSelection: defaults.object(forKey: Key.fillFindFromSelection) as? Bool ?? true,
+            autoSelectWordUnderCaret: defaults.object(forKey: Key.autoSelectWordUnderCaret) as? Bool ?? false,
+            findInFilesIgnoreUnsaved: defaults.object(forKey: Key.findInFilesIgnoreUnsaved) as? Bool ?? false,
             smartHighlightUseFindSettings: defaults.object(forKey: Key.smartHighlightUseFindSettings) as? Bool ?? false,
             urlIndicatorStyle: defaults.object(forKey: Key.urlIndicatorStyle) as? Int ?? 0,
             languageTabOverrides: defaults.string(forKey: Key.languageTabOverrides) ?? "",
@@ -940,6 +964,9 @@ public final class PreferencesStore {
         defaults.set(preferences.fileChangeDetectionEnabled, forKey: Key.fileChangeDetectionEnabled)
         defaults.set(preferences.findDialogMonospace, forKey: Key.findDialogMonospace)
         defaults.set(preferences.copyLineWithoutSelection, forKey: Key.copyLineWithoutSelection)
+        defaults.set(preferences.fillFindFromSelection, forKey: Key.fillFindFromSelection)
+        defaults.set(preferences.autoSelectWordUnderCaret, forKey: Key.autoSelectWordUnderCaret)
+        defaults.set(preferences.findInFilesIgnoreUnsaved, forKey: Key.findInFilesIgnoreUnsaved)
         defaults.set(preferences.smartHighlightUseFindSettings, forKey: Key.smartHighlightUseFindSettings)
         defaults.set(preferences.urlIndicatorStyle, forKey: Key.urlIndicatorStyle)
         defaults.set(preferences.languageTabOverrides, forKey: Key.languageTabOverrides)

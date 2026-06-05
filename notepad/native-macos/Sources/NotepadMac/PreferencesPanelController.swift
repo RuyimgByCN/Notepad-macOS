@@ -134,6 +134,9 @@ final class PreferencesPanelController: NSWindowController {
     private let keepFindDialogOpenButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let replaceDoesNotMoveButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let findDialogMonospaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let fillFindFromSelectionButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoSelectWordUnderCaretButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let findInFilesIgnoreUnsavedButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let findTransparencyLabel = NSTextField(labelWithString: "")
     private let findTransparencySlider = NSSlider()
     // File change detection (in Session & Files tab)
@@ -286,6 +289,9 @@ final class PreferencesPanelController: NSWindowController {
         keepFindDialogOpenButton.title = "Keep Find dialog open after Replace All"
         replaceDoesNotMoveButton.title = "After Replace, don't move caret to replaced range"
         findDialogMonospaceButton.title = "Use monospaced font in Find / Replace fields"
+        fillFindFromSelectionButton.title = "Fill Find field with selected text when opening Find dialog"
+        autoSelectWordUnderCaretButton.title = "Auto-select word under caret when no selection"
+        findInFilesIgnoreUnsavedButton.title = "Find in Files: ignore unsaved changes in open documents"
         copyLineWithoutSelectionButton.title = "Copy / Cut whole line when nothing is selected"
         smartHighlightUseFindSettingsButton.title = "Smart highlight uses Find dialog Match Case / Whole Word settings"
         urlIndicatorStyleLabel.stringValue = "URL style:"
@@ -530,7 +536,8 @@ final class PreferencesPanelController: NSWindowController {
          inSelectionSectionLabel, inSelectionThresholdLabel,
          inSelectionThresholdField, inSelectionThresholdStepper,
          keepFindDialogOpenButton, replaceDoesNotMoveButton,
-         findDialogMonospaceButton,
+         findDialogMonospaceButton, fillFindFromSelectionButton,
+         autoSelectWordUnderCaretButton, findInFilesIgnoreUnsavedButton,
          findTransparencyLabel, findTransparencySlider
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; toolsCV.addSubview($0) }
 
@@ -970,8 +977,17 @@ final class PreferencesPanelController: NSWindowController {
             findDialogMonospaceButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
             findDialogMonospaceButton.topAnchor.constraint(equalTo: replaceDoesNotMoveButton.bottomAnchor, constant: 10),
 
+            fillFindFromSelectionButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            fillFindFromSelectionButton.topAnchor.constraint(equalTo: findDialogMonospaceButton.bottomAnchor, constant: 10),
+
+            autoSelectWordUnderCaretButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            autoSelectWordUnderCaretButton.topAnchor.constraint(equalTo: fillFindFromSelectionButton.bottomAnchor, constant: 10),
+
+            findInFilesIgnoreUnsavedButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            findInFilesIgnoreUnsavedButton.topAnchor.constraint(equalTo: autoSelectWordUnderCaretButton.bottomAnchor, constant: 10),
+
             findTransparencyLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
-            findTransparencyLabel.topAnchor.constraint(equalTo: findDialogMonospaceButton.bottomAnchor, constant: 14),
+            findTransparencyLabel.topAnchor.constraint(equalTo: findInFilesIgnoreUnsavedButton.bottomAnchor, constant: 14),
             findTransparencyLabel.widthAnchor.constraint(equalToConstant: 240),
 
             findTransparencySlider.leadingAnchor.constraint(equalTo: findTransparencyLabel.trailingAnchor, constant: 8),
@@ -1099,6 +1115,9 @@ final class PreferencesPanelController: NSWindowController {
         keepFindDialogOpenButton.state = preferences.keepFindDialogOpen ? .on : .off
         replaceDoesNotMoveButton.state = preferences.replaceDoesNotMove ? .on : .off
         findDialogMonospaceButton.state = preferences.findDialogMonospace ? .on : .off
+        fillFindFromSelectionButton.state = preferences.fillFindFromSelection ? .on : .off
+        autoSelectWordUnderCaretButton.state = preferences.autoSelectWordUnderCaret ? .on : .off
+        findInFilesIgnoreUnsavedButton.state = preferences.findInFilesIgnoreUnsaved ? .on : .off
         copyLineWithoutSelectionButton.state = preferences.copyLineWithoutSelection ? .on : .off
         smartHighlightUseFindSettingsButton.state = preferences.smartHighlightUseFindSettings ? .on : .off
         urlIndicatorStyleSegmented.selectedSegment = max(0, min(2, preferences.urlIndicatorStyle))
@@ -1302,6 +1321,9 @@ final class PreferencesPanelController: NSWindowController {
             fileChangeDetectionEnabled: fileChangeDetectionButton.state == .on,
             findDialogMonospace: findDialogMonospaceButton.state == .on,
             copyLineWithoutSelection: copyLineWithoutSelectionButton.state == .on,
+            fillFindFromSelection: fillFindFromSelectionButton.state == .on,
+            autoSelectWordUnderCaret: autoSelectWordUnderCaretButton.state == .on,
+            findInFilesIgnoreUnsaved: findInFilesIgnoreUnsavedButton.state == .on,
             smartHighlightUseFindSettings: smartHighlightUseFindSettingsButton.state == .on,
             urlIndicatorStyle: urlIndicatorStyleSegmented.selectedSegment,
             languageTabOverrides: langTabOverridesField.stringValue,
