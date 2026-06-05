@@ -30,6 +30,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let stylePreferencesStore: StylePreferencesStore
     private let preferencesStore: PreferencesStore
     private let scintillaKeyMapStore = ScintillaKeyMapStore()
+    private var editorContextMenuSpec: EditorContextMenuSpec?
     private let macroStore = MacroStore()
     private lazy var findPanel = FindPanelController(editor: self, preferencesStore: preferencesStore)
     private lazy var autoCompletionPanel = AutoCompletionPanelController()
@@ -3823,10 +3824,157 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         applyAdvancedViewOptions()
         applyWindowPresentationState()
         window.makeFirstResponder(editorSurface.firstResponder)
-        editorSurface.setContextMenu(buildEditorContextMenu())
+        editorSurface.setContextMenu(makeEditorContextMenu())
+    }
+
+    func applyEditorContextMenuSpec(_ spec: EditorContextMenuSpec?) {
+        editorContextMenuSpec = spec
+        editorSurface.setContextMenu(makeEditorContextMenu())
     }
 
     // MARK: - Editor right-click context menu
+
+    private func makeEditorContextMenu() -> NSMenu {
+        if let spec = editorContextMenuSpec {
+            return buildEditorContextMenuFromSpec(spec)
+        }
+        return buildEditorContextMenu()
+    }
+
+    private func buildEditorContextMenuFromSpec(_ spec: EditorContextMenuSpec) -> NSMenu {
+        let menu = NSMenu(title: "")
+        var submenus: [String: NSMenu] = [:]
+
+        func targetMenu(folderName: String?) -> NSMenu {
+            guard let folder = folderName else { return menu }
+            if let existing = submenus[folder] { return existing }
+            let sub = NSMenu(title: folder)
+            let parent = NSMenuItem(title: folder, action: nil, keyEquivalent: "")
+            parent.submenu = sub
+            menu.addItem(parent)
+            submenus[folder] = sub
+            return sub
+        }
+
+        func addItem(_ item: NSMenuItem, folderName: String?) {
+            targetMenu(folderName: folderName).addItem(item)
+        }
+
+        for specItem in spec.items {
+            switch specItem {
+            case .separator:
+                menu.addItem(.separator())
+
+            case let .action(action, displayName, folderName):
+                let title = displayName ?? localizedLabel(for: action)
+                if let mi = menuItem(for: action, title: title) {
+                    addItem(mi, folderName: folderName)
+                }
+
+            case let .pluginCommand(_, commandName, displayName, folderName):
+                let title = displayName ?? commandName
+                let mi = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+                addItem(mi, folderName: folderName)
+            }
+        }
+        return menu
+    }
+
+    private func localizedLabel(for action: EditorContextMenuAction) -> String {
+        switch action {
+        case .undo:               return Localization.string(.editUndo,      default: "Undo")
+        case .redo:               return Localization.string(.editRedo,      default: "Redo")
+        case .cut:                return Localization.string(.editCut,       default: "Cut")
+        case .copy:               return Localization.string(.editCopy,      default: "Copy")
+        case .paste:              return Localization.string(.editPaste,     default: "Paste")
+        case .delete:             return "Delete"
+        case .selectAll:          return Localization.string(.editSelectAll, default: "Select All")
+        case .copyAsHTML:         return "Copy as HTML (HEX)"
+        case .copyAsRTF:          return "Copy as RTF"
+        case .duplicateLine:      return Localization.string(.editDuplicateLineOrSelection, default: "Duplicate Current Line")
+        case .deleteLine:         return "Delete Current Line"
+        case .joinLines:          return "Join Lines"
+        case .upperCase:          return Localization.string(.editUppercase, default: "UPPERCASE")
+        case .lowerCase:          return Localization.string(.editLowercase, default: "lowercase")
+        case .properCase:         return "Proper Case"
+        case .toggleCase:         return "Toggle Case"
+        case .find:               return Localization.string(.searchFind,      default: "Find...")
+        case .findNext:           return Localization.string(.searchFindNext,   default: "Find Next")
+        case .findPrevious:       return Localization.string(.searchFindPrevious, default: "Find Previous")
+        case .findAll:            return "Find All"
+        case .replace:            return Localization.string(.findReplaceLabel, default: "Replace...")
+        case .findInFiles:        return Localization.string(.searchFindInFiles, default: "Find in Files...")
+        case .goToLine:           return Localization.string(.searchGoToLine,  default: "Go to...")
+        case .markAllFind:        return "Mark All"
+        case .searchOnInternet:   return Localization.string(.editSearchOnInternet, default: "Search on Internet")
+        case .toggleFold:         return Localization.string(.foldingToggle, default: "Toggle Fold")
+        case .foldAll:            return Localization.string(.foldingFoldAll, default: "Fold All")
+        case .unfoldAll:          return Localization.string(.foldingUnfoldAll, default: "Unfold All")
+        case .collapseCurrentLevel:   return Localization.string(.foldingFoldCurrentLevel, default: "Collapse Current Level")
+        case .uncollapseCurrentLevel: return Localization.string(.foldingUnfoldCurrentLevel, default: "Uncollapse Current Level")
+        case .collapseAllLevels:      return "Collapse All"
+        case .uncollapseAllLevels:    return "Uncollapse All"
+        case .openSelectedFile:   return Localization.string(.editOpenSelectedFile, default: "Open File")
+        case .toggleReadOnly:     return Localization.string(.editToggleReadOnly, default: "Read-Only on Current Document")
+        case .clearReadOnly:      return "Clear Read-Only Flag"
+        case .copyFullPath:       return Localization.string(.editCopyCurrentFullPath, default: "Full File Path to Clipboard")
+        case .copyFilename:       return Localization.string(.editCopyCurrentFilename, default: "Filename to Clipboard")
+        case .copyDirPath:        return Localization.string(.editCopyCurrentDirectoryPath, default: "Current Dir. Path to Clipboard")
+        }
+    }
+
+    private func menuItem(for action: EditorContextMenuAction, title: String) -> NSMenuItem? {
+        func std(_ sel: Selector) -> NSMenuItem {
+            let mi = NSMenuItem(title: title, action: sel, keyEquivalent: "")
+            mi.target = nil
+            return mi
+        }
+        func selfItem(_ sel: Selector) -> NSMenuItem {
+            let mi = NSMenuItem(title: title, action: sel, keyEquivalent: "")
+            mi.target = self
+            return mi
+        }
+        switch action {
+        case .undo:               return std(Selector(("undo:")))
+        case .redo:               return std(Selector(("redo:")))
+        case .cut:                return std(#selector(NSText.cut(_:)))
+        case .copy:               return std(#selector(NSText.copy(_:)))
+        case .paste:              return std(#selector(NSText.paste(_:)))
+        case .delete:             return std(#selector(NSText.delete(_:)))
+        case .selectAll:          return std(#selector(NSText.selectAll(_:)))
+        case .copyAsHTML:         return nil // not yet implemented
+        case .copyAsRTF:          return nil // not yet implemented
+        case .duplicateLine:      return selfItem(#selector(duplicateLineOrSelection(_:)))
+        case .deleteLine:         return selfItem(#selector(deleteLineOrSelection(_:)))
+        case .joinLines:          return nil // not yet implemented
+        case .upperCase:          return selfItem(#selector(uppercaseSelection(_:)))
+        case .lowerCase:          return selfItem(#selector(lowercaseSelection(_:)))
+        case .properCase:         return selfItem(#selector(properCaseSelection(_:)))
+        case .toggleCase:         return selfItem(#selector(invertSelectionCase(_:)))
+        case .find:               return selfItem(#selector(showFindPanel(_:)))
+        case .findNext:           return selfItem(#selector(findNext(_:)))
+        case .findPrevious:       return selfItem(#selector(findPrevious(_:)))
+        case .findAll:            return nil // not yet implemented
+        case .replace:            return selfItem(#selector(showReplacePanel(_:)))
+        case .findInFiles:        return selfItem(#selector(showFindInFilesPanel(_:)))
+        case .goToLine:           return selfItem(#selector(showGoToLinePanel(_:)))
+        case .markAllFind:        return nil // not yet implemented
+        case .searchOnInternet:   return selfItem(#selector(searchOnInternet(_:)))
+        case .toggleFold:         return selfItem(#selector(toggleFoldAtCurrentLine(_:)))
+        case .foldAll:            return selfItem(#selector(foldAll(_:)))
+        case .unfoldAll:          return selfItem(#selector(unfoldAll(_:)))
+        case .collapseCurrentLevel:   return selfItem(#selector(foldCurrentLevel(_:)))
+        case .uncollapseCurrentLevel: return selfItem(#selector(unfoldCurrentLevel(_:)))
+        case .collapseAllLevels:      return selfItem(#selector(foldAll(_:)))
+        case .uncollapseAllLevels:    return selfItem(#selector(unfoldAll(_:)))
+        case .openSelectedFile:   return selfItem(#selector(openSelectedFile(_:)))
+        case .toggleReadOnly:     return selfItem(#selector(toggleReadOnly(_:)))
+        case .clearReadOnly:      return selfItem(#selector(toggleReadOnly(_:)))
+        case .copyFullPath:       return selfItem(#selector(copyCurrentFullPath(_:)))
+        case .copyFilename:       return selfItem(#selector(copyCurrentFilename(_:)))
+        case .copyDirPath:        return selfItem(#selector(copyCurrentDirectoryPath(_:)))
+        }
+    }
 
     private func buildEditorContextMenu() -> NSMenu {
         let menu = NSMenu(title: "")
