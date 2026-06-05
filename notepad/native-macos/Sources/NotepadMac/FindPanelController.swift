@@ -342,6 +342,24 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
         )
     }
 
+    @objc private func inSelectionToggled(_ sender: Any?) {
+        guard inSelectionButton.state == .on, let editor else { return }
+        let surface = editor.editorSurface
+        let selection = surface.selectedRange
+        let threshold = preferencesStore.load().inSelectionThreshold
+        let text = surface.text as NSString
+        let selText = selection.length > 0 && NSMaxRange(selection) <= text.length
+            ? text.substring(with: selection) : ""
+        let selHasNewline = selText.contains("\n") || selText.contains("\r")
+        if !selHasNewline && selection.length < threshold {
+            statusField.stringValue = Localization.string(
+                .findInSelectionSmallWarning,
+                default: "Warning: Selection is smaller than the In Selection threshold."
+            )
+        }
+        inSelectionAnchor = selection.length > 0 ? selection : nil
+    }
+
     private var options: TextSearch.Options {
         makeOptions(direction: nil)
     }
@@ -417,6 +435,8 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
         bookmarkAllButton.action = #selector(bookmarkAll(_:))
         replaceAllInAllButton.target = self
         replaceAllInAllButton.action = #selector(replaceAllInAll(_:))
+        inSelectionButton.target = self
+        inSelectionButton.action = #selector(inSelectionToggled(_:))
 
         historyButton.translatesAutoresizingMaskIntoConstraints = false
         historyButton.bezelStyle = .inline

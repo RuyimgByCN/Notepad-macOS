@@ -354,6 +354,7 @@ enum Localization {
         case findBookmarkAllButton = "find.button.bookmarkAll"
         case findReplaceAllInAllConfirmMessage = "find.replaceAllInAll.confirmMessage"
         case findReplaceAllInAllConfirmDetail = "find.replaceAllInAll.confirmDetail"
+        case findInSelectionSmallWarning = "find.inSelection.smallWarning"
         case findStatusEnterText = "find.status.enterText"
         case findStatusFound = "find.status.found"
         case findStatusNoMatches = "find.status.noMatches"
