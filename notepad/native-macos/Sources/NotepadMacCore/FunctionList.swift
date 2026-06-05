@@ -121,6 +121,14 @@ public struct FunctionListDefinition: Equatable, Sendable {
             "vhdl.xml"
         case "raku", "rk", "rakumod", "rakudoc", "rakutest", "pm6", "pl6", "p6":
             "raku.xml"
+        case "sas":
+            "sas.xml"
+        case "asm", "assembly", "nasm", "masm", "fasm", "gas":
+            "asm.xml"
+        case "autoit", "au3":
+            "autoit.xml"
+        case "cobol", "cbl", "cob", "cpy":
+            "cobol.xml"
         default:
             "\(languageName.lowercased()).xml"
         }
@@ -232,6 +240,14 @@ public enum FunctionListExtractor {
             extractVHDL(from: text)
         case "raku", "rk", "rakumod", "rakudoc", "rakutest", "pm6", "pl6", "p6":
             extractRaku(from: text)
+        case "sas":
+            extractSAS(from: text)
+        case "asm", "assembly", "nasm", "masm", "fasm", "gas":
+            extractAssembly(from: text)
+        case "autoit", "au3":
+            extractAutoIt(from: text)
+        case "cobol", "cbl", "cob", "cpy":
+            extractCOBOL(from: text)
         default:
             definition == nil ? [] : extractCStyle(from: text)
         }
@@ -796,5 +812,37 @@ extension FunctionListExtractor {
             kind: .function
         )
         return sortedUnique(classSymbols + funcSymbols)
+    }
+
+    private static func extractSAS(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?mi)^\h*(?:%macro|function)\h+(\w+)"#,
+            in: text,
+            kind: .function
+        )
+    }
+
+    private static func extractAssembly(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?m)^\h*([A-Za-z_$][\w$]*)(?=\s*:)"#,
+            in: text,
+            kind: .function
+        )
+    }
+
+    private static func extractAutoIt(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?mi)^\h*Func\h+([A-Za-z_]\w*)\h*\("#,
+            in: text,
+            kind: .function
+        )
+    }
+
+    private static func extractCOBOL(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?mi)^.{0,7}\h{0,3}(\b[\w-]+\b)(?:\h+SECTION)?\."#,
+            in: text,
+            kind: .function
+        )
     }
 }

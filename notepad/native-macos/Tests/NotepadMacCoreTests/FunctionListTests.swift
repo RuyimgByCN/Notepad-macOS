@@ -436,6 +436,74 @@ private func upstreamFunctionListURL(_ fileName: String) -> URL {
     #expect(names.contains("Helpers"))
 }
 
+@Test func extractsSASMacrosAndFunctions() {
+    let code = """
+    %macro compute_stats(dataset, var);
+        proc means data=&dataset;
+        run;
+    %mend compute_stats;
+
+    function log_transform(x);
+        return(log(x));
+    endsub;
+
+    %macro format_output;
+        proc print;
+    %mend;
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "sas", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("compute_stats"))
+    #expect(names.contains("log_transform"))
+    #expect(names.contains("format_output"))
+}
+
+@Test func extractsAssemblyLabels() {
+    let code = """
+    section .text
+    global _start
+
+    _start:
+        mov eax, 1
+        call print_msg
+        ret
+
+    print_msg:
+        mov ebx, 1
+        ret
+
+    error_handler:
+        xor eax, eax
+        ret
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "asm", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("_start"))
+    #expect(names.contains("print_msg"))
+    #expect(names.contains("error_handler"))
+}
+
+@Test func extractsAutoItFunctions() {
+    let code = """
+    Func _Main()
+        _DisplayMessage("Hello")
+    EndFunc
+
+    Func _DisplayMessage($sMsg)
+        MsgBox(0, "Title", $sMsg)
+    EndFunc
+
+    Func _ValidateInput($sInput)
+        Return StringLen($sInput) > 0
+    EndFunc
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "autoit", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("_Main"))
+    #expect(names.contains("_DisplayMessage"))
+    #expect(names.contains("_ValidateInput"))
+}
+
 @Test func extractsMakefileTargets() {
     let code = """
     .PHONY: all clean test
