@@ -1138,7 +1138,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func beepIfEnabled() {
         guard !muteAllSounds else { return }
-        beepIfEnabled()
+        NSSound.beep()
     }
 
     func applyFontSize(_ size: CGFloat) {
@@ -3652,7 +3652,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             menuItem.state = showsEdgeLine ? .on : .off
             return editorSurface.supportsAdvancedViewOptions
         case #selector(zoomRestore(_:)):
-            return fontSize != 13
+            return fontSize != CGFloat(preferencesStore.load().editorFontSize)
         case #selector(beginOrEndSelect(_:)):
             menuItem.title = beginSelectPosition == nil
                 ? Localization.string(.editBeginSelect, default: "Begin Select")

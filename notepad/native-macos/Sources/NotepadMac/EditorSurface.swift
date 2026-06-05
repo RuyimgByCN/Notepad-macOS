@@ -2575,6 +2575,13 @@ private extension LanguageDefinition {
     private func udlKeywordSetIndex(_ name: String) -> Int? {
         switch name {
         case "udl_comments":            return 0
+        case "udl_num_prefix1":         return 1
+        case "udl_num_prefix2":         return 2
+        case "udl_num_extras1":         return 3
+        case "udl_num_extras2":         return 4
+        case "udl_num_suffix1":         return 5
+        case "udl_num_suffix2":         return 6
+        case "udl_num_range":           return 7
         case "udl_operators1":          return 8
         case "udl_operators2":          return 9
         case "udl_fold_code1_open":     return 10

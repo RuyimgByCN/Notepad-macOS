@@ -453,6 +453,29 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         operators2Field.placeholderString = "Optional second operators list"
         operators2Field.setAccessibilityLabel("Operators2 keyword list")
 
+        // Number token recognition (SCE_USER_KWLIST_NUMBER_PREFIX1..RANGE = 1..7)
+        let numPrefix1Field = NSTextField(string: language.additionalKeywordLists["Number prefix 1"] ?? "")
+        numPrefix1Field.placeholderString = "e.g. 0x 0X"
+        numPrefix1Field.setAccessibilityLabel("Number prefix 1")
+        let numPrefix2Field = NSTextField(string: language.additionalKeywordLists["Number prefix 2"] ?? "")
+        numPrefix2Field.placeholderString = "e.g. 0b 0o"
+        numPrefix2Field.setAccessibilityLabel("Number prefix 2")
+        let numExtras1Field = NSTextField(string: language.additionalKeywordLists["Number extras 1"] ?? "")
+        numExtras1Field.placeholderString = "e.g. ."
+        numExtras1Field.setAccessibilityLabel("Number extras 1")
+        let numExtras2Field = NSTextField(string: language.additionalKeywordLists["Number extras 2"] ?? "")
+        numExtras2Field.placeholderString = "e.g. _"
+        numExtras2Field.setAccessibilityLabel("Number extras 2")
+        let numSuffix1Field = NSTextField(string: language.additionalKeywordLists["Number suffix 1"] ?? "")
+        numSuffix1Field.placeholderString = "e.g. L l U u F f"
+        numSuffix1Field.setAccessibilityLabel("Number suffix 1")
+        let numSuffix2Field = NSTextField(string: language.additionalKeywordLists["Number suffix 2"] ?? "")
+        numSuffix2Field.placeholderString = "Optional second suffix list"
+        numSuffix2Field.setAccessibilityLabel("Number suffix 2")
+        let numRangeField = NSTextField(string: language.additionalKeywordLists["Number range"] ?? "")
+        numRangeField.placeholderString = "e.g. e E (exponent chars)"
+        numRangeField.setAccessibilityLabel("Number range")
+
         // Folder markers for code folding (SCE_USER_KWLIST_FOLDERS_IN_CODE1/2/COMMENT)
         let foldCode1OpenField = NSTextField(string: language.additionalKeywordLists["Folders in code1, open"] ?? "")
         foldCode1OpenField.placeholderString = "e.g. { begin if"
@@ -527,6 +550,13 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             "Comments",
             "Operators 1",
             "Operators 2",
+            "Num prefix 1",
+            "Num prefix 2",
+            "Num extras 1",
+            "Num extras 2",
+            "Num suffix 1",
+            "Num suffix 2",
+            "Num range",
             "Fold code1 open",
             "Fold code1 middle",
             "Fold code1 close",
@@ -557,29 +587,36 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             [labels[9], commentsField],
             [labels[10], operatorsField],
             [labels[11], operators2Field],
-            [labels[12], foldCode1OpenField],
-            [labels[13], foldCode1MiddleField],
-            [labels[14], foldCode1CloseField],
-            [labels[15], foldCode2OpenField],
-            [labels[16], foldCode2MiddleField],
-            [labels[17], foldCode2CloseField],
-            [labels[18], foldCommentOpenField],
-            [labels[19], foldCommentMiddleField],
-            [labels[20], foldCommentCloseField],
-            [labels[21], styleGrid],
-            [labels[22], wordStylesScrollView]
+            [labels[12], numPrefix1Field],
+            [labels[13], numPrefix2Field],
+            [labels[14], numExtras1Field],
+            [labels[15], numExtras2Field],
+            [labels[16], numSuffix1Field],
+            [labels[17], numSuffix2Field],
+            [labels[18], numRangeField],
+            [labels[19], foldCode1OpenField],
+            [labels[20], foldCode1MiddleField],
+            [labels[21], foldCode1CloseField],
+            [labels[22], foldCode2OpenField],
+            [labels[23], foldCode2MiddleField],
+            [labels[24], foldCode2CloseField],
+            [labels[25], foldCommentOpenField],
+            [labels[26], foldCommentMiddleField],
+            [labels[27], foldCommentCloseField],
+            [labels[28], styleGrid],
+            [labels[29], wordStylesScrollView]
         ])
         grid.translatesAutoresizingMaskIntoConstraints = false
         grid.rowSpacing = 8
         grid.columnSpacing = 10
         grid.xPlacement = .fill
-        for rowIndex in 0..<21 {
+        for rowIndex in 0..<28 {
             grid.row(at: rowIndex).yPlacement = .center
         }
-        grid.row(at: 21).yPlacement = .top
-        grid.row(at: 22).yPlacement = .top
+        grid.row(at: 28).yPlacement = .top
+        grid.row(at: 29).yPlacement = .top
 
-        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 650, height: 980))
+        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 650, height: 1180))
         accessoryView.addSubview(grid)
         NSLayoutConstraint.activate([
             grid.leadingAnchor.constraint(equalTo: accessoryView.leadingAnchor),
@@ -614,6 +651,13 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             setOrRemove(key: "Comments", value: commentsField.stringValue)
             setOrRemove(key: "Operators1", value: operatorsField.stringValue)
             setOrRemove(key: "Operators2", value: operators2Field.stringValue)
+            setOrRemove(key: "Number prefix 1", value: numPrefix1Field.stringValue)
+            setOrRemove(key: "Number prefix 2", value: numPrefix2Field.stringValue)
+            setOrRemove(key: "Number extras 1", value: numExtras1Field.stringValue)
+            setOrRemove(key: "Number extras 2", value: numExtras2Field.stringValue)
+            setOrRemove(key: "Number suffix 1", value: numSuffix1Field.stringValue)
+            setOrRemove(key: "Number suffix 2", value: numSuffix2Field.stringValue)
+            setOrRemove(key: "Number range",    value: numRangeField.stringValue)
             setOrRemove(key: "Folders in code1, open",    value: foldCode1OpenField.stringValue)
             setOrRemove(key: "Folders in code1, middle",  value: foldCode1MiddleField.stringValue)
             setOrRemove(key: "Folders in code1, close",   value: foldCode1CloseField.stringValue)

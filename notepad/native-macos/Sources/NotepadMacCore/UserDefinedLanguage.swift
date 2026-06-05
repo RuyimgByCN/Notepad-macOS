@@ -569,6 +569,23 @@ extension LanguageDefinition {
             keywordGroups["udl_comments"] = [raw]
         }
 
+        // Numbers → sets 1–7 (prefix1/2, extras1/2, suffix1/2, range)
+        let numberMap: [(String, String)] = [
+            ("Number prefix 1", "udl_num_prefix1"),
+            ("Number prefix 2", "udl_num_prefix2"),
+            ("Number extras 1", "udl_num_extras1"),
+            ("Number extras 2", "udl_num_extras2"),
+            ("Number suffix 1", "udl_num_suffix1"),
+            ("Number suffix 2", "udl_num_suffix2"),
+            ("Number range",    "udl_num_range"),
+        ]
+        for (udlKey, groupName) in numberMap {
+            if let text = language.additionalKeywordLists[udlKey], !text.isEmpty {
+                let words = text.split(separator: " ").map(String.init).filter { !$0.isEmpty }
+                if !words.isEmpty { keywordGroups[groupName] = words }
+            }
+        }
+
         // Operators → SCE_USER_KWLIST_OPERATORS1 (8), OPERATORS2 (9)
         for (key, group) in [("Operators1", "udl_operators1"), ("Operators2", "udl_operators2")] {
             if let text = language.additionalKeywordLists[key], !text.isEmpty {
