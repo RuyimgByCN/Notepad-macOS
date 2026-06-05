@@ -2593,6 +2593,7 @@ private extension LanguageDefinition {
         case "udl_fold_comment_open":   return 16
         case "udl_fold_comment_middle": return 17
         case "udl_fold_comment_close":  return 18
+        case "udl_delimiters":          return 27
         default: break
         }
         if name.hasPrefix("udlkw"), let n = Int(name.dropFirst(5)), (1...8).contains(n) {

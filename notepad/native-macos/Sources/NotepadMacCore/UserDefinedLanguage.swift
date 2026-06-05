@@ -594,6 +594,11 @@ extension LanguageDefinition {
             }
         }
 
+        // Delimiters 1-8 → SCE_USER_KWLIST_DELIMITERS (27); raw encoded string, pass verbatim
+        if let raw = language.additionalKeywordLists["Delimiters"], !raw.isEmpty {
+            keywordGroups["udl_delimiters"] = [raw]
+        }
+
         // Folders in code/comment → SCE_USER_KWLIST_FOLDERS_IN_CODE1_OPEN (10) … COMMENT_CLOSE (18)
         let folderMap: [(String, String)] = [
             ("Folders in code1, open",    "udl_fold_code1_open"),

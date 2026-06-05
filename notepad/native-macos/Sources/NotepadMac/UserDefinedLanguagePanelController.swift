@@ -505,6 +505,12 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         foldCommentCloseField.placeholderString = "Close fold markers inside comments"
         foldCommentCloseField.setAccessibilityLabel("Folders in comment, close")
 
+        // Delimiters 1-8: raw Notepad++ encoded format (keyword set 27)
+        let delimitersField = NSTextField(string: language.additionalKeywordLists["Delimiters"] ?? "")
+        delimitersField.placeholderString = "00open 01escape 02close 03open 04escape 05close ..."
+        delimitersField.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize - 1, weight: .regular)
+        delimitersField.setAccessibilityLabel("Delimiters keyword list (raw Notepad++ format)")
+
         let styleFieldSets = Self.structuredStyleDescriptors.map { descriptor in
             Self.structuredStyleFields(for: descriptor, language: language)
         }
@@ -566,6 +572,7 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             "Fold comment open",
             "Fold comment mid",
             "Fold comment close",
+            "Delimiters",
             Localization.string(.udlStructuredWordsStyle, default: "Structured WordsStyle"),
             Localization.string(.udlWordsStyleRaw, default: "Raw WordsStyle")
         ].map { label -> NSTextField in
@@ -603,20 +610,21 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             [labels[25], foldCommentOpenField],
             [labels[26], foldCommentMiddleField],
             [labels[27], foldCommentCloseField],
-            [labels[28], styleGrid],
-            [labels[29], wordStylesScrollView]
+            [labels[28], delimitersField],
+            [labels[29], styleGrid],
+            [labels[30], wordStylesScrollView]
         ])
         grid.translatesAutoresizingMaskIntoConstraints = false
         grid.rowSpacing = 8
         grid.columnSpacing = 10
         grid.xPlacement = .fill
-        for rowIndex in 0..<28 {
+        for rowIndex in 0..<29 {
             grid.row(at: rowIndex).yPlacement = .center
         }
-        grid.row(at: 28).yPlacement = .top
         grid.row(at: 29).yPlacement = .top
+        grid.row(at: 30).yPlacement = .top
 
-        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 650, height: 1180))
+        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 650, height: 1220))
         accessoryView.addSubview(grid)
         NSLayoutConstraint.activate([
             grid.leadingAnchor.constraint(equalTo: accessoryView.leadingAnchor),
@@ -667,6 +675,7 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             setOrRemove(key: "Folders in comment, open",  value: foldCommentOpenField.stringValue)
             setOrRemove(key: "Folders in comment, middle",value: foldCommentMiddleField.stringValue)
             setOrRemove(key: "Folders in comment, close", value: foldCommentCloseField.stringValue)
+            setOrRemove(key: "Delimiters",                value: delimitersField.stringValue)
             guard let editedBase = language.updating(
                 extensionsText: extensionsField.stringValue,
                 keywordsText: keywordsField.stringValue,
