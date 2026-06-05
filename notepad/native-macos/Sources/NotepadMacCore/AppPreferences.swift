@@ -159,6 +159,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let autoCompleteChooseSingle: Bool
     /// Use Tab key as a fill-up character to commit the selected auto-complete item
     public let autoCompleteTABFillup: Bool
+    /// Use Enter key to also commit the selected auto-complete item
+    public let autoCompleteEnterCommit: Bool
+    /// Show brief (compressed) auto-complete list without function prototypes
+    public let autoCompleteBrief: Bool
     /// Selection length threshold (chars) for auto-checking "In Selection" in Find dialog
     public let inSelectionThreshold: Int
     /// Double-clicking a tab closes it
@@ -297,6 +301,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         autoCompleteMode: Int = 3,
         autoCompleteChooseSingle: Bool = true,
         autoCompleteTABFillup: Bool = false,
+        autoCompleteEnterCommit: Bool = true,
+        autoCompleteBrief: Bool = false,
         inSelectionThreshold: Int = 1024,
         tabbarDoubleClickClose: Bool = false,
         tabbarMaxLabelLength: Int = 0,
@@ -404,6 +410,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.autoCompleteMode = max(0, min(3, autoCompleteMode))
         self.autoCompleteChooseSingle = autoCompleteChooseSingle
         self.autoCompleteTABFillup = autoCompleteTABFillup
+        self.autoCompleteEnterCommit = autoCompleteEnterCommit
+        self.autoCompleteBrief = autoCompleteBrief
         self.inSelectionThreshold = max(1, inSelectionThreshold)
         self.tabbarDoubleClickClose = tabbarDoubleClickClose
         self.tabbarMaxLabelLength = max(0, tabbarMaxLabelLength)
@@ -581,6 +589,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             autoCompleteMode: autoCompleteMode,
             autoCompleteChooseSingle: autoCompleteChooseSingle,
             autoCompleteTABFillup: autoCompleteTABFillup,
+            autoCompleteEnterCommit: autoCompleteEnterCommit,
+            autoCompleteBrief: autoCompleteBrief,
             inSelectionThreshold: inSelectionThreshold,
             tabbarDoubleClickClose: tabbarDoubleClickClose,
             tabbarMaxLabelLength: tabbarMaxLabelLength,
@@ -703,6 +713,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             autoCompleteMode: autoCompleteMode,
             autoCompleteChooseSingle: autoCompleteChooseSingle,
             autoCompleteTABFillup: autoCompleteTABFillup,
+            autoCompleteEnterCommit: autoCompleteEnterCommit,
+            autoCompleteBrief: autoCompleteBrief,
             inSelectionThreshold: inSelectionThreshold,
             tabbarDoubleClickClose: tabbarDoubleClickClose,
             tabbarMaxLabelLength: tabbarMaxLabelLength,
@@ -828,6 +840,8 @@ public final class PreferencesStore {
         static let autoCompleteMode = "notepadMac.autoCompleteMode"
         static let autoCompleteChooseSingle = "notepadMac.autoCompleteChooseSingle"
         static let autoCompleteTABFillup = "notepadMac.autoCompleteTABFillup"
+        static let autoCompleteEnterCommit = "notepadMac.autoCompleteEnterCommit"
+        static let autoCompleteBrief = "notepadMac.autoCompleteBrief"
         static let inSelectionThreshold = "notepadMac.inSelectionThreshold"
         static let tabbarDoubleClickClose = "notepadMac.tabbarDoubleClickClose"
         static let tabbarMaxLabelLength = "notepadMac.tabbarMaxLabelLength"
@@ -946,6 +960,8 @@ public final class PreferencesStore {
             autoCompleteMode: defaults.object(forKey: Key.autoCompleteMode) as? Int ?? 3,
             autoCompleteChooseSingle: defaults.object(forKey: Key.autoCompleteChooseSingle) as? Bool ?? true,
             autoCompleteTABFillup: defaults.object(forKey: Key.autoCompleteTABFillup) as? Bool ?? false,
+            autoCompleteEnterCommit: defaults.object(forKey: Key.autoCompleteEnterCommit) as? Bool ?? true,
+            autoCompleteBrief: defaults.object(forKey: Key.autoCompleteBrief) as? Bool ?? false,
             inSelectionThreshold: defaults.object(forKey: Key.inSelectionThreshold) as? Int ?? 1024,
             tabbarDoubleClickClose: defaults.object(forKey: Key.tabbarDoubleClickClose) as? Bool ?? false,
             tabbarMaxLabelLength: defaults.object(forKey: Key.tabbarMaxLabelLength) as? Int ?? 0,
@@ -1061,6 +1077,8 @@ public final class PreferencesStore {
         defaults.set(preferences.autoCompleteMode, forKey: Key.autoCompleteMode)
         defaults.set(preferences.autoCompleteChooseSingle, forKey: Key.autoCompleteChooseSingle)
         defaults.set(preferences.autoCompleteTABFillup, forKey: Key.autoCompleteTABFillup)
+        defaults.set(preferences.autoCompleteEnterCommit, forKey: Key.autoCompleteEnterCommit)
+        defaults.set(preferences.autoCompleteBrief, forKey: Key.autoCompleteBrief)
         defaults.set(preferences.inSelectionThreshold, forKey: Key.inSelectionThreshold)
         defaults.set(preferences.tabbarDoubleClickClose, forKey: Key.tabbarDoubleClickClose)
         defaults.set(preferences.tabbarMaxLabelLength, forKey: Key.tabbarMaxLabelLength)

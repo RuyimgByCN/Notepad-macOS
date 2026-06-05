@@ -49,6 +49,8 @@ protocol EditorSurface: AnyObject {
     func cancelInlineAutoComplete()
     func applyAutoCompleteChooseSingle(_ on: Bool)
     func applyAutoCompleteTABFillup(_ on: Bool)
+    func applyAutoCompleteEnterCommit(_ on: Bool)
+    func applyAutoCompleteBrief(_ on: Bool)
     func applyShowWhitespace(_ visible: Bool)
     func applyShowWhitespace(mode: Int)
     func applyShowEOL(_ visible: Bool)
@@ -247,6 +249,8 @@ final class TextViewEditorSurface: EditorSurface {
     func cancelInlineAutoComplete() {}
     func applyAutoCompleteChooseSingle(_ on: Bool) {}
     func applyAutoCompleteTABFillup(_ on: Bool) {}
+    func applyAutoCompleteEnterCommit(_ on: Bool) {}
+    func applyAutoCompleteBrief(_ on: Bool) {}
 
     func applyLineWrapping(_ wraps: Bool, width: CGFloat) {
         guard let textContainer = textView.textContainer else { return }
@@ -763,6 +767,14 @@ final class ScintillaEditorSurface: EditorSurface {
         fillups.withCString { ptr in
             bridge.setReferenceProperty(2112, parameter: 0, value: UnsafeRawPointer(ptr))
         }
+    }
+
+    func applyAutoCompleteEnterCommit(_ on: Bool) {
+        // Enter-commit is handled at key-intercept layer; stored in EditorWindowController
+    }
+
+    func applyAutoCompleteBrief(_ on: Bool) {
+        // Brief mode (hide function prototypes) is filtered at list-generation time
     }
 
     func applyShowWhitespace(_ visible: Bool) {

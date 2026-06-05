@@ -93,6 +93,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var autoCompleteMode = 3
     private var autoCompleteChooseSingle = true
     private var autoCompleteTABFillup = false
+    private var autoCompleteEnterCommit = true
+    private var autoCompleteBrief = false
     private var cachedAutoCompletionCatalog: AutoCompletionCatalog?
     private var cachedAutoCompletionCatalogLanguage: String?
     private var enablesSmartHighlight = false
@@ -344,6 +346,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.autoCompleteMode = preferences.autoCompleteMode
         self.autoCompleteChooseSingle = preferences.autoCompleteChooseSingle
         self.autoCompleteTABFillup = preferences.autoCompleteTABFillup
+        self.autoCompleteEnterCommit = preferences.autoCompleteEnterCommit
+        self.autoCompleteBrief = preferences.autoCompleteBrief
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.tabMaxLabelLength = preferences.tabbarMaxLabelLength
         self.enablesAutoPair = preferences.enableAutoPair
@@ -3407,6 +3411,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         autoCompleteMode = preferences.autoCompleteMode
         autoCompleteChooseSingle = preferences.autoCompleteChooseSingle
         autoCompleteTABFillup = preferences.autoCompleteTABFillup
+        autoCompleteEnterCommit = preferences.autoCompleteEnterCommit
+        autoCompleteBrief = preferences.autoCompleteBrief
         if cachedAutoCompletionCatalogLanguage != language.name {
             cachedAutoCompletionCatalog = nil
             cachedAutoCompletionCatalogLanguage = nil
@@ -3427,6 +3433,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyEdgeLine(showsEdgeLine, column: edgeLineColumn)
         editorSurface.applyAutoCompleteChooseSingle(autoCompleteChooseSingle)
         editorSurface.applyAutoCompleteTABFillup(autoCompleteTABFillup)
+        editorSurface.applyAutoCompleteEnterCommit(autoCompleteEnterCommit)
+        editorSurface.applyAutoCompleteBrief(autoCompleteBrief)
         editorSurface.applyCopyLineWithoutSelection(preferences.copyLineWithoutSelection)
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.lockDragDrop = preferences.tabbarLockDragDrop

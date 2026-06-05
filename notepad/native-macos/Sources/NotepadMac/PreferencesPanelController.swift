@@ -124,6 +124,8 @@ final class PreferencesPanelController: NSWindowController {
     private let autoCompleteModePopup = NSPopUpButton()
     private let autoCompleteChooseSingleButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoCompleteTABFillupButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoCompleteEnterCommitButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoCompleteBriefButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let htmlXmlCloseTagButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let muteAllSoundsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let linePaddingLabel = NSTextField(labelWithString: "")
@@ -307,6 +309,8 @@ final class PreferencesPanelController: NSWindowController {
         autoCompleteModeLabel.stringValue = "Auto-complete source:"
         autoCompleteChooseSingleButton.title = "Auto-accept when only one match"
         autoCompleteTABFillupButton.title = "Tab key commits auto-complete selection"
+        autoCompleteEnterCommitButton.title = "Enter key also commits auto-complete selection"
+        autoCompleteBriefButton.title = "Brief mode (hide function prototypes in list)"
         htmlXmlCloseTagButton.title = "Auto-close HTML/XML tags when typing '>'"
         muteAllSoundsButton.title = "Mute all sounds"
         inSelectionSectionLabel.stringValue = "In-Selection Search"
@@ -538,6 +542,7 @@ final class PreferencesPanelController: NSWindowController {
          additionalEdgeColumnsLabel, additionalEdgeColumnsField,
          autoCompleteModeLabel, autoCompleteModePopup,
          autoCompleteChooseSingleButton, autoCompleteTABFillupButton,
+         autoCompleteEnterCommitButton, autoCompleteBriefButton,
          htmlXmlCloseTagButton, muteAllSoundsButton,
          copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton,
          urlIndicatorStyleLabel, urlIndicatorStyleSegmented,
@@ -775,8 +780,14 @@ final class PreferencesPanelController: NSWindowController {
             autoCompleteTABFillupButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             autoCompleteTABFillupButton.topAnchor.constraint(equalTo: autoCompleteChooseSingleButton.bottomAnchor, constant: 10),
 
+            autoCompleteEnterCommitButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            autoCompleteEnterCommitButton.topAnchor.constraint(equalTo: autoCompleteTABFillupButton.bottomAnchor, constant: 8),
+
+            autoCompleteBriefButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            autoCompleteBriefButton.topAnchor.constraint(equalTo: autoCompleteEnterCommitButton.bottomAnchor, constant: 8),
+
             htmlXmlCloseTagButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
-            htmlXmlCloseTagButton.topAnchor.constraint(equalTo: autoCompleteTABFillupButton.bottomAnchor, constant: 10),
+            htmlXmlCloseTagButton.topAnchor.constraint(equalTo: autoCompleteBriefButton.bottomAnchor, constant: 10),
 
             muteAllSoundsButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             muteAllSoundsButton.topAnchor.constraint(equalTo: htmlXmlCloseTagButton.bottomAnchor, constant: 10),
@@ -1206,6 +1217,8 @@ final class PreferencesPanelController: NSWindowController {
         autoCompleteModePopup.selectItem(at: max(0, min(3, preferences.autoCompleteMode)))
         autoCompleteChooseSingleButton.state = preferences.autoCompleteChooseSingle ? .on : .off
         autoCompleteTABFillupButton.state = preferences.autoCompleteTABFillup ? .on : .off
+        autoCompleteEnterCommitButton.state = preferences.autoCompleteEnterCommit ? .on : .off
+        autoCompleteBriefButton.state = preferences.autoCompleteBrief ? .on : .off
         htmlXmlCloseTagButton.state = preferences.htmlXmlCloseTagEnabled ? .on : .off
         muteAllSoundsButton.state = preferences.muteAllSounds ? .on : .off
         inSelectionThresholdField.intValue = Int32(preferences.inSelectionThreshold)
@@ -1405,6 +1418,8 @@ final class PreferencesPanelController: NSWindowController {
             autoCompleteMode: autoCompleteModePopup.indexOfSelectedItem,
             autoCompleteChooseSingle: autoCompleteChooseSingleButton.state == .on,
             autoCompleteTABFillup: autoCompleteTABFillupButton.state == .on,
+            autoCompleteEnterCommit: autoCompleteEnterCommitButton.state == .on,
+            autoCompleteBrief: autoCompleteBriefButton.state == .on,
             inSelectionThreshold: Int(inSelectionThresholdField.intValue),
             tabbarDoubleClickClose: tabbarDoubleClickCloseButton.state == .on,
             tabbarMaxLabelLength: Int(tabbarMaxLabelLengthField.intValue),
