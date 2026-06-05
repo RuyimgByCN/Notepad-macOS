@@ -42,6 +42,9 @@ protocol EditorSurface: AnyObject {
     func applyBackspaceUnindents(_ enabled: Bool)
     func applyAutoIndent(_ enabled: Bool)
     func applyScrollBeyondLastLine(_ enabled: Bool)
+    func applySelectedTextDragDrop(_ enabled: Bool)
+    func applyLineNumberDynamicWidth(_ enabled: Bool)
+    func applyColumnSelectionToMultiEditing(_ enabled: Bool)
     func showInlineAutoComplete(prefix: String, words: [String])
     func cancelInlineAutoComplete()
     func applyAutoCompleteChooseSingle(_ on: Bool)
@@ -237,6 +240,9 @@ final class TextViewEditorSurface: EditorSurface {
     func applyBackspaceUnindents(_ enabled: Bool) {}
     func applyAutoIndent(_ enabled: Bool) {}
     func applyScrollBeyondLastLine(_ enabled: Bool) {}
+    func applySelectedTextDragDrop(_ enabled: Bool) {}
+    func applyLineNumberDynamicWidth(_ enabled: Bool) {}
+    func applyColumnSelectionToMultiEditing(_ enabled: Bool) {}
     func showInlineAutoComplete(prefix: String, words: [String]) {}
     func cancelInlineAutoComplete() {}
     func applyAutoCompleteChooseSingle(_ on: Bool) {}
@@ -650,6 +656,27 @@ final class ScintillaEditorSurface: EditorSurface {
         // SCI_SETENDATLASTLINE: 1 = end at last line (default), 0 = can scroll past
         bridge.setGeneralProperty(ScintillaMessage.setEndAtLastLine, parameter: enabled ? 0 : 1, value: 0)
         bridge.setGeneralProperty(ScintillaMessage.setScrollWidthTracking, parameter: 1, value: 0)
+    }
+
+    func applySelectedTextDragDrop(_ enabled: Bool) {
+        // Scintilla's drag-drop of selected text is enabled by default;
+        // there's no single SCI_* to disable it — defer to platform bridge if added later.
+        // This preference is stored and surfaced in UI but not yet applied via Scintilla.
+        _ = enabled
+    }
+
+    func applyLineNumberDynamicWidth(_ enabled: Bool) {
+        // When dynamic width is off, restore a fixed 40px line number margin width.
+        // When enabled, set to 0 so the existing applyEditorSurface logic sizes it.
+        let marginWidth = enabled ? 0 : 40
+        bridge.setGeneralProperty(ScintillaMessage.setMarginWidth, parameter: 0, value: CLong(marginWidth))
+    }
+
+    func applyColumnSelectionToMultiEditing(_ enabled: Bool) {
+        // SCVS_RECTANGULARSELECTION (bit 0) enables rectangular/column selection
+        let current = bridge.getGeneralProperty(ScintillaMessage.getVirtualSpaceOptions, parameter: 0) ?? 0
+        let newValue: CLong = enabled ? (current | 1) : (current & ~1)
+        bridge.setGeneralProperty(ScintillaMessage.setVirtualSpaceOptions, parameter: newValue, value: 0)
     }
 
     func applyCaretNoBlink(_ noBlink: Bool) {

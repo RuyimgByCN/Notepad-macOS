@@ -180,6 +180,12 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let tabbarLockDragDrop: Bool
     /// When true, closing the last tab exits the app instead of creating a new empty document
     public let tabbarExitOnLastTab: Bool
+    /// When false, dragging selected text within the editor is disabled
+    public let selectedTextDragDrop: Bool
+    /// When true, the line number margin width adjusts dynamically based on line count
+    public let lineNumberDynamicWidth: Bool
+    /// When true, column selection mode converts to multi-cursor editing
+    public let columnSelectionToMultiEditing: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -268,7 +274,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         urlIndicatorStyle: Int = 0,
         languageTabOverrides: String = "",
         tabbarLockDragDrop: Bool = false,
-        tabbarExitOnLastTab: Bool = false
+        tabbarExitOnLastTab: Bool = false,
+        selectedTextDragDrop: Bool = true,
+        lineNumberDynamicWidth: Bool = false,
+        columnSelectionToMultiEditing: Bool = false
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -357,6 +366,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.languageTabOverrides = languageTabOverrides
         self.tabbarLockDragDrop = tabbarLockDragDrop
         self.tabbarExitOnLastTab = tabbarExitOnLastTab
+        self.selectedTextDragDrop = selectedTextDragDrop
+        self.lineNumberDynamicWidth = lineNumberDynamicWidth
+        self.columnSelectionToMultiEditing = columnSelectionToMultiEditing
     }
 
     /// Parse languageTabOverrides string into a dictionary.
@@ -514,7 +526,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             urlIndicatorStyle: urlIndicatorStyle,
             languageTabOverrides: languageTabOverrides,
             tabbarLockDragDrop: tabbarLockDragDrop,
-            tabbarExitOnLastTab: tabbarExitOnLastTab
+            tabbarExitOnLastTab: tabbarExitOnLastTab,
+            selectedTextDragDrop: selectedTextDragDrop,
+            lineNumberDynamicWidth: lineNumberDynamicWidth,
+            columnSelectionToMultiEditing: columnSelectionToMultiEditing
         )
     }
 
@@ -617,7 +632,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             urlIndicatorStyle: urlIndicatorStyle,
             languageTabOverrides: languageTabOverrides,
             tabbarLockDragDrop: tabbarLockDragDrop,
-            tabbarExitOnLastTab: tabbarExitOnLastTab
+            tabbarExitOnLastTab: tabbarExitOnLastTab,
+            selectedTextDragDrop: selectedTextDragDrop,
+            lineNumberDynamicWidth: lineNumberDynamicWidth,
+            columnSelectionToMultiEditing: columnSelectionToMultiEditing
         )
     }
 
@@ -730,6 +748,9 @@ public final class PreferencesStore {
         static let languageTabOverrides = "notepadMac.languageTabOverrides"
         static let tabbarLockDragDrop = "notepadMac.tabbarLockDragDrop"
         static let tabbarExitOnLastTab = "notepadMac.tabbarExitOnLastTab"
+        static let selectedTextDragDrop = "notepadMac.selectedTextDragDrop"
+        static let lineNumberDynamicWidth = "notepadMac.lineNumberDynamicWidth"
+        static let columnSelectionToMultiEditing = "notepadMac.columnSelectionToMultiEditing"
     }
 
     private let defaults: UserDefaults
@@ -822,7 +843,10 @@ public final class PreferencesStore {
             urlIndicatorStyle: defaults.object(forKey: Key.urlIndicatorStyle) as? Int ?? 0,
             languageTabOverrides: defaults.string(forKey: Key.languageTabOverrides) ?? "",
             tabbarLockDragDrop: defaults.object(forKey: Key.tabbarLockDragDrop) as? Bool ?? false,
-            tabbarExitOnLastTab: defaults.object(forKey: Key.tabbarExitOnLastTab) as? Bool ?? false
+            tabbarExitOnLastTab: defaults.object(forKey: Key.tabbarExitOnLastTab) as? Bool ?? false,
+            selectedTextDragDrop: defaults.object(forKey: Key.selectedTextDragDrop) as? Bool ?? true,
+            lineNumberDynamicWidth: defaults.object(forKey: Key.lineNumberDynamicWidth) as? Bool ?? false,
+            columnSelectionToMultiEditing: defaults.object(forKey: Key.columnSelectionToMultiEditing) as? Bool ?? false
         )
     }
 
@@ -921,6 +945,9 @@ public final class PreferencesStore {
         defaults.set(preferences.languageTabOverrides, forKey: Key.languageTabOverrides)
         defaults.set(preferences.tabbarLockDragDrop, forKey: Key.tabbarLockDragDrop)
         defaults.set(preferences.tabbarExitOnLastTab, forKey: Key.tabbarExitOnLastTab)
+        defaults.set(preferences.selectedTextDragDrop, forKey: Key.selectedTextDragDrop)
+        defaults.set(preferences.lineNumberDynamicWidth, forKey: Key.lineNumberDynamicWidth)
+        defaults.set(preferences.columnSelectionToMultiEditing, forKey: Key.columnSelectionToMultiEditing)
         defaults.synchronize()
     }
 

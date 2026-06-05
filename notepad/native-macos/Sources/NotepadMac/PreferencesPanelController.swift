@@ -101,6 +101,9 @@ final class PreferencesPanelController: NSWindowController {
     private let backspaceUnindentsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoIndentButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let scrollBeyondLastLineButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let selectedTextDragDropButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let lineNumberDynamicWidthButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let columnSelectionToMultiEditingButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoCompleteLabel = NSTextField(labelWithString: "")
     private let autoCompleteField = NSTextField(string: "3")
     private let autoCompleteStepper = NSStepper()
@@ -251,6 +254,9 @@ final class PreferencesPanelController: NSWindowController {
         backspaceUnindentsButton.title = Localization.string(.preferencesBackspaceUnindents, default: "Backspace key unindents")
         autoIndentButton.title = Localization.string(.preferencesAutoIndent, default: "Auto-indent new lines")
         scrollBeyondLastLineButton.title = Localization.string(.preferencesScrollBeyondLastLine, default: "Scroll beyond last line")
+        selectedTextDragDropButton.title = "Allow dragging selected text within editor"
+        lineNumberDynamicWidthButton.title = "Dynamic line number margin width"
+        columnSelectionToMultiEditingButton.title = "Column selection converts to multi-cursor editing"
         linePaddingLabel.stringValue = Localization.string(.preferencesLinePadding, default: "Line padding:")
         autoCompleteLabel.stringValue = Localization.string(.preferencesAutoCompleteFrom, default: "Auto-complete from Nth character (0=off):")
         largeFileSectionLabel.stringValue = Localization.string(.preferencesLargeFileSection, default: "Large File")
@@ -484,6 +490,7 @@ final class PreferencesPanelController: NSWindowController {
          lineWrapIndentLabel, lineWrapIndentPopup,
          foldMarginStyleLabel, foldMarginStylePopup,
          virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton,
+         selectedTextDragDropButton, lineNumberDynamicWidthButton, columnSelectionToMultiEditingButton,
          linePaddingLabel, linePaddingSegmented,
          autoCompleteLabel, autoCompleteField, autoCompleteStepper,
          largeFileSectionLabel, largeFileMBLabel, largeFileMBField, largeFileMBStepper,
@@ -638,8 +645,17 @@ final class PreferencesPanelController: NSWindowController {
             scrollBeyondLastLineButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             scrollBeyondLastLineButton.topAnchor.constraint(equalTo: autoIndentButton.bottomAnchor, constant: 10),
 
+            selectedTextDragDropButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            selectedTextDragDropButton.topAnchor.constraint(equalTo: scrollBeyondLastLineButton.bottomAnchor, constant: 10),
+
+            lineNumberDynamicWidthButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            lineNumberDynamicWidthButton.topAnchor.constraint(equalTo: selectedTextDragDropButton.bottomAnchor, constant: 10),
+
+            columnSelectionToMultiEditingButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            columnSelectionToMultiEditingButton.topAnchor.constraint(equalTo: lineNumberDynamicWidthButton.bottomAnchor, constant: 10),
+
             linePaddingLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
-            linePaddingLabel.topAnchor.constraint(equalTo: scrollBeyondLastLineButton.bottomAnchor, constant: 14),
+            linePaddingLabel.topAnchor.constraint(equalTo: columnSelectionToMultiEditingButton.bottomAnchor, constant: 14),
 
             linePaddingSegmented.leadingAnchor.constraint(equalTo: linePaddingLabel.trailingAnchor, constant: 12),
             linePaddingSegmented.centerYAnchor.constraint(equalTo: linePaddingLabel.centerYAnchor),
@@ -1069,6 +1085,9 @@ final class PreferencesPanelController: NSWindowController {
         backspaceUnindentsButton.state = preferences.backspaceUnindents ? .on : .off
         autoIndentButton.state = preferences.autoIndent ? .on : .off
         scrollBeyondLastLineButton.state = preferences.scrollBeyondLastLine ? .on : .off
+        selectedTextDragDropButton.state = preferences.selectedTextDragDrop ? .on : .off
+        lineNumberDynamicWidthButton.state = preferences.lineNumberDynamicWidth ? .on : .off
+        columnSelectionToMultiEditingButton.state = preferences.columnSelectionToMultiEditing ? .on : .off
         linePaddingSegmented.selectedSegment = max(0, min(5, preferences.linePadding))
         autoCompleteField.intValue = Int32(preferences.autoCompleteFromNthChar)
         autoCompleteStepper.intValue = Int32(preferences.autoCompleteFromNthChar)
@@ -1287,7 +1306,10 @@ final class PreferencesPanelController: NSWindowController {
             urlIndicatorStyle: urlIndicatorStyleSegmented.selectedSegment,
             languageTabOverrides: langTabOverridesField.stringValue,
             tabbarLockDragDrop: tabbarLockDragDropButton.state == .on,
-            tabbarExitOnLastTab: tabbarExitOnLastTabButton.state == .on
+            tabbarExitOnLastTab: tabbarExitOnLastTabButton.state == .on,
+            selectedTextDragDrop: selectedTextDragDropButton.state == .on,
+            lineNumberDynamicWidth: lineNumberDynamicWidthButton.state == .on,
+            columnSelectionToMultiEditing: columnSelectionToMultiEditingButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()

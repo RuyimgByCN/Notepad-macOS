@@ -86,6 +86,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var backspaceUnindents = true
     private var autoIndent = true
     private var scrollBeyondLastLine = false
+    private var selectedTextDragDrop = true
+    private var lineNumberDynamicWidth = false
+    private var columnSelectionToMultiEditing = false
     private var autoCompleteFromNthChar = 3
     private var autoCompleteMode = 3
     private var autoCompleteChooseSingle = true
@@ -328,6 +331,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.backspaceUnindents = preferences.backspaceUnindents
         self.autoIndent = preferences.autoIndent
         self.scrollBeyondLastLine = preferences.scrollBeyondLastLine
+        self.selectedTextDragDrop = preferences.selectedTextDragDrop
+        self.lineNumberDynamicWidth = preferences.lineNumberDynamicWidth
+        self.columnSelectionToMultiEditing = preferences.columnSelectionToMultiEditing
         self.linePadding = preferences.linePadding
         self.autoCompleteFromNthChar = preferences.autoCompleteFromNthChar
         self.autoCompleteMode = preferences.autoCompleteMode
@@ -3379,6 +3385,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         backspaceUnindents = preferences.backspaceUnindents
         autoIndent = preferences.autoIndent
         scrollBeyondLastLine = preferences.scrollBeyondLastLine
+        selectedTextDragDrop = preferences.selectedTextDragDrop
+        lineNumberDynamicWidth = preferences.lineNumberDynamicWidth
+        columnSelectionToMultiEditing = preferences.columnSelectionToMultiEditing
         autoCompleteFromNthChar = preferences.autoCompleteFromNthChar
         autoCompleteMode = preferences.autoCompleteMode
         autoCompleteChooseSingle = preferences.autoCompleteChooseSingle
@@ -4597,6 +4606,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyBackspaceUnindents(backspaceUnindents)
         editorSurface.applyAutoIndent(autoIndent)
         editorSurface.applyScrollBeyondLastLine(scrollBeyondLastLine)
+        editorSurface.applySelectedTextDragDrop(selectedTextDragDrop)
+        editorSurface.applyLineNumberDynamicWidth(lineNumberDynamicWidth)
+        editorSurface.applyColumnSelectionToMultiEditing(columnSelectionToMultiEditing)
         editorSurface.applyLinePadding(linePadding)
     }
 
