@@ -282,3 +282,50 @@ import Testing
     #expect(roundTripped.wordStyle(named: "FOLDEROPEN")?.attributes == ["fold": "open"])
     #expect(roundTripped.wordStyle(named: "FOLDERCLOSE")?.attributes == ["fold": "close"])
 }
+
+@Test func userDefinedLanguageIOImportsKeywords3Through8() throws {
+    let xml = """
+    <UserDefinedLanguage name="MultiKW" extensions=".mkw">
+        <KeywordLists>
+            <Keywords name="Keywords1">kw1a kw1b</Keywords>
+            <Keywords name="Keywords2">kw2a kw2b</Keywords>
+            <Keywords name="Keywords3">kw3a</Keywords>
+            <Keywords name="Keywords5">kw5a kw5b kw5c</Keywords>
+            <Keywords name="Keywords8">kw8a</Keywords>
+            <Keywords name="Operators2">:: -></Keywords>
+        </KeywordLists>
+    </UserDefinedLanguage>
+    """
+    let language = try UserDefinedLanguageIO.importLanguage(from: xml)
+    #expect(language.keywords.contains("kw1a"))
+    #expect(language.additionalKeywordLists["Keywords2"]?.contains("kw2a") == true)
+    #expect(language.additionalKeywordLists["Keywords3"]?.contains("kw3a") == true)
+    #expect(language.additionalKeywordLists["Keywords5"]?.contains("kw5b") == true)
+    #expect(language.additionalKeywordLists["Keywords8"]?.contains("kw8a") == true)
+    #expect(language.additionalKeywordLists["Operators2"] == ":: ->")
+}
+
+@Test func appPreferencesTabbarExitOnLastTabDefault() {
+    let prefs = AppPreferences.defaultValue
+    #expect(prefs.tabbarExitOnLastTab == false)
+}
+
+@Test func appPreferencesTabbarExitOnLastTabPersists() {
+    let defaults = UserDefaults(suiteName: "test.tabbarExitOnLastTab.\(UUID().uuidString)")!
+    let store = PreferencesStore(defaults: defaults)
+    store.save(AppPreferences(tabbarExitOnLastTab: true))
+    let loaded = store.load()
+    #expect(loaded.tabbarExitOnLastTab == true)
+}
+
+@Test func appPreferencesMissingFieldsHaveCorrectDefaults() {
+    let defaults = UserDefaults(suiteName: "test.missingFields.\(UUID().uuidString)")!
+    let store = PreferencesStore(defaults: defaults)
+    // Load from empty defaults - should get correct defaults
+    let prefs = store.load()
+    #expect(prefs.fileChangeDetectionEnabled == true)
+    #expect(prefs.copyLineWithoutSelection == true)
+    #expect(prefs.urlIndicatorStyle == 0)
+    #expect(prefs.tabbarLockDragDrop == false)
+    #expect(prefs.tabbarExitOnLastTab == false)
+}

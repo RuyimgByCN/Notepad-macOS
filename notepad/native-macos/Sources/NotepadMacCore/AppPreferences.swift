@@ -178,6 +178,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let languageTabOverrides: String
     /// When true, prevent tab reordering by drag-and-drop
     public let tabbarLockDragDrop: Bool
+    /// When true, closing the last tab exits the app instead of creating a new empty document
+    public let tabbarExitOnLastTab: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -265,7 +267,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         smartHighlightUseFindSettings: Bool = false,
         urlIndicatorStyle: Int = 0,
         languageTabOverrides: String = "",
-        tabbarLockDragDrop: Bool = false
+        tabbarLockDragDrop: Bool = false,
+        tabbarExitOnLastTab: Bool = false
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -353,6 +356,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.urlIndicatorStyle = max(0, min(2, urlIndicatorStyle))
         self.languageTabOverrides = languageTabOverrides
         self.tabbarLockDragDrop = tabbarLockDragDrop
+        self.tabbarExitOnLastTab = tabbarExitOnLastTab
     }
 
     /// Parse languageTabOverrides string into a dictionary.
@@ -509,7 +513,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             smartHighlightUseFindSettings: smartHighlightUseFindSettings,
             urlIndicatorStyle: urlIndicatorStyle,
             languageTabOverrides: languageTabOverrides,
-            tabbarLockDragDrop: tabbarLockDragDrop
+            tabbarLockDragDrop: tabbarLockDragDrop,
+            tabbarExitOnLastTab: tabbarExitOnLastTab
         )
     }
 
@@ -604,7 +609,15 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             shortTitle: shortTitle,
             saveAllConfirm: saveAllConfirm,
             autoCompleteIgnoreNumbers: autoCompleteIgnoreNumbers,
-            replaceDoesNotMove: replaceDoesNotMove
+            replaceDoesNotMove: replaceDoesNotMove,
+            fileChangeDetectionEnabled: fileChangeDetectionEnabled,
+            findDialogMonospace: findDialogMonospace,
+            copyLineWithoutSelection: copyLineWithoutSelection,
+            smartHighlightUseFindSettings: smartHighlightUseFindSettings,
+            urlIndicatorStyle: urlIndicatorStyle,
+            languageTabOverrides: languageTabOverrides,
+            tabbarLockDragDrop: tabbarLockDragDrop,
+            tabbarExitOnLastTab: tabbarExitOnLastTab
         )
     }
 
@@ -709,6 +722,14 @@ public final class PreferencesStore {
         static let findSearchMode = "notepadMac.find.searchMode"
         static let findDotMatchesNewline = "notepadMac.find.dotMatchesNewline"
         static let findWrapAround = "notepadMac.find.wrapAround"
+        static let fileChangeDetectionEnabled = "notepadMac.fileChangeDetectionEnabled"
+        static let findDialogMonospace = "notepadMac.findDialogMonospace"
+        static let copyLineWithoutSelection = "notepadMac.copyLineWithoutSelection"
+        static let smartHighlightUseFindSettings = "notepadMac.smartHighlightUseFindSettings"
+        static let urlIndicatorStyle = "notepadMac.urlIndicatorStyle"
+        static let languageTabOverrides = "notepadMac.languageTabOverrides"
+        static let tabbarLockDragDrop = "notepadMac.tabbarLockDragDrop"
+        static let tabbarExitOnLastTab = "notepadMac.tabbarExitOnLastTab"
     }
 
     private let defaults: UserDefaults
@@ -793,7 +814,15 @@ public final class PreferencesStore {
             shortTitle: defaults.object(forKey: Key.shortTitle) as? Bool ?? false,
             saveAllConfirm: defaults.object(forKey: Key.saveAllConfirm) as? Bool ?? false,
             autoCompleteIgnoreNumbers: defaults.object(forKey: Key.autoCompleteIgnoreNumbers) as? Bool ?? true,
-            replaceDoesNotMove: defaults.object(forKey: Key.replaceDoesNotMove) as? Bool ?? false
+            replaceDoesNotMove: defaults.object(forKey: Key.replaceDoesNotMove) as? Bool ?? false,
+            fileChangeDetectionEnabled: defaults.object(forKey: Key.fileChangeDetectionEnabled) as? Bool ?? true,
+            findDialogMonospace: defaults.object(forKey: Key.findDialogMonospace) as? Bool ?? false,
+            copyLineWithoutSelection: defaults.object(forKey: Key.copyLineWithoutSelection) as? Bool ?? true,
+            smartHighlightUseFindSettings: defaults.object(forKey: Key.smartHighlightUseFindSettings) as? Bool ?? false,
+            urlIndicatorStyle: defaults.object(forKey: Key.urlIndicatorStyle) as? Int ?? 0,
+            languageTabOverrides: defaults.string(forKey: Key.languageTabOverrides) ?? "",
+            tabbarLockDragDrop: defaults.object(forKey: Key.tabbarLockDragDrop) as? Bool ?? false,
+            tabbarExitOnLastTab: defaults.object(forKey: Key.tabbarExitOnLastTab) as? Bool ?? false
         )
     }
 
@@ -884,6 +913,14 @@ public final class PreferencesStore {
         defaults.set(preferences.saveAllConfirm, forKey: Key.saveAllConfirm)
         defaults.set(preferences.autoCompleteIgnoreNumbers, forKey: Key.autoCompleteIgnoreNumbers)
         defaults.set(preferences.replaceDoesNotMove, forKey: Key.replaceDoesNotMove)
+        defaults.set(preferences.fileChangeDetectionEnabled, forKey: Key.fileChangeDetectionEnabled)
+        defaults.set(preferences.findDialogMonospace, forKey: Key.findDialogMonospace)
+        defaults.set(preferences.copyLineWithoutSelection, forKey: Key.copyLineWithoutSelection)
+        defaults.set(preferences.smartHighlightUseFindSettings, forKey: Key.smartHighlightUseFindSettings)
+        defaults.set(preferences.urlIndicatorStyle, forKey: Key.urlIndicatorStyle)
+        defaults.set(preferences.languageTabOverrides, forKey: Key.languageTabOverrides)
+        defaults.set(preferences.tabbarLockDragDrop, forKey: Key.tabbarLockDragDrop)
+        defaults.set(preferences.tabbarExitOnLastTab, forKey: Key.tabbarExitOnLastTab)
         defaults.synchronize()
     }
 

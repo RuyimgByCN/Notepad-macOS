@@ -149,6 +149,7 @@ final class PreferencesPanelController: NSWindowController {
     private let tabbarSectionLabel = NSTextField(labelWithString: "")
     private let tabbarDoubleClickCloseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabbarLockDragDropButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let tabbarExitOnLastTabButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabbarMaxLabelLengthLabel = NSTextField(labelWithString: "")
     private let tabbarMaxLabelLengthField = NSTextField(string: "0")
     private let tabbarMaxLabelLengthStepper = NSStepper()
@@ -288,6 +289,7 @@ final class PreferencesPanelController: NSWindowController {
         tabbarSectionLabel.stringValue = "Tab Bar"
         tabbarDoubleClickCloseButton.title = "Double-click tab to close"
         tabbarLockDragDropButton.title = "Lock tab bar (disable drag-drop reordering)"
+        tabbarExitOnLastTabButton.title = "Exit app when last tab is closed"
         tabbarMaxLabelLengthLabel.stringValue = "Max tab label length (0 = unlimited):"
         printSectionLabel.stringValue = "Print"
         printHeaderSectionLabel.stringValue = "Header (Left / Center / Right):"
@@ -527,6 +529,7 @@ final class PreferencesPanelController: NSWindowController {
 
         // Tab 4 – Window
         [tabbarSectionLabel, tabbarDoubleClickCloseButton, tabbarLockDragDropButton,
+         tabbarExitOnLastTabButton,
          tabbarMaxLabelLengthLabel, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper,
          delimiterSectionLabel, delimiterLeftLabel, delimiterLeftField,
          delimiterRightLabel, delimiterRightField,
@@ -973,8 +976,11 @@ final class PreferencesPanelController: NSWindowController {
             tabbarLockDragDropButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
             tabbarLockDragDropButton.topAnchor.constraint(equalTo: tabbarDoubleClickCloseButton.bottomAnchor, constant: 10),
 
+            tabbarExitOnLastTabButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            tabbarExitOnLastTabButton.topAnchor.constraint(equalTo: tabbarLockDragDropButton.bottomAnchor, constant: 10),
+
             tabbarMaxLabelLengthLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
-            tabbarMaxLabelLengthLabel.topAnchor.constraint(equalTo: tabbarLockDragDropButton.bottomAnchor, constant: 14),
+            tabbarMaxLabelLengthLabel.topAnchor.constraint(equalTo: tabbarExitOnLastTabButton.bottomAnchor, constant: 14),
             tabbarMaxLabelLengthLabel.widthAnchor.constraint(equalToConstant: 200),
 
             tabbarMaxLabelLengthField.leadingAnchor.constraint(equalTo: tabbarMaxLabelLengthLabel.trailingAnchor, constant: 8),
@@ -1081,6 +1087,7 @@ final class PreferencesPanelController: NSWindowController {
         findTransparencySlider.doubleValue = preferences.findDialogTransparency
         tabbarDoubleClickCloseButton.state = preferences.tabbarDoubleClickClose ? .on : .off
         tabbarLockDragDropButton.state = preferences.tabbarLockDragDrop ? .on : .off
+        tabbarExitOnLastTabButton.state = preferences.tabbarExitOnLastTab ? .on : .off
         tabbarMaxLabelLengthField.intValue = Int32(preferences.tabbarMaxLabelLength)
         tabbarMaxLabelLengthStepper.intValue = Int32(preferences.tabbarMaxLabelLength)
         let ps = preferences.printSettings
@@ -1279,7 +1286,8 @@ final class PreferencesPanelController: NSWindowController {
             smartHighlightUseFindSettings: smartHighlightUseFindSettingsButton.state == .on,
             urlIndicatorStyle: urlIndicatorStyleSegmented.selectedSegment,
             languageTabOverrides: langTabOverridesField.stringValue,
-            tabbarLockDragDrop: tabbarLockDragDropButton.state == .on
+            tabbarLockDragDrop: tabbarLockDragDropButton.state == .on,
+            tabbarExitOnLastTab: tabbarExitOnLastTabButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()

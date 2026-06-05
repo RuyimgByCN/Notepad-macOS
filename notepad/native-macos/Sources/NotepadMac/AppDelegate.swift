@@ -1350,8 +1350,12 @@ private var appearanceObservation: NSKeyValueObservation?
                 if let next {
                     self.activate(next)
                 } else {
-                    // Last tab closed — open a new empty file instead of leaving the app windowless.
-                    self.newDocument(nil)
+                    // Last tab closed
+                    if self.preferencesStore.load().tabbarExitOnLastTab {
+                        NSApp.terminate(nil)
+                    } else {
+                        self.newDocument(nil)
+                    }
                 }
             }
         }

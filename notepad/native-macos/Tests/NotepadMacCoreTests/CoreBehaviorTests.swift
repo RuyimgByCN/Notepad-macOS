@@ -1591,6 +1591,10 @@ private func upstreamThemesDirectoryURL() -> URL {
     #expect(modified.delimiterRight == original.delimiterRight)
     #expect(modified.tabbarDoubleClickClose == original.tabbarDoubleClickClose)
     #expect(modified.tabbarMaxLabelLength == original.tabbarMaxLabelLength)
+    #expect(modified.tabbarLockDragDrop == original.tabbarLockDragDrop)
+    #expect(modified.tabbarExitOnLastTab == original.tabbarExitOnLastTab)
+    #expect(modified.fileChangeDetectionEnabled == original.fileChangeDetectionEnabled)
+    #expect(modified.urlIndicatorStyle == original.urlIndicatorStyle)
     // Only search fields should change
     #expect(modified.searchMatchCase == true)
     #expect(modified.searchWholeWord == true)
@@ -1608,6 +1612,11 @@ private func upstreamThemesDirectoryURL() -> URL {
     #expect(prefs.autoCompleteMode == 3)
     #expect(prefs.tabbarDoubleClickClose == false)
     #expect(prefs.tabbarMaxLabelLength == 0)
+    #expect(prefs.tabbarLockDragDrop == false)
+    #expect(prefs.tabbarExitOnLastTab == false)
+    #expect(prefs.fileChangeDetectionEnabled == true)
+    #expect(prefs.copyLineWithoutSelection == true)
+    #expect(prefs.urlIndicatorStyle == 0)
     #expect(prefs.printSettings.header.center == "$(FILE_NAME)")
     #expect(prefs.printSettings.footer.right == "$(PAGE) / $(PAGES)")
 }

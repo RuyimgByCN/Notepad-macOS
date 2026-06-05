@@ -423,6 +423,24 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         let keywords2Field = NSTextField(string: language.additionalKeywordLists["Keywords2"] ?? "")
         keywords2Field.placeholderString = "Optional second keyword list"
         keywords2Field.setAccessibilityLabel("Keywords2")
+        let keywords3Field = NSTextField(string: language.additionalKeywordLists["Keywords3"] ?? "")
+        keywords3Field.placeholderString = "Optional third keyword list"
+        keywords3Field.setAccessibilityLabel("Keywords3")
+        let keywords4Field = NSTextField(string: language.additionalKeywordLists["Keywords4"] ?? "")
+        keywords4Field.placeholderString = "Optional fourth keyword list"
+        keywords4Field.setAccessibilityLabel("Keywords4")
+        let keywords5Field = NSTextField(string: language.additionalKeywordLists["Keywords5"] ?? "")
+        keywords5Field.placeholderString = "Optional fifth keyword list"
+        keywords5Field.setAccessibilityLabel("Keywords5")
+        let keywords6Field = NSTextField(string: language.additionalKeywordLists["Keywords6"] ?? "")
+        keywords6Field.placeholderString = "Optional sixth keyword list"
+        keywords6Field.setAccessibilityLabel("Keywords6")
+        let keywords7Field = NSTextField(string: language.additionalKeywordLists["Keywords7"] ?? "")
+        keywords7Field.placeholderString = "Optional seventh keyword list"
+        keywords7Field.setAccessibilityLabel("Keywords7")
+        let keywords8Field = NSTextField(string: language.additionalKeywordLists["Keywords8"] ?? "")
+        keywords8Field.placeholderString = "Optional eighth keyword list"
+        keywords8Field.setAccessibilityLabel("Keywords8")
         // Comments: raw Notepad++ format, e.g. "00# 01 02((EOL)) 03<!-- 04-->"
         let commentsField = NSTextField(string: language.additionalKeywordLists["Comments"] ?? "")
         commentsField.placeholderString = "00<line> 01 02((EOL)) 03<blockStart> 04<blockEnd>"
@@ -431,6 +449,9 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         let operatorsField = NSTextField(string: language.additionalKeywordLists["Operators1"] ?? "")
         operatorsField.placeholderString = "+ - * / = < > ! & | ^ ~ % ; : , . ( ) [ ] { }"
         operatorsField.setAccessibilityLabel("Operators1 keyword list")
+        let operators2Field = NSTextField(string: language.additionalKeywordLists["Operators2"] ?? "")
+        operators2Field.placeholderString = "Optional second operators list"
+        operators2Field.setAccessibilityLabel("Operators2 keyword list")
         let styleFieldSets = Self.structuredStyleDescriptors.map { descriptor in
             Self.structuredStyleFields(for: descriptor, language: language)
         }
@@ -467,8 +488,15 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             Localization.string(.udlExtensionsColumn, default: "Extensions"),
             Localization.string(.udlKeywordsColumn, default: "Keywords 1"),
             "Keywords 2",
+            "Keywords 3",
+            "Keywords 4",
+            "Keywords 5",
+            "Keywords 6",
+            "Keywords 7",
+            "Keywords 8",
             "Comments",
-            "Operators",
+            "Operators 1",
+            "Operators 2",
             Localization.string(.udlStructuredWordsStyle, default: "Structured WordsStyle"),
             Localization.string(.udlWordsStyleRaw, default: "Raw WordsStyle")
         ].map { label -> NSTextField in
@@ -481,22 +509,29 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
             [labels[0], extensionsField],
             [labels[1], keywordsField],
             [labels[2], keywords2Field],
-            [labels[3], commentsField],
-            [labels[4], operatorsField],
-            [labels[5], styleGrid],
-            [labels[6], wordStylesScrollView]
+            [labels[3], keywords3Field],
+            [labels[4], keywords4Field],
+            [labels[5], keywords5Field],
+            [labels[6], keywords6Field],
+            [labels[7], keywords7Field],
+            [labels[8], keywords8Field],
+            [labels[9], commentsField],
+            [labels[10], operatorsField],
+            [labels[11], operators2Field],
+            [labels[12], styleGrid],
+            [labels[13], wordStylesScrollView]
         ])
         grid.translatesAutoresizingMaskIntoConstraints = false
         grid.rowSpacing = 8
         grid.columnSpacing = 10
         grid.xPlacement = .fill
-        for rowIndex in 0..<5 {
+        for rowIndex in 0..<12 {
             grid.row(at: rowIndex).yPlacement = .center
         }
-        grid.row(at: 5).yPlacement = .top
-        grid.row(at: 6).yPlacement = .top
+        grid.row(at: 12).yPlacement = .top
+        grid.row(at: 13).yPlacement = .top
 
-        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 650, height: 520))
+        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 650, height: 720))
         accessoryView.addSubview(grid)
         NSLayoutConstraint.activate([
             grid.leadingAnchor.constraint(equalTo: accessoryView.leadingAnchor),
@@ -522,8 +557,15 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
                 else { newAdditionalLists[key] = trimmed }
             }
             setOrRemove(key: "Keywords2", value: keywords2Field.stringValue)
+            setOrRemove(key: "Keywords3", value: keywords3Field.stringValue)
+            setOrRemove(key: "Keywords4", value: keywords4Field.stringValue)
+            setOrRemove(key: "Keywords5", value: keywords5Field.stringValue)
+            setOrRemove(key: "Keywords6", value: keywords6Field.stringValue)
+            setOrRemove(key: "Keywords7", value: keywords7Field.stringValue)
+            setOrRemove(key: "Keywords8", value: keywords8Field.stringValue)
             setOrRemove(key: "Comments", value: commentsField.stringValue)
             setOrRemove(key: "Operators1", value: operatorsField.stringValue)
+            setOrRemove(key: "Operators2", value: operators2Field.stringValue)
             guard let editedBase = language.updating(
                 extensionsText: extensionsField.stringValue,
                 keywordsText: keywordsField.stringValue,
