@@ -908,6 +908,96 @@ import Testing
     #expect(symbols.map(\.line) == [1, 5, 8])
 }
 
+@Test func extractsNativeFunctionListSymbolsForCSS() throws {
+    let definition = try FunctionListDefinition.load(from: upstreamFunctionListURL("css.xml"))
+    let symbols = FunctionListExtractor.extract(
+        from: """
+        .container {
+            display: flex;
+        }
+        #header {
+            color: red;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+        }
+        """,
+        languageName: "css",
+        definition: definition
+    )
+    #expect(symbols.map(\.name).contains(".container"))
+    #expect(symbols.map(\.name).contains("#header"))
+    #expect(symbols.map(\.name).contains("fadeIn"))
+}
+
+@Test func extractsNativeFunctionListSymbolsForBatch() throws {
+    let definition = try FunctionListDefinition.load(from: upstreamFunctionListURL("batch.xml"))
+    let symbols = FunctionListExtractor.extract(
+        from: """
+        @echo off
+        :main
+        echo hello
+        :cleanup
+        exit /b 0
+        """,
+        languageName: "batch",
+        definition: definition
+    )
+    #expect(symbols.map(\.name).contains("main"))
+    #expect(symbols.map(\.name).contains("cleanup"))
+}
+
+@Test func extractsNativeFunctionListSymbolsForFortran() throws {
+    let definition = try FunctionListDefinition.load(from: upstreamFunctionListURL("fortran.xml"))
+    let symbols = FunctionListExtractor.extract(
+        from: """
+        program myProgram
+        end program
+        subroutine computeSum(a, b)
+        end subroutine
+        function square(x)
+        end function
+        """,
+        languageName: "fortran",
+        definition: definition
+    )
+    #expect(symbols.map(\.name).contains("myProgram"))
+    #expect(symbols.map(\.name).contains("computeSum"))
+    #expect(symbols.map(\.name).contains("square"))
+}
+
+@Test func extractsNativeFunctionListSymbolsForHaskell() throws {
+    let definition = try FunctionListDefinition.load(from: upstreamFunctionListURL("haskell.xml"))
+    let symbols = FunctionListExtractor.extract(
+        from: """
+        data Tree a = Leaf | Node a (Tree a) (Tree a)
+        class Container f where
+        myFunc :: Int -> Int
+        helper :: String -> Bool
+        """,
+        languageName: "haskell",
+        definition: definition
+    )
+    #expect(symbols.map(\.name).contains("Tree"))
+    #expect(symbols.map(\.name).contains("myFunc"))
+}
+
+@Test func extractsNativeFunctionListSymbolsForINI() throws {
+    let definition = try FunctionListDefinition.load(from: upstreamFunctionListURL("ini.xml"))
+    let symbols = FunctionListExtractor.extract(
+        from: """
+        [database]
+        host=localhost
+        [server]
+        port=8080
+        """,
+        languageName: "ini",
+        definition: definition
+    )
+    #expect(symbols.map(\.name).contains("database"))
+    #expect(symbols.map(\.name).contains("server"))
+}
+
 @Test func findsNextMatchWithWrapAndCaseOptions() {
     let text = "Alpha beta alpha"
     let insensitive = TextSearch.Options(matchCase: false)

@@ -87,6 +87,32 @@ public struct FunctionListDefinition: Equatable, Sendable {
             "perl.xml"
         case "vb", "vbs", "bas":
             "vb.xml"
+        case "css", "scss", "less", "sass":
+            "css.xml"
+        case "batch", "bat", "cmd":
+            "batch.xml"
+        case "fortran", "f", "f77", "f90", "f95", "for", "fpp":
+            "fortran.xml"
+        case "haskell", "hs", "lhs":
+            "haskell.xml"
+        case "pascal", "pas", "delphi", "dfm":
+            "pascal.xml"
+        case "ini", "inf", "cfg":
+            "ini.xml"
+        case "toml":
+            "toml.xml"
+        case "nim", "nims":
+            "nim.xml"
+        case "ada", "adb", "ads":
+            "ada.xml"
+        case "nsis", "nsh", "nsi":
+            "nsis.xml"
+        case "latex", "tex", "sty", "cls":
+            "tex.xml"
+        case "d", "di":
+            "d.xml"
+        case "xml", "xsl", "xslt", "xsd", "dtd":
+            "xml.xml"
         default:
             "\(languageName.lowercased()).xml"
         }
@@ -164,6 +190,32 @@ public enum FunctionListExtractor {
             extractMarkdown(from: text)
         case "vb", "vbs", "bas", "vba":
             extractVisualBasic(from: text)
+        case "css", "scss", "less", "sass":
+            extractCSS(from: text)
+        case "batch", "bat", "cmd":
+            extractBatch(from: text)
+        case "fortran", "f", "f77", "f90", "f95", "for", "fpp":
+            extractFortran(from: text)
+        case "haskell", "hs", "lhs":
+            extractHaskell(from: text)
+        case "pascal", "pas", "delphi", "dfm":
+            extractPascal(from: text)
+        case "ini", "inf", "cfg":
+            extractINI(from: text)
+        case "toml":
+            extractTOML(from: text)
+        case "nim", "nims":
+            extractNim(from: text)
+        case "ada", "adb", "ads":
+            extractAda(from: text)
+        case "nsis", "nsh", "nsi":
+            extractNSIS(from: text)
+        case "latex", "tex", "sty", "cls":
+            extractLaTeX(from: text)
+        case "d", "di":
+            extractDLang(from: text)
+        case "xml", "xsl", "xslt", "xsd", "dtd":
+            extractXML(from: text)
         default:
             definition == nil ? [] : extractCStyle(from: text)
         }
@@ -426,6 +478,142 @@ public enum FunctionListExtractor {
             kind: .function
         )
         return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractCSS(from text: String) -> [FunctionListSymbol] {
+        let selectorSymbols = matches(
+            pattern: #"(?m)^([#\.]?[A-Za-z][A-Za-z0-9_\-]*)\s*\{"#,
+            in: text, kind: .type
+        )
+        let keyframeSymbols = matches(
+            pattern: #"(?m)@(?:keyframes|-\w+-keyframes)\s+([A-Za-z_][A-Za-z0-9_\-]*)"#,
+            in: text, kind: .function
+        )
+        return sortedUnique(selectorSymbols + keyframeSymbols)
+    }
+
+    private static func extractBatch(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?mi)^:([A-Za-z_][A-Za-z0-9_\-\.]*)"#,
+            in: text, kind: .function
+        )
+    }
+
+    private static func extractFortran(from text: String) -> [FunctionListSymbol] {
+        let functionSymbols = matches(
+            pattern: #"(?mi)^\s*(?:(?:pure|elemental|recursive|integer|real|double\s+precision|complex|logical|character)\s+)?(?:function|subroutine)\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text, kind: .function
+        )
+        let moduleSymbols = matches(
+            pattern: #"(?mi)^\s*(?:module|program)\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text, kind: .type
+        )
+        return sortedUnique(functionSymbols + moduleSymbols)
+    }
+
+    private static func extractHaskell(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?m)^(?:data|newtype|type|class)\s+([A-Z][A-Za-z0-9_']*)"#,
+            in: text, kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^([a-z_][A-Za-z0-9_']*)\s*::"#,
+            in: text, kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractPascal(from text: String) -> [FunctionListSymbol] {
+        let functionSymbols = matches(
+            pattern: #"(?mi)^\s*(?:function|procedure)\s+([A-Za-z_][A-Za-z0-9_\.]*)"#,
+            in: text, kind: .function
+        )
+        let typeSymbols = matches(
+            pattern: #"(?mi)^\s*(?:class|interface|type)\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text, kind: .type
+        )
+        return sortedUnique(functionSymbols + typeSymbols)
+    }
+
+    private static func extractINI(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?m)^\[([^\]]+)\]"#,
+            in: text, kind: .type
+        )
+    }
+
+    private static func extractTOML(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?m)^\[+([^\]\n]+)\]+"#,
+            in: text, kind: .type
+        )
+    }
+
+    private static func extractNim(from text: String) -> [FunctionListSymbol] {
+        let functionSymbols = matches(
+            pattern: #"(?m)^\s*(?:proc|func|method|template|macro|iterator|converter)\s+([A-Za-z_][A-Za-z0-9_]*)\*?"#,
+            in: text, kind: .function
+        )
+        let typeSymbols = matches(
+            pattern: #"(?m)^\s*(?:type)\s*\n\s*([A-Za-z_][A-Za-z0-9_]*)|(?m)^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?:object|enum|ref object|tuple)"#,
+            in: text, kind: .type
+        )
+        return sortedUnique(functionSymbols + typeSymbols)
+    }
+
+    private static func extractAda(from text: String) -> [FunctionListSymbol] {
+        let functionSymbols = matches(
+            pattern: #"(?mi)^\s*(?:procedure|function)\s+([A-Za-z_][A-Za-z0-9_\.]*)"#,
+            in: text, kind: .function
+        )
+        let typeSymbols = matches(
+            pattern: #"(?mi)^\s*(?:package|task|protected)\s+(?:body\s+)?([A-Za-z_][A-Za-z0-9_\.]*)"#,
+            in: text, kind: .type
+        )
+        return sortedUnique(functionSymbols + typeSymbols)
+    }
+
+    private static func extractNSIS(from text: String) -> [FunctionListSymbol] {
+        let functionSymbols = matches(
+            pattern: #"(?mi)^Function\s+([A-Za-z_\.][A-Za-z0-9_\.]*)"#,
+            in: text, kind: .function
+        )
+        let sectionSymbols = matches(
+            pattern: #"(?mi)^Section\s+(?:Un\.)?(?:"([^"]+)"|(\S+))"#,
+            in: text, kind: .type
+        )
+        return sortedUnique(functionSymbols + sectionSymbols)
+    }
+
+    private static func extractLaTeX(from text: String) -> [FunctionListSymbol] {
+        let sectionSymbols = matches(
+            pattern: #"\\(?:chapter|section|subsection|subsubsection)\{([^}]+)\}"#,
+            in: text, kind: .type
+        )
+        let commandSymbols = matches(
+            pattern: #"\\(?:newcommand|renewcommand|newenvironment)\{\\([A-Za-z]+)\}"#,
+            in: text, kind: .function
+        )
+        return sortedUnique(sectionSymbols + commandSymbols)
+    }
+
+    private static func extractDLang(from text: String) -> [FunctionListSymbol] {
+        let typeSymbols = matches(
+            pattern: #"(?m)^\s*(?:class|struct|interface|enum|union|template)\s+([A-Za-z_][A-Za-z0-9_]*)"#,
+            in: text, kind: .type
+        )
+        let functionSymbols = matches(
+            pattern: #"(?m)^\s*(?:[A-Za-z_][A-Za-z0-9_\!]*\s+)+([A-Za-z_][A-Za-z0-9_]*)\s*\([^;{]*\)\s*\{"#,
+            in: text, kind: .function
+        )
+        return sortedUnique(typeSymbols + functionSymbols)
+    }
+
+    private static func extractXML(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"<([A-Za-z][A-Za-z0-9_\-]*)(?:\s[^>]*)?\s*(?:>|/>)"#,
+            in: text, kind: .type
+        )
     }
 
     private static func matches(pattern: String, in text: String, kind: FunctionListSymbolKind) -> [FunctionListSymbol] {
