@@ -618,6 +618,17 @@ extension LanguageDefinition {
             }
         }
 
+        // Nesting bitmasks: sent to SCLEX_USER via SCI_SETPROPERTY "userDefine.nesting.XX"
+        var nestingProperties: [Int: Int] = [:]
+        for style in language.wordStyles {
+            if let rawID = style.attributes["styleID"],
+               let styleID = Int(rawID),
+               let rawNesting = style.nesting,
+               let nesting = Int(rawNesting) {
+                nestingProperties[styleID] = nesting
+            }
+        }
+
         self.init(
             name: language.name,
             displayName: language.displayName,
@@ -625,7 +636,8 @@ extension LanguageDefinition {
             keywordGroups: keywordGroups,
             wordStyles: language.wordStyles.compactMap {
                 LanguageWordStyle(name: $0.name, foregroundHexRGB: $0.fgColor)
-            }
+            },
+            nestingProperties: nestingProperties
         )
     }
 }

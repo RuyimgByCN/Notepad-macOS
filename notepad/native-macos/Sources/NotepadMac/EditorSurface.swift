@@ -935,6 +935,13 @@ final class ScintillaEditorSurface: EditorSurface {
             }
         }
 
+        for (styleID, nesting) in language.nestingProperties {
+            bridge.setLexerProperty(
+                name: String(format: "userDefine.nesting.%02d", styleID),
+                value: String(nesting)
+            )
+        }
+
         applyStyles(language: language, styleCatalog: styleCatalog, stylePreferences: stylePreferences)
         applyGlobalStyles(styleCatalog: styleCatalog, stylePreferences: stylePreferences)
         bridge.setGeneralProperty(ScintillaMessage.colourise, parameter: 0, value: -1)

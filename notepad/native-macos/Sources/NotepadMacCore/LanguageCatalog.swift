@@ -37,6 +37,8 @@ public struct LanguageDefinition: Equatable, Identifiable, Sendable {
     public let blockCommentEnd: String?
     public let keywordGroups: [String: [String]]
     public let wordStyles: [LanguageWordStyle]
+    /// UDL only: maps Scintilla style ID → nesting bitmask (sent via SCI_SETPROPERTY "userDefine.nesting.XX").
+    public let nestingProperties: [Int: Int]
 
     public var id: String { name }
 
@@ -52,7 +54,8 @@ public struct LanguageDefinition: Equatable, Identifiable, Sendable {
         blockCommentStart: String? = nil,
         blockCommentEnd: String? = nil,
         keywordGroups: [String: [String]] = [:],
-        wordStyles: [LanguageWordStyle] = []
+        wordStyles: [LanguageWordStyle] = [],
+        nestingProperties: [Int: Int] = [:]
     ) {
         self.name = name
         self.displayName = displayName ?? LanguageDefinition.defaultDisplayName(for: name)
@@ -62,6 +65,7 @@ public struct LanguageDefinition: Equatable, Identifiable, Sendable {
         self.blockCommentEnd = blockCommentEnd?.nilIfEmpty
         self.keywordGroups = keywordGroups
         self.wordStyles = wordStyles
+        self.nestingProperties = nestingProperties
     }
 
     public static let plainText = LanguageDefinition(name: "normal", displayName: "Plain Text", extensions: ["txt"])

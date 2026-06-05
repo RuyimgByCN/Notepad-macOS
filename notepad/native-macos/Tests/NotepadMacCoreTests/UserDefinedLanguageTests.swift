@@ -727,3 +727,26 @@ import Testing
     #expect(catalog.language(named: "RUST")?.displayName == "Case Custom Rust")
     #expect(catalog.language(for: ".rs")?.displayName == "Case Custom Rust")
 }
+
+@Test func udlLanguageDefinitionPopulatesNestingProperties() throws {
+    let xml = """
+    <NotepadPlus>
+    <UserLang name="TestNest" ext="tn">
+      <Styles>
+        <WordsStyle styleID="0"  name="Normal Text"  fgColor="000000" bgColor="ffffff" fontName="" fontStyle="0" nesting="0" />
+        <WordsStyle styleID="1"  name="Numbers"      fgColor="ff0000" bgColor="ffffff" fontName="" fontStyle="0" nesting="3" />
+        <WordsStyle styleID="11" name="KEYWORDS1"    fgColor="0000ff" bgColor="ffffff" fontName="" fontStyle="0" nesting="128" />
+      </Styles>
+      <Keywords name="Keywords1">foo bar</Keywords>
+    </UserLang>
+    </NotepadPlus>
+    """
+
+    let parsed = try UserDefinedLanguageIO.importLanguage(from: xml)
+    let langDef = LanguageDefinition(userDefinedLanguage: parsed)
+
+    #expect(langDef.nestingProperties[0]  == 0)
+    #expect(langDef.nestingProperties[1]  == 3)
+    #expect(langDef.nestingProperties[11] == 128)
+    #expect(langDef.nestingProperties[5]  == nil)
+}
