@@ -233,14 +233,17 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
             return b
         }
 
-        let btnNew     = makeToolbarButton(image: "doc.badge.plus",    tip: "New Workspace",     selector: #selector(newWorkspace(_:)))
-        let btnOpen    = makeToolbarButton(image: "folder",            tip: "Open Workspace...", selector: #selector(openWorkspace(_:)))
-        let btnSave    = makeToolbarButton(image: "square.and.arrow.down", tip: "Save Workspace", selector: #selector(saveWorkspace(_:)))
-        let btnSaveAs  = makeToolbarButton(image: "square.and.arrow.down.on.square", tip: "Save Workspace As...", selector: #selector(saveWorkspaceAs(_:)))
-        let btnAddFiles  = makeToolbarButton(image: "doc.badge.plus",    tip: "Add Files...",    selector: #selector(addFilesFromToolbar(_:)))
-        let btnAddFolder = makeToolbarButton(image: "folder.badge.plus", tip: "Add Folder...",   selector: #selector(addFolderFromToolbar(_:)))
+        let btnNew       = makeToolbarButton(image: "doc.badge.plus",    tip: "New Workspace",          selector: #selector(newWorkspace(_:)))
+        let btnOpen      = makeToolbarButton(image: "folder",            tip: "Open Workspace...",      selector: #selector(openWorkspace(_:)))
+        let btnReload    = makeToolbarButton(image: "arrow.clockwise",   tip: "Reload Workspace",       selector: #selector(reloadWorkspaceFromDisk(_:)))
+        let btnSave      = makeToolbarButton(image: "square.and.arrow.down", tip: "Save Workspace",     selector: #selector(saveWorkspace(_:)))
+        let btnSaveAs    = makeToolbarButton(image: "square.and.arrow.down.on.square", tip: "Save Workspace As...", selector: #selector(saveWorkspaceAs(_:)))
+        let btnSaveCopy  = makeToolbarButton(image: "doc.on.doc",        tip: "Save Copy As...",        selector: #selector(saveCopyAs(_:)))
+        let btnAddProject = makeToolbarButton(image: "shippingbox.fill", tip: "Add Project...",         selector: #selector(addProject(_:)))
+        let btnAddFiles  = makeToolbarButton(image: "doc.badge.plus",    tip: "Add Files...",           selector: #selector(addFilesFromToolbar(_:)))
+        let btnAddFolder = makeToolbarButton(image: "folder.badge.plus", tip: "Add Folder...",          selector: #selector(addFolderFromToolbar(_:)))
 
-        for btn in [btnNew, btnOpen, btnSave, btnSaveAs, btnAddFiles, btnAddFolder] {
+        for btn in [btnNew, btnOpen, btnReload, btnSave, btnSaveAs, btnSaveCopy, btnAddProject, btnAddFiles, btnAddFolder] {
             toolbarView.addSubview(btn)
         }
 
@@ -262,7 +265,12 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
             btnOpen.widthAnchor.constraint(equalToConstant: btnW),
             btnOpen.heightAnchor.constraint(equalToConstant: btnW),
 
-            btnSave.leadingAnchor.constraint(equalTo: btnOpen.trailingAnchor, constant: spacing),
+            btnReload.leadingAnchor.constraint(equalTo: btnOpen.trailingAnchor, constant: spacing),
+            btnReload.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
+            btnReload.widthAnchor.constraint(equalToConstant: btnW),
+            btnReload.heightAnchor.constraint(equalToConstant: btnW),
+
+            btnSave.leadingAnchor.constraint(equalTo: btnReload.trailingAnchor, constant: spacing),
             btnSave.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
             btnSave.widthAnchor.constraint(equalToConstant: btnW),
             btnSave.heightAnchor.constraint(equalToConstant: btnW),
@@ -272,7 +280,17 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
             btnSaveAs.widthAnchor.constraint(equalToConstant: btnW),
             btnSaveAs.heightAnchor.constraint(equalToConstant: btnW),
 
-            btnAddFiles.leadingAnchor.constraint(equalTo: btnSaveAs.trailingAnchor, constant: 8),
+            btnSaveCopy.leadingAnchor.constraint(equalTo: btnSaveAs.trailingAnchor, constant: spacing),
+            btnSaveCopy.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
+            btnSaveCopy.widthAnchor.constraint(equalToConstant: btnW),
+            btnSaveCopy.heightAnchor.constraint(equalToConstant: btnW),
+
+            btnAddProject.leadingAnchor.constraint(equalTo: btnSaveCopy.trailingAnchor, constant: 8),
+            btnAddProject.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
+            btnAddProject.widthAnchor.constraint(equalToConstant: btnW),
+            btnAddProject.heightAnchor.constraint(equalToConstant: btnW),
+
+            btnAddFiles.leadingAnchor.constraint(equalTo: btnAddProject.trailingAnchor, constant: spacing),
             btnAddFiles.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
             btnAddFiles.widthAnchor.constraint(equalToConstant: btnW),
             btnAddFiles.heightAnchor.constraint(equalToConstant: btnW),
@@ -358,6 +376,26 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         saveToURL(url)
     }
 
+    @objc private func saveCopyAs(_ sender: Any?) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.xml]
+        panel.nameFieldStringValue = (workspace?.name ?? "Workspace") + " Copy.xml"
+        panel.title = "Save Copy of Workspace As..."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        saveToURL(url)
+        // currentWorkspaceURL stays unchanged (it's a copy)
+    }
+
+    @objc private func reloadWorkspaceFromDisk(_ sender: Any?) {
+        guard let url = currentWorkspaceURL else { return }
+        do {
+            let doc = try WorkspaceDocument.load(from: url)
+            show(workspace: doc, url: url)
+        } catch {
+            NSApp.presentError(error)
+        }
+    }
+
     private func saveToURL(_ url: URL) {
         guard let workspace else { return }
         do {
@@ -409,6 +447,26 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         workspace = workspace?.addingFolder(url, recursive: true, toProjectAt: projectIndex)
         outlineView.reloadData()
         expandAll()
+    }
+
+    @objc private func addProject(_ sender: Any?) {
+        let alert = NSAlert()
+        alert.messageText = "New Project"
+        alert.informativeText = "Enter a name for the new project:"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Add")
+        alert.addButton(withTitle: "Cancel")
+        let field = NSTextField(string: "New Project")
+        field.frame = NSRect(x: 0, y: 0, width: 260, height: 22)
+        alert.accessoryView = field
+        guard let window else { return }
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard response == .alertFirstButtonReturn, let self else { return }
+            let name = field.stringValue.isEmpty ? "New Project" : field.stringValue
+            let node = WorkspaceNode(name: name, kind: .project)
+            self.workspace = self.workspace?.addingProject(node)
+            self.outlineView.reloadData()
+        }
     }
 
     @objc private func addFilesFromToolbar(_ sender: Any?) {
@@ -513,6 +571,7 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         let menu = NSMenu()
 
         // Edit operations
+        menu.addItem(withTitle: "Add Project...", action: #selector(addProject(_:)), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Add Files...", action: #selector(addFilesHere(_:)), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Add Folder...", action: #selector(addFolderHere(_:)), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Rename...", action: #selector(renameNode(_:)), keyEquivalent: "").target = self

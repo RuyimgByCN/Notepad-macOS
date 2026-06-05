@@ -170,6 +170,11 @@ public struct WorkspaceDocument: Codable, Equatable, Sendable {
         return WorkspaceDocument(name: name, projects: moveDown(projects))
     }
 
+    /// Returns a new document with a new top-level project node appended.
+    public func addingProject(_ project: WorkspaceNode) -> WorkspaceDocument {
+        WorkspaceDocument(name: name, projects: projects + [project])
+    }
+
     /// Returns a new document with the matching node removed (deep, equality-based).
     public func removingNode(_ target: WorkspaceNode) -> WorkspaceDocument {
         func remove(_ nodes: [WorkspaceNode]) -> [WorkspaceNode] {
