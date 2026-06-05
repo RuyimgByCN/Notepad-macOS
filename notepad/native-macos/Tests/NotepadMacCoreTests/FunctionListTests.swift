@@ -594,3 +594,113 @@ private func upstreamFunctionListURL(_ fileName: String) -> URL {
     #expect(names.contains("Utils"))
     #expect(names.contains("MAIN"))
 }
+
+@Test func extractsCOBOLParagraphs() {
+    let code = """
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. MyProgram.
+
+    PROCEDURE DIVISION.
+    000-MAIN-LOGIC.
+        PERFORM 100-INITIALIZE.
+        PERFORM 200-PROCESS.
+        STOP RUN.
+
+    100-INITIALIZE.
+        MOVE ZERO TO WS-COUNTER.
+
+    200-PROCESS SECTION.
+        PERFORM 210-READ-DATA.
+
+    210-READ-DATA.
+        READ INPUT-FILE.
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "cobol", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains { $0.contains("MAIN") || $0.contains("000") })
+    #expect(names.contains { $0.contains("INITIALIZE") || $0.contains("100") })
+    #expect(names.contains { $0.contains("PROCESS") || $0.contains("200") })
+}
+
+@Test func extractsHollywoodFunctions() {
+    let code = """
+    Function SetupWindow()
+        SetFormStyle(#METAL)
+    EndFunction
+
+    Function OnMenuSelect(id)
+        Switch id
+        Case 1: Quit()
+        EndSwitch
+    EndFunction
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "hollywood", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("SetupWindow"))
+    #expect(names.contains("OnMenuSelect"))
+}
+
+@Test func extractsKRLFunctions() {
+    let code = """
+    DEF MainProg()
+        homePos()
+        BAS(#INITMOV, 0)
+    END
+
+    DEFFCT REAL CalculateDist(p1:IN, p2:IN)
+        RETURN SQRT(...)
+    ENDFCT
+
+    GLOBAL DEF SafeMove(target:IN)
+        LIN target
+    END
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "krl", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("MainProg"))
+    #expect(names.contains("CalculateDist"))
+    #expect(names.contains("SafeMove"))
+}
+
+@Test func extractsSinumerikPrograms() {
+    let code = """
+    %_N_MAIN_MPF
+    ; Main machining program
+    G0 X0 Y0
+
+    %_N_DRILL_CYCLE_SPF
+    ; Drilling subroutine
+    G81 Z-10
+
+    %_N_FINISH_SPF
+    G70
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "sinumerik", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("MAIN_MPF"))
+    #expect(names.contains("DRILL_CYCLE_SPF"))
+    #expect(names.contains("FINISH_SPF"))
+}
+
+@Test func extractsNppExecScriptsAndLabels() {
+    let code = """
+    ::Build Project
+    npp_save
+    cd "$(CURRENT_DIRECTORY)"
+    cmd /c build.bat
+    goto :done
+
+    :done
+    echo Build complete
+
+    ::Run Tests
+    cmd /c run_tests.bat
+    :error
+    echo Failed
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "nppexec", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains { $0.contains("Build") })
+    #expect(names.contains { $0.contains("Run") || $0.contains("Tests") })
+    #expect(names.contains { $0.contains("done") || $0.contains("error") })
+}

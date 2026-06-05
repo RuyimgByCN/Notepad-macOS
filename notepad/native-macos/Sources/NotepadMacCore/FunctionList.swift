@@ -131,6 +131,18 @@ public struct FunctionListDefinition: Equatable, Sendable {
             "cobol.xml"
         case "inno", "iss":
             "inno.xml"
+        case "baanc", "bc":
+            "baanc.xml"
+        case "hollywood", "hws":
+            "hollywood.xml"
+        case "krl":
+            "krl.xml"
+        case "universe_basic", "uv", "uvb":
+            "universe_basic.xml"
+        case "sinumerik", "spf", "mpf":
+            "sinumerik.xml"
+        case "nppexec":
+            "nppexec.xml"
         default:
             "\(languageName.lowercased()).xml"
         }
@@ -252,6 +264,18 @@ public enum FunctionListExtractor {
             extractCOBOL(from: text)
         case "inno", "iss":
             extractInnoSetup(from: text)
+        case "baanc", "bc":
+            extractBaanC(from: text)
+        case "hollywood", "hws":
+            extractHollywood(from: text)
+        case "krl":
+            extractKRL(from: text)
+        case "universe_basic", "uv", "uvb":
+            extractUniverseBasic(from: text)
+        case "sinumerik", "spf", "mpf":
+            extractSinumerik(from: text)
+        case "nppexec":
+            extractNppExec(from: text)
         default:
             definition == nil ? [] : extractCStyle(from: text)
         }
@@ -867,5 +891,65 @@ extension FunctionListExtractor {
             kind: .function
         )
         return sortedUnique(sectionSymbols + funcSymbols + procSymbols)
+    }
+
+    private static func extractBaanC(from text: String) -> [FunctionListSymbol] {
+        let sectionSymbols = matches(
+            pattern: #"(?m)^\h*((?:after|before)\.(?:report\.\d+|\w+(?:\.\w+)*\.\d+)|(?:field|zoom\.from)\.(?:all|other|\w+(?:\.\w+)*)|(?:footer|group|header)\.\d+|choice\.\w+(?:\.\w+)*|detail\.\d+|form\.(?:all|other|\d+)|functions|main\.table\.io):"#,
+            in: text,
+            kind: .type
+        )
+        let funcSymbols = matches(
+            pattern: #"(?mi)^\h*function\s+(?:extern\s+)?(?:boolean|double|long|string|void|domain\s+\w+(?:\.\w+)*)?\s*(\w+(?:\.\w+)*)\s*\("#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(sectionSymbols + funcSymbols)
+    }
+
+    private static func extractHollywood(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?mi)\bfunction\s+([A-Za-z_$][\w$:.]*)\s*\("#,
+            in: text,
+            kind: .function
+        )
+    }
+
+    private static func extractKRL(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?mi)^\h*(?:GLOBAL\h+)?DEF(?:FCT\h+(?:BOOL|CHAR|INT|REAL|\w+)(?:\h*\[\h*\d*\h*\])?)?\h+(\w+)\h*\("#,
+            in: text,
+            kind: .function
+        )
+    }
+
+    private static func extractUniverseBasic(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?m)^(?:\d+\b|[A-Za-z_][\w.$%]*(?=:))"#,
+            in: text,
+            kind: .function
+        )
+    }
+
+    private static func extractSinumerik(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?m)^%_N_([A-Za-z_]\w*)"#,
+            in: text,
+            kind: .function
+        )
+    }
+
+    private static func extractNppExec(from text: String) -> [FunctionListSymbol] {
+        let scriptSymbols = matches(
+            pattern: #"(?m)^\h*::(.+)"#,
+            in: text,
+            kind: .type
+        )
+        let labelSymbols = matches(
+            pattern: #"(?m)^\h*:(?!:)(.+)"#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(scriptSymbols + labelSymbols)
     }
 }
