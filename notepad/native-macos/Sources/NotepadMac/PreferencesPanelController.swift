@@ -22,6 +22,10 @@ final class PreferencesPanelController: NSWindowController {
     private let recentFilesMaxField = NSTextField(string: "20")
     private let recentFilesMaxStepper = NSStepper()
     private let recentFilesShowFullPathButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let recentFilesInSubmenuButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let recentFilesCustomLengthLabel = NSTextField(labelWithString: "")
+    private let recentFilesCustomLengthField = NSTextField(string: "0")
+    private let recentFilesCustomLengthStepper = NSStepper()
     private let noCheckRecentAtLaunchButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let keepAbsentFilesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoReloadButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -322,6 +326,8 @@ final class PreferencesPanelController: NSWindowController {
         defaultLangLabel.stringValue = Localization.string(.preferencesDefaultLanguage, default: "Default language for new documents:")
         additionalEdgeColumnsLabel.stringValue = "Extra vertical edges (columns):"
         recentFilesShowFullPathButton.title = "Show full path in recent files menu"
+        recentFilesInSubmenuButton.title = "Show recent files in a submenu"
+        recentFilesCustomLengthLabel.stringValue = "Path display length (0=full):"
         populateNewDocEncodingPopup(selected: preferencesStore.load().defaultNewDocumentEncoding)
         populateNewDocLineEndingPopup(selected: preferencesStore.load().defaultNewDocumentLineEnding)
         populateDefaultLangPopup(selected: preferencesStore.load().defaultNewDocumentLanguageName)
@@ -469,6 +475,10 @@ final class PreferencesPanelController: NSWindowController {
         recentFilesMaxStepper.minValue = 1
         recentFilesMaxStepper.maxValue = 50
         recentFilesMaxStepper.increment = 1
+        recentFilesCustomLengthField.formatter = integerFormatter
+        recentFilesCustomLengthStepper.minValue = 0
+        recentFilesCustomLengthStepper.maxValue = 500
+        recentFilesCustomLengthStepper.increment = 10
 
         periodicBackupField.formatter = integerFormatter
         periodicBackupStepper.minValue = 1
@@ -513,7 +523,9 @@ final class PreferencesPanelController: NSWindowController {
          newDocLineEndingLabel, newDocLineEndingPopup,
          rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton,
          recentFilesMaxLabel, recentFilesMaxField, recentFilesMaxStepper,
-         recentFilesShowFullPathButton, noCheckRecentAtLaunchButton,
+         recentFilesShowFullPathButton, recentFilesInSubmenuButton,
+         recentFilesCustomLengthLabel, recentFilesCustomLengthField, recentFilesCustomLengthStepper,
+         noCheckRecentAtLaunchButton,
          keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel,
          periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup,
          useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton,
@@ -782,8 +794,21 @@ final class PreferencesPanelController: NSWindowController {
             recentFilesShowFullPathButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             recentFilesShowFullPathButton.topAnchor.constraint(equalTo: recentFilesMaxLabel.bottomAnchor, constant: 10),
 
+            recentFilesInSubmenuButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            recentFilesInSubmenuButton.topAnchor.constraint(equalTo: recentFilesShowFullPathButton.bottomAnchor, constant: 10),
+
+            recentFilesCustomLengthLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            recentFilesCustomLengthLabel.topAnchor.constraint(equalTo: recentFilesInSubmenuButton.bottomAnchor, constant: 10),
+
+            recentFilesCustomLengthField.leadingAnchor.constraint(equalTo: recentFilesCustomLengthLabel.trailingAnchor, constant: 8),
+            recentFilesCustomLengthField.centerYAnchor.constraint(equalTo: recentFilesCustomLengthLabel.centerYAnchor),
+            recentFilesCustomLengthField.widthAnchor.constraint(equalToConstant: 60),
+
+            recentFilesCustomLengthStepper.leadingAnchor.constraint(equalTo: recentFilesCustomLengthField.trailingAnchor, constant: 6),
+            recentFilesCustomLengthStepper.centerYAnchor.constraint(equalTo: recentFilesCustomLengthField.centerYAnchor),
+
             noCheckRecentAtLaunchButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
-            noCheckRecentAtLaunchButton.topAnchor.constraint(equalTo: recentFilesShowFullPathButton.bottomAnchor, constant: 10),
+            noCheckRecentAtLaunchButton.topAnchor.constraint(equalTo: recentFilesCustomLengthLabel.bottomAnchor, constant: 10),
 
             keepAbsentFilesButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             keepAbsentFilesButton.topAnchor.constraint(equalTo: noCheckRecentAtLaunchButton.bottomAnchor, constant: 10),
@@ -1082,6 +1107,9 @@ final class PreferencesPanelController: NSWindowController {
         recentFilesMaxField.intValue = Int32(preferences.recentFilesMaxCount)
         recentFilesMaxStepper.intValue = Int32(preferences.recentFilesMaxCount)
         recentFilesShowFullPathButton.state = preferences.recentFilesShowFullPath ? .on : .off
+        recentFilesInSubmenuButton.state = preferences.recentFilesInSubmenu ? .on : .off
+        recentFilesCustomLengthField.intValue = Int32(preferences.recentFilesCustomDisplayLength)
+        recentFilesCustomLengthStepper.intValue = Int32(preferences.recentFilesCustomDisplayLength)
         noCheckRecentAtLaunchButton.state = preferences.noCheckRecentAtLaunch ? .on : .off
         keepAbsentFilesButton.state = preferences.keepAbsentFilesInSession ? .on : .off
         autoReloadButton.state = preferences.autoReloadOnExternalChange ? .on : .off
@@ -1192,6 +1220,14 @@ final class PreferencesPanelController: NSWindowController {
             recentFilesMaxField.intValue = recentFilesMaxStepper.intValue
         }
 
+        if sender as? NSTextField === recentFilesCustomLengthField {
+            recentFilesCustomLengthStepper.intValue = recentFilesCustomLengthField.intValue
+        } else if sender as? NSStepper === recentFilesCustomLengthStepper {
+            recentFilesCustomLengthField.intValue = recentFilesCustomLengthStepper.intValue
+        } else if recentFilesCustomLengthStepper.intValue != recentFilesCustomLengthField.intValue {
+            recentFilesCustomLengthStepper.intValue = recentFilesCustomLengthField.intValue
+        }
+
         if sender as? NSTextField === periodicBackupField {
             periodicBackupStepper.intValue = periodicBackupField.intValue
         } else if sender as? NSStepper === periodicBackupStepper {
@@ -1269,6 +1305,8 @@ final class PreferencesPanelController: NSWindowController {
             useFirstLineAsTabName: useFirstLineAsTabNameButton.state == .on,
             recentFilesMaxCount: Int(recentFilesMaxField.intValue),
             recentFilesShowFullPath: recentFilesShowFullPathButton.state == .on,
+            recentFilesInSubmenu: recentFilesInSubmenuButton.state == .on,
+            recentFilesCustomDisplayLength: Int(recentFilesCustomLengthField.intValue),
             noCheckRecentAtLaunch: noCheckRecentAtLaunchButton.state == .on,
             keepAbsentFilesInSession: keepAbsentFilesButton.state == .on,
             autoReloadOnExternalChange: autoReloadButton.state == .on,

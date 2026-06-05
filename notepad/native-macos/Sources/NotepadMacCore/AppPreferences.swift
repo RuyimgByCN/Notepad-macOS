@@ -106,6 +106,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let useFirstLineAsTabName: Bool
     public let recentFilesMaxCount: Int     // 1-50
     public let recentFilesShowFullPath: Bool
+    /// When true, Recent Files are shown in a submenu rather than in the File menu directly
+    public let recentFilesInSubmenu: Bool
+    /// Custom display length for recent file paths (0 = show full path, >0 = trim to N chars from end)
+    public let recentFilesCustomDisplayLength: Int
     public let noCheckRecentAtLaunch: Bool
     public let keepAbsentFilesInSession: Bool
     public let autoReloadOnExternalChange: Bool
@@ -240,6 +244,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         useFirstLineAsTabName: Bool = false,
         recentFilesMaxCount: Int = 20,
         recentFilesShowFullPath: Bool = false,
+        recentFilesInSubmenu: Bool = false,
+        recentFilesCustomDisplayLength: Int = 0,
         noCheckRecentAtLaunch: Bool = false,
         keepAbsentFilesInSession: Bool = false,
         autoReloadOnExternalChange: Bool = false,
@@ -334,6 +340,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.useFirstLineAsTabName = useFirstLineAsTabName
         self.recentFilesMaxCount = max(1, min(50, recentFilesMaxCount))
         self.recentFilesShowFullPath = recentFilesShowFullPath
+        self.recentFilesInSubmenu = recentFilesInSubmenu
+        self.recentFilesCustomDisplayLength = max(0, recentFilesCustomDisplayLength)
         self.noCheckRecentAtLaunch = noCheckRecentAtLaunch
         self.keepAbsentFilesInSession = keepAbsentFilesInSession
         self.autoReloadOnExternalChange = autoReloadOnExternalChange
@@ -498,6 +506,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             useFirstLineAsTabName: useFirstLineAsTabName,
             recentFilesMaxCount: recentFilesMaxCount,
             recentFilesShowFullPath: recentFilesShowFullPath,
+            recentFilesInSubmenu: recentFilesInSubmenu,
+            recentFilesCustomDisplayLength: recentFilesCustomDisplayLength,
             noCheckRecentAtLaunch: noCheckRecentAtLaunch,
             keepAbsentFilesInSession: keepAbsentFilesInSession,
             autoReloadOnExternalChange: autoReloadOnExternalChange,
@@ -607,6 +617,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             useFirstLineAsTabName: useFirstLineAsTabName,
             recentFilesMaxCount: recentFilesMaxCount,
             recentFilesShowFullPath: recentFilesShowFullPath,
+            recentFilesInSubmenu: recentFilesInSubmenu,
+            recentFilesCustomDisplayLength: recentFilesCustomDisplayLength,
             noCheckRecentAtLaunch: noCheckRecentAtLaunch,
             keepAbsentFilesInSession: keepAbsentFilesInSession,
             autoReloadOnExternalChange: autoReloadOnExternalChange,
@@ -718,6 +730,8 @@ public final class PreferencesStore {
         static let useFirstLineAsTabName = "notepadMac.useFirstLineAsTabName"
         static let recentFilesMaxCount = "notepadMac.recentFilesMaxCount"
         static let recentFilesShowFullPath = "notepadMac.recentFilesShowFullPath"
+        static let recentFilesInSubmenu = "notepadMac.recentFilesInSubmenu"
+        static let recentFilesCustomDisplayLength = "notepadMac.recentFilesCustomDisplayLength"
         static let noCheckRecentAtLaunch = "notepadMac.noCheckRecentAtLaunch"
         static let keepAbsentFilesInSession = "notepadMac.keepAbsentFilesInSession"
         static let autoReloadOnExternalChange = "notepadMac.autoReloadOnExternalChange"
@@ -824,6 +838,8 @@ public final class PreferencesStore {
             useFirstLineAsTabName: defaults.object(forKey: Key.useFirstLineAsTabName) as? Bool ?? false,
             recentFilesMaxCount: defaults.object(forKey: Key.recentFilesMaxCount) as? Int ?? 20,
             recentFilesShowFullPath: defaults.object(forKey: Key.recentFilesShowFullPath) as? Bool ?? false,
+            recentFilesInSubmenu: defaults.object(forKey: Key.recentFilesInSubmenu) as? Bool ?? false,
+            recentFilesCustomDisplayLength: defaults.object(forKey: Key.recentFilesCustomDisplayLength) as? Int ?? 0,
             noCheckRecentAtLaunch: defaults.object(forKey: Key.noCheckRecentAtLaunch) as? Bool ?? false,
             keepAbsentFilesInSession: defaults.object(forKey: Key.keepAbsentFilesInSession) as? Bool ?? false,
             autoReloadOnExternalChange: defaults.object(forKey: Key.autoReloadOnExternalChange) as? Bool ?? false,
@@ -925,6 +941,8 @@ public final class PreferencesStore {
         defaults.set(preferences.useFirstLineAsTabName, forKey: Key.useFirstLineAsTabName)
         defaults.set(preferences.recentFilesMaxCount, forKey: Key.recentFilesMaxCount)
         defaults.set(preferences.recentFilesShowFullPath, forKey: Key.recentFilesShowFullPath)
+        defaults.set(preferences.recentFilesInSubmenu, forKey: Key.recentFilesInSubmenu)
+        defaults.set(preferences.recentFilesCustomDisplayLength, forKey: Key.recentFilesCustomDisplayLength)
         defaults.set(preferences.noCheckRecentAtLaunch, forKey: Key.noCheckRecentAtLaunch)
         defaults.set(preferences.keepAbsentFilesInSession, forKey: Key.keepAbsentFilesInSession)
         defaults.set(preferences.autoReloadOnExternalChange, forKey: Key.autoReloadOnExternalChange)
