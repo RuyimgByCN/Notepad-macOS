@@ -113,6 +113,14 @@ public struct FunctionListDefinition: Equatable, Sendable {
             "d.xml"
         case "xml", "xsl", "xslt", "xsd", "dtd":
             "xml.xml"
+        case "makefile", "make", "mak", "gnumakefile", "mk":
+            "makefile.xml"
+        case "gdscript", "gd":
+            "gdscript.xml"
+        case "vhdl", "vhd":
+            "vhdl.xml"
+        case "raku", "rk", "rakumod", "rakudoc", "rakutest", "pm6", "pl6", "p6":
+            "raku.xml"
         default:
             "\(languageName.lowercased()).xml"
         }
@@ -216,6 +224,14 @@ public enum FunctionListExtractor {
             extractDLang(from: text)
         case "xml", "xsl", "xslt", "xsd", "dtd":
             extractXML(from: text)
+        case "makefile", "make", "mak", "gnumakefile", "mk":
+            extractMakefile(from: text)
+        case "gdscript", "gd":
+            extractGDScript(from: text)
+        case "vhdl", "vhd":
+            extractVHDL(from: text)
+        case "raku", "rk", "rakumod", "rakudoc", "rakutest", "pm6", "pl6", "p6":
+            extractRaku(from: text)
         default:
             definition == nil ? [] : extractCStyle(from: text)
         }
@@ -734,5 +750,51 @@ private final class FunctionListModelParser: NSObject, XMLParserDelegate {
 private extension String {
     var nilIfEmpty: String? {
         isEmpty ? nil : self
+    }
+}
+
+extension FunctionListExtractor {
+    private static func extractMakefile(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?m)^([\w$\(\)\-\/\.]+)\s*:"#,
+            in: text,
+            kind: .function
+        )
+    }
+
+    private static func extractGDScript(from text: String) -> [FunctionListSymbol] {
+        let classSymbols = matches(
+            pattern: #"(?m)^class\s+(\w+)"#,
+            in: text,
+            kind: .type
+        )
+        let funcSymbols = matches(
+            pattern: #"(?m)^(?:\t| {4})*func\s+(\w+)"#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(classSymbols + funcSymbols)
+    }
+
+    private static func extractVHDL(from text: String) -> [FunctionListSymbol] {
+        matches(
+            pattern: #"(?mi)^\h*(?:\w+\h*:)?\h*(?:ENTITY|ARCHITECTURE|COMPONENT|PROCESS|BLOCK)\h+(\w[\w\s,\(\)\.]*?)(?:\h+(?:IS|OF)\b|$)"#,
+            in: text,
+            kind: .function
+        )
+    }
+
+    private static func extractRaku(from text: String) -> [FunctionListSymbol] {
+        let classSymbols = matches(
+            pattern: #"(?m)^\s*(?:class|role|module|grammar|package)\s+([A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)"#,
+            in: text,
+            kind: .type
+        )
+        let funcSymbols = matches(
+            pattern: #"(?m)^\s*(?:sub|method|multi sub|multi method)\s+([A-Za-z_]\w*)"#,
+            in: text,
+            kind: .function
+        )
+        return sortedUnique(classSymbols + funcSymbols)
     }
 }

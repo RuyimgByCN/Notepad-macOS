@@ -435,3 +435,67 @@ private func upstreamFunctionListURL(_ fileName: String) -> URL {
     #expect(names.contains("ValidateInput"))
     #expect(names.contains("Helpers"))
 }
+
+@Test func extractsMakefileTargets() {
+    let code = """
+    .PHONY: all clean test
+
+    all: main.o utils.o
+    \t$(CC) -o myapp main.o utils.o
+
+    main.o: main.c
+    \t$(CC) -c main.c
+
+    clean:
+    \trm -f *.o myapp
+
+    install: all
+    \tcp myapp /usr/local/bin
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "makefile", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("all"))
+    #expect(names.contains("main.o"))
+    #expect(names.contains("clean"))
+    #expect(names.contains("install"))
+}
+
+@Test func extractsGDScriptSymbols() {
+    let code = """
+    class_name MyNode
+
+    class Inner:
+        func inner_method():
+            pass
+
+    func _ready():
+        pass
+
+    func process_input(event):
+        return event
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "gdscript", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Inner"))
+    #expect(names.contains("_ready"))
+    #expect(names.contains("process_input"))
+}
+
+@Test func extractsRakuSymbols() {
+    let code = """
+    class Animal {
+        method breathe() { }
+    }
+
+    module Utils {
+        sub format-date($date) { return $date.Str }
+    }
+
+    sub MAIN(Str $name) { say "Hello, $name" }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "raku", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Animal"))
+    #expect(names.contains("Utils"))
+    #expect(names.contains("MAIN"))
+}
