@@ -88,6 +88,11 @@ final class PreferencesPanelController: NSWindowController {
     private let tabSizeStepper = NSStepper()
     private let insertSpacesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoPairButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoPairParenthesesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoPairBracketsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoPairCurlyBracketsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoPairSingleQuotesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoPairDoubleQuotesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let xmlTagMatchButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let clickableLinksButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let smartHighlightMatchCaseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -239,6 +244,11 @@ final class PreferencesPanelController: NSWindowController {
         insertSpacesButton.title = Localization.string(.preferencesInsertSpaces)
         editorFeaturesSectionLabel.stringValue = Localization.string(.preferencesEditorFeaturesSection, default: "Editor Features")
         autoPairButton.title = Localization.string(.preferencesAutoPair, default: "Auto-insert matching pairs")
+        autoPairParenthesesButton.title = "  ( ) Parentheses"
+        autoPairBracketsButton.title = "  [ ] Brackets"
+        autoPairCurlyBracketsButton.title = "  { } Curly brackets"
+        autoPairSingleQuotesButton.title = "  ' ' Single quotes"
+        autoPairDoubleQuotesButton.title = "  \" \" Double quotes"
         xmlTagMatchButton.title = Localization.string(.preferencesXmlTagMatch, default: "Highlight matching XML tags")
         clickableLinksButton.title = Localization.string(.preferencesClickableLinks, default: "Highlight clickable links")
         smartHighlightMatchCaseButton.title = Localization.string(.preferencesSmartHighlightMatchCase, default: "Smart highlight: match case")
@@ -503,7 +513,9 @@ final class PreferencesPanelController: NSWindowController {
         [editorSectionLabel, fontSizeLabel, fontSizeField, fontSizeStepper,
          wrapsLinesButton, tabSizeLabel, tabSizeField, tabSizeStepper, insertSpacesButton,
          editorFeaturesSectionLabel,
-         autoPairButton, xmlTagMatchButton, clickableLinksButton,
+         autoPairButton, autoPairParenthesesButton, autoPairBracketsButton,
+         autoPairCurlyBracketsButton, autoPairSingleQuotesButton, autoPairDoubleQuotesButton,
+         xmlTagMatchButton, clickableLinksButton,
          smartHighlightMatchCaseButton, smartHighlightWholeWordButton,
          caretWidthLabel, caretWidthSegmented, caretNoBlinkButton,
          currentLineFrameLabel, currentLineFrameSegmented,
@@ -614,8 +626,23 @@ final class PreferencesPanelController: NSWindowController {
             autoPairButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             autoPairButton.topAnchor.constraint(equalTo: editorFeaturesSectionLabel.bottomAnchor, constant: 14),
 
+            autoPairParenthesesButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            autoPairParenthesesButton.topAnchor.constraint(equalTo: autoPairButton.bottomAnchor, constant: 6),
+
+            autoPairBracketsButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            autoPairBracketsButton.topAnchor.constraint(equalTo: autoPairParenthesesButton.bottomAnchor, constant: 4),
+
+            autoPairCurlyBracketsButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            autoPairCurlyBracketsButton.topAnchor.constraint(equalTo: autoPairBracketsButton.bottomAnchor, constant: 4),
+
+            autoPairSingleQuotesButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            autoPairSingleQuotesButton.topAnchor.constraint(equalTo: autoPairCurlyBracketsButton.bottomAnchor, constant: 4),
+
+            autoPairDoubleQuotesButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            autoPairDoubleQuotesButton.topAnchor.constraint(equalTo: autoPairSingleQuotesButton.bottomAnchor, constant: 4),
+
             xmlTagMatchButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
-            xmlTagMatchButton.topAnchor.constraint(equalTo: autoPairButton.bottomAnchor, constant: 10),
+            xmlTagMatchButton.topAnchor.constraint(equalTo: autoPairDoubleQuotesButton.bottomAnchor, constant: 10),
 
             clickableLinksButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             clickableLinksButton.topAnchor.constraint(equalTo: xmlTagMatchButton.bottomAnchor, constant: 10),
@@ -1105,6 +1132,11 @@ final class PreferencesPanelController: NSWindowController {
         tabSizeStepper.intValue = Int32(preferences.tabSize)
         insertSpacesButton.state = preferences.insertSpacesInsteadOfTabs ? .on : .off
         autoPairButton.state = preferences.enableAutoPair ? .on : .off
+        autoPairParenthesesButton.state = preferences.autoPairParentheses ? .on : .off
+        autoPairBracketsButton.state = preferences.autoPairBrackets ? .on : .off
+        autoPairCurlyBracketsButton.state = preferences.autoPairCurlyBrackets ? .on : .off
+        autoPairSingleQuotesButton.state = preferences.autoPairSingleQuotes ? .on : .off
+        autoPairDoubleQuotesButton.state = preferences.autoPairDoubleQuotes ? .on : .off
         xmlTagMatchButton.state = preferences.enableXmlTagMatch ? .on : .off
         clickableLinksButton.state = preferences.enableClickableLinks ? .on : .off
         smartHighlightMatchCaseButton.state = preferences.smartHighlightMatchCase ? .on : .off
@@ -1296,6 +1328,11 @@ final class PreferencesPanelController: NSWindowController {
             showEdgeLine: existing.showEdgeLine,
             edgeLineColumn: existing.edgeLineColumn,
             enableAutoPair: autoPairButton.state == .on,
+            autoPairParentheses: autoPairParenthesesButton.state == .on,
+            autoPairBrackets: autoPairBracketsButton.state == .on,
+            autoPairCurlyBrackets: autoPairCurlyBracketsButton.state == .on,
+            autoPairSingleQuotes: autoPairSingleQuotesButton.state == .on,
+            autoPairDoubleQuotes: autoPairDoubleQuotesButton.state == .on,
             enableXmlTagMatch: xmlTagMatchButton.state == .on,
             enableClickableLinks: clickableLinksButton.state == .on,
             defaultNewDocumentEncoding: selectedNewDocEncoding,

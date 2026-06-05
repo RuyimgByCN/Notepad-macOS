@@ -100,6 +100,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var smartHighlightWholeWord = true
     private var enablesXmlTagMatch = true
     private var enablesAutoPair = true
+    private var autoPairParentheses = true
+    private var autoPairBrackets = true
+    private var autoPairCurlyBrackets = true
+    private var autoPairSingleQuotes = false
+    private var autoPairDoubleQuotes = false
     private var enablesClickableLinks = true
     private var showsLineNumberMargin = true
     private var showsEdgeLine = false
@@ -342,6 +347,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.tabMaxLabelLength = preferences.tabbarMaxLabelLength
         self.enablesAutoPair = preferences.enableAutoPair
+        self.autoPairParentheses = preferences.autoPairParentheses
+        self.autoPairBrackets = preferences.autoPairBrackets
+        self.autoPairCurlyBrackets = preferences.autoPairCurlyBrackets
+        self.autoPairSingleQuotes = preferences.autoPairSingleQuotes
+        self.autoPairDoubleQuotes = preferences.autoPairDoubleQuotes
         self.enablesXmlTagMatch = preferences.enableXmlTagMatch
         self.enablesClickableLinks = preferences.enableClickableLinks
         self.showsLineNumberMargin = preferences.showLineNumberMargin
@@ -952,25 +962,25 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         switch ch {
         case "(":
-            if isNextBlank || isNextCloseSymbol {
+            if autoPairParentheses && (isNextBlank || isNextCloseSymbol) {
                 editorSurface.insertAutoPairClose(")")
             }
         case "[":
-            if isNextBlank || isNextCloseSymbol {
+            if autoPairBrackets && (isNextBlank || isNextCloseSymbol) {
                 editorSurface.insertAutoPairClose("]")
             }
         case "{":
-            if isNextBlank || isNextCloseSymbol {
+            if autoPairCurlyBrackets && (isNextBlank || isNextCloseSymbol) {
                 editorSurface.insertAutoPairClose("}")
             }
         case "\"":
             let isPrevBlank = charPrev == nil || charPrev == " " || charPrev == "\t" || charPrev == "\n" || charPrev == "\r"
-            if isPrevBlank && isNextBlank {
+            if autoPairDoubleQuotes && isPrevBlank && isNextBlank {
                 editorSurface.insertAutoPairClose("\"")
             }
         case "'":
             let isPrevBlank = charPrev == nil || charPrev == " " || charPrev == "\t" || charPrev == "\n" || charPrev == "\r"
-            if isPrevBlank && isNextBlank {
+            if autoPairSingleQuotes && isPrevBlank && isNextBlank {
                 editorSurface.insertAutoPairClose("'")
             }
         case ">":
@@ -3363,6 +3373,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         showsEdgeLine = preferences.showEdgeLine
         edgeLineColumn = preferences.edgeLineColumn
         enablesAutoPair = preferences.enableAutoPair
+        autoPairParentheses = preferences.autoPairParentheses
+        autoPairBrackets = preferences.autoPairBrackets
+        autoPairCurlyBrackets = preferences.autoPairCurlyBrackets
+        autoPairSingleQuotes = preferences.autoPairSingleQuotes
+        autoPairDoubleQuotes = preferences.autoPairDoubleQuotes
         enablesXmlTagMatch = preferences.enableXmlTagMatch
         enablesClickableLinks = preferences.enableClickableLinks
         showsNpcCharacters = preferences.showNpcCharacters

@@ -84,6 +84,16 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let showEdgeLine: Bool
     public let edgeLineColumn: Int
     public let enableAutoPair: Bool
+    /// Auto-insert matching parentheses ( )
+    public let autoPairParentheses: Bool
+    /// Auto-insert matching square brackets [ ]
+    public let autoPairBrackets: Bool
+    /// Auto-insert matching curly braces { }
+    public let autoPairCurlyBrackets: Bool
+    /// Auto-insert matching single quotes ' '
+    public let autoPairSingleQuotes: Bool
+    /// Auto-insert matching double quotes " "
+    public let autoPairDoubleQuotes: Bool
     public let enableXmlTagMatch: Bool
     public let enableClickableLinks: Bool
     public let defaultNewDocumentEncoding: String   // TextEncodingOption.rawValue
@@ -226,6 +236,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         showEdgeLine: Bool = false,
         edgeLineColumn: Int = 80,
         enableAutoPair: Bool = true,
+        autoPairParentheses: Bool = true,
+        autoPairBrackets: Bool = true,
+        autoPairCurlyBrackets: Bool = true,
+        autoPairSingleQuotes: Bool = false,
+        autoPairDoubleQuotes: Bool = false,
         enableXmlTagMatch: Bool = true,
         enableClickableLinks: Bool = true,
         defaultNewDocumentEncoding: String = "utf8",
@@ -324,6 +339,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.showEdgeLine = showEdgeLine
         self.edgeLineColumn = max(1, edgeLineColumn)
         self.enableAutoPair = enableAutoPair
+        self.autoPairParentheses = autoPairParentheses
+        self.autoPairBrackets = autoPairBrackets
+        self.autoPairCurlyBrackets = autoPairCurlyBrackets
+        self.autoPairSingleQuotes = autoPairSingleQuotes
+        self.autoPairDoubleQuotes = autoPairDoubleQuotes
         self.enableXmlTagMatch = enableXmlTagMatch
         self.enableClickableLinks = enableClickableLinks
         self.defaultNewDocumentEncoding = defaultNewDocumentEncoding.isEmpty ? "utf8" : defaultNewDocumentEncoding
@@ -492,6 +512,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             showEdgeLine: showEdgeLine,
             edgeLineColumn: edgeLineColumn,
             enableAutoPair: enableAutoPair,
+            autoPairParentheses: autoPairParentheses,
+            autoPairBrackets: autoPairBrackets,
+            autoPairCurlyBrackets: autoPairCurlyBrackets,
+            autoPairSingleQuotes: autoPairSingleQuotes,
+            autoPairDoubleQuotes: autoPairDoubleQuotes,
             enableXmlTagMatch: enableXmlTagMatch,
             enableClickableLinks: enableClickableLinks,
             defaultNewDocumentEncoding: defaultNewDocumentEncoding,
@@ -605,6 +630,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             showEdgeLine: showEdgeLine,
             edgeLineColumn: edgeLineColumn,
             enableAutoPair: enableAutoPair,
+            autoPairParentheses: autoPairParentheses,
+            autoPairBrackets: autoPairBrackets,
+            autoPairCurlyBrackets: autoPairCurlyBrackets,
+            autoPairSingleQuotes: autoPairSingleQuotes,
+            autoPairDoubleQuotes: autoPairDoubleQuotes,
             enableXmlTagMatch: enableXmlTagMatch,
             enableClickableLinks: enableClickableLinks,
             defaultNewDocumentEncoding: defaultNewDocumentEncoding,
@@ -720,6 +750,11 @@ public final class PreferencesStore {
         static let showEdgeLine = "notepadMac.showEdgeLine"
         static let edgeLineColumn = "notepadMac.edgeLineColumn"
         static let enableAutoPair = "notepadMac.enableAutoPair"
+        static let autoPairParentheses = "notepadMac.autoPairParentheses"
+        static let autoPairBrackets = "notepadMac.autoPairBrackets"
+        static let autoPairCurlyBrackets = "notepadMac.autoPairCurlyBrackets"
+        static let autoPairSingleQuotes = "notepadMac.autoPairSingleQuotes"
+        static let autoPairDoubleQuotes = "notepadMac.autoPairDoubleQuotes"
         static let enableXmlTagMatch = "notepadMac.enableXmlTagMatch"
         static let enableClickableLinks = "notepadMac.enableClickableLinks"
         static let defaultNewDocumentEncoding = "notepadMac.defaultNewDocumentEncoding"
@@ -830,6 +865,11 @@ public final class PreferencesStore {
             showEdgeLine: defaults.object(forKey: Key.showEdgeLine) as? Bool ?? AppPreferences.defaultValue.showEdgeLine,
             edgeLineColumn: defaults.object(forKey: Key.edgeLineColumn) as? Int ?? AppPreferences.defaultValue.edgeLineColumn,
             enableAutoPair: defaults.object(forKey: Key.enableAutoPair) as? Bool ?? AppPreferences.defaultValue.enableAutoPair,
+            autoPairParentheses: defaults.object(forKey: Key.autoPairParentheses) as? Bool ?? AppPreferences.defaultValue.autoPairParentheses,
+            autoPairBrackets: defaults.object(forKey: Key.autoPairBrackets) as? Bool ?? AppPreferences.defaultValue.autoPairBrackets,
+            autoPairCurlyBrackets: defaults.object(forKey: Key.autoPairCurlyBrackets) as? Bool ?? AppPreferences.defaultValue.autoPairCurlyBrackets,
+            autoPairSingleQuotes: defaults.object(forKey: Key.autoPairSingleQuotes) as? Bool ?? AppPreferences.defaultValue.autoPairSingleQuotes,
+            autoPairDoubleQuotes: defaults.object(forKey: Key.autoPairDoubleQuotes) as? Bool ?? AppPreferences.defaultValue.autoPairDoubleQuotes,
             enableXmlTagMatch: defaults.object(forKey: Key.enableXmlTagMatch) as? Bool ?? AppPreferences.defaultValue.enableXmlTagMatch,
             enableClickableLinks: defaults.object(forKey: Key.enableClickableLinks) as? Bool ?? AppPreferences.defaultValue.enableClickableLinks,
             defaultNewDocumentEncoding: defaults.string(forKey: Key.defaultNewDocumentEncoding) ?? AppPreferences.defaultValue.defaultNewDocumentEncoding,
@@ -935,6 +975,11 @@ public final class PreferencesStore {
         defaults.set(preferences.showEdgeLine, forKey: Key.showEdgeLine)
         defaults.set(preferences.edgeLineColumn, forKey: Key.edgeLineColumn)
         defaults.set(preferences.enableAutoPair, forKey: Key.enableAutoPair)
+        defaults.set(preferences.autoPairParentheses, forKey: Key.autoPairParentheses)
+        defaults.set(preferences.autoPairBrackets, forKey: Key.autoPairBrackets)
+        defaults.set(preferences.autoPairCurlyBrackets, forKey: Key.autoPairCurlyBrackets)
+        defaults.set(preferences.autoPairSingleQuotes, forKey: Key.autoPairSingleQuotes)
+        defaults.set(preferences.autoPairDoubleQuotes, forKey: Key.autoPairDoubleQuotes)
         defaults.set(preferences.enableXmlTagMatch, forKey: Key.enableXmlTagMatch)
         defaults.set(preferences.enableClickableLinks, forKey: Key.enableClickableLinks)
         defaults.set(preferences.defaultNewDocumentEncoding, forKey: Key.defaultNewDocumentEncoding)
