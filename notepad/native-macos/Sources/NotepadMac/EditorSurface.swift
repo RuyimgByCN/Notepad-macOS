@@ -155,6 +155,9 @@ protocol EditorSurface: AnyObject {
     // MARK: - Copy/Cut behavior
     func applyCopyLineWithoutSelection(_ enabled: Bool)
 
+    // MARK: - Scintilla key remapping
+    func applyScintillaKeyRemaps(_ remaps: [ScintillaKeyRemap])
+
     // MARK: - Context menu
     func setContextMenu(_ menu: NSMenu?)
 
@@ -389,6 +392,7 @@ final class TextViewEditorSurface: EditorSurface {
     func applyLinePadding(_ pixels: Int) {}
     func applyBidirectional(_ mode: Int) {}
     func applyCopyLineWithoutSelection(_ enabled: Bool) {}
+    func applyScintillaKeyRemaps(_ remaps: [ScintillaKeyRemap]) {}
     func setContextMenu(_ menu: NSMenu?) { textView.menu = menu }
     func scrollToSelection() {
         textView.scrollRangeToVisible(textView.selectedRange())
@@ -1745,6 +1749,16 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setCopyAllowsLineSelection, parameter: enabled ? 1 : 0, value: 0)
     }
 
+    func applyScintillaKeyRemaps(_ remaps: [ScintillaKeyRemap]) {
+        for remap in remaps {
+            if remap.key == 0 {
+                bridge.setGeneralProperty(ScintillaMessage.clearCmdKey, parameter: remap.keyDefinition, value: 0)
+            } else {
+                bridge.setGeneralProperty(ScintillaMessage.assignCmdKey, parameter: remap.keyDefinition, value: Int(remap.commandID))
+            }
+        }
+    }
+
     func setContextMenu(_ menu: NSMenu?) {
         scintillaView.menu = menu
     }
@@ -2348,6 +2362,9 @@ private enum ScintillaMessage {
     static let callTipPosStart: Int32 = 2214
     static let setMultiPaste: Int32 = 2614
     static let foldAll: Int32 = 2662
+    static let assignCmdKey: Int32 = 2070
+    static let clearCmdKey: Int32 = 2071
+    static let clearAllCmdKeys: Int32 = 2072
     static let contractedFoldNext: Int32 = 2618
     static let braceMatch: Int32 = 2353
     static let setKeywords: Int32 = 4005

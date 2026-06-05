@@ -108,6 +108,9 @@ private var appearanceObservation: NSKeyValueObservation?
         panel.onMacroShortcutsChanged = { [weak self] in
             self?.refreshMacroMenu()
         }
+        panel.onScintillaRemapsChanged = { [weak self] in
+            self?.windows.forEach { $0.reapplyScintillaKeyRemaps() }
+        }
         return panel
     }()
     private lazy var userDefinedLanguagePanel = UserDefinedLanguagePanelController(

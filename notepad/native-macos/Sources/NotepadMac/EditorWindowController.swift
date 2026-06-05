@@ -29,6 +29,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let displayStrings: EditorDisplayStrings
     private let stylePreferencesStore: StylePreferencesStore
     private let preferencesStore: PreferencesStore
+    private let scintillaKeyMapStore = ScintillaKeyMapStore()
     private let macroStore = MacroStore()
     private lazy var findPanel = FindPanelController(editor: self, preferencesStore: preferencesStore)
     private lazy var autoCompletionPanel = AutoCompletionPanelController()
@@ -3451,11 +3452,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyAutoCompleteEnterCommit(autoCompleteEnterCommit)
         editorSurface.applyAutoCompleteBrief(autoCompleteBrief)
         editorSurface.applyCopyLineWithoutSelection(preferences.copyLineWithoutSelection)
+        editorSurface.applyScintillaKeyRemaps(scintillaKeyMapStore.load())
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.lockDragDrop = preferences.tabbarLockDragDrop
         tabBarView.tabMaxLabelLength = preferences.tabbarMaxLabelLength
         configureAutoPair()
         configureUrlHighlight()
+    }
+
+    func reapplyScintillaKeyRemaps() {
+        editorSurface.applyScintillaKeyRemaps(scintillaKeyMapStore.load())
     }
 
     func applyStylePreferences(_ preferences: StylePreferences) {

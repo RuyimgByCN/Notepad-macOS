@@ -5,13 +5,29 @@ import NotepadMacCore
 @MainActor
 final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate {
     struct Entry {
-        let title: String           // menu item title
+        let title: String           // menu item title / command name
         let menuItem: NSMenuItem?   // weak-ish reference (menu items owned by NSMenu)
         var keyEquivalent: String
         var modifierFlags: Int      // NSEvent.ModifierFlags.rawValue
         var isCustom: Bool
+        /// Scintilla command ID (non-nil only for .scintillaCommands category)
+        var scintillaCommandID: Int32?
+        /// Pre-computed display string for Scintilla entries; nil uses NSEvent-based displayShortcut
+        var shortcutDisplayOverride: String?
+
+        init(title: String, menuItem: NSMenuItem?, keyEquivalent: String, modifierFlags: Int,
+             isCustom: Bool, scintillaCommandID: Int32? = nil, shortcutDisplayOverride: String? = nil) {
+            self.title = title
+            self.menuItem = menuItem
+            self.keyEquivalent = keyEquivalent
+            self.modifierFlags = modifierFlags
+            self.isCustom = isCustom
+            self.scintillaCommandID = scintillaCommandID
+            self.shortcutDisplayOverride = shortcutDisplayOverride
+        }
 
         var displayShortcut: String {
+            if let override = shortcutDisplayOverride { return override }
             if keyEquivalent.isEmpty { return "" }
             var s = ""
             let raw = UInt(bitPattern: modifierFlags)
@@ -26,7 +42,7 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
     // MARK: - Category
 
     enum Category: Int {
-        case mainMenu = 0, macros = 1, runCommands = 2, pluginCommands = 3
+        case mainMenu = 0, macros = 1, runCommands = 2, pluginCommands = 3, scintillaCommands = 4
     }
     private var currentCategory: Category = .mainMenu
 
@@ -47,20 +63,25 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
     private let macroShortcutStore: MacroShortcutStore
     private let savedRunCommandStore: SavedRunCommandStore
     private let pluginCommandShortcutStore: PluginCommandShortcutStore
+    private let scintillaKeyMapStore: ScintillaKeyMapStore
     /// Plugin catalog for enumerating plugin commands in the Plugin Commands tab
     var pluginCatalog: PluginCatalog?
     var onShortcutsChanged: (() -> Void)?
     /// Called when macro menu should be rebuilt (e.g. after shortcut change)
     var onMacroShortcutsChanged: (() -> Void)?
+    /// Called when Scintilla key remaps change (so editor windows can reapply)
+    var onScintillaRemapsChanged: (() -> Void)?
 
     init(shortcutStore: CustomShortcutStore = CustomShortcutStore(),
          macroShortcutStore: MacroShortcutStore = MacroShortcutStore(),
          savedRunCommandStore: SavedRunCommandStore = SavedRunCommandStore(),
-         pluginCommandShortcutStore: PluginCommandShortcutStore = PluginCommandShortcutStore()) {
+         pluginCommandShortcutStore: PluginCommandShortcutStore = PluginCommandShortcutStore(),
+         scintillaKeyMapStore: ScintillaKeyMapStore = ScintillaKeyMapStore()) {
         self.shortcutStore = shortcutStore
         self.macroShortcutStore = macroShortcutStore
         self.savedRunCommandStore = savedRunCommandStore
         self.pluginCommandShortcutStore = pluginCommandShortcutStore
+        self.scintillaKeyMapStore = scintillaKeyMapStore
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 540, height: 500),
             styleMask: [.titled, .closable, .resizable, .utilityWindow],
@@ -109,6 +130,8 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
             buildRunCommandEntries()
         case .pluginCommands:
             buildPluginCommandEntries()
+        case .scintillaCommands:
+            buildScintillaCommandEntries()
         }
     }
 
@@ -177,6 +200,26 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
             }
         }
         allEntries = entries
+    }
+
+    private func buildScintillaCommandEntries() {
+        let remaps = Dictionary(uniqueKeysWithValues: scintillaKeyMapStore.load().map { ($0.commandID, $0) })
+        allEntries = ScintillaCommandCatalog.commands.map { cmd in
+            let remap = remaps[cmd.commandID]
+            let defaultDisplay = ScintillaKeyRemap(
+                commandID: cmd.commandID, key: cmd.defaultKey, modifiers: cmd.defaultModifiers
+            ).displayString
+            let displayStr = remap?.displayString ?? defaultDisplay
+            return Entry(
+                title: cmd.name,
+                menuItem: nil,
+                keyEquivalent: "",
+                modifierFlags: 0,
+                isCustom: remap != nil,
+                scintillaCommandID: cmd.commandID,
+                shortcutDisplayOverride: displayStr
+            )
+        }
     }
 
     private func collectEntries(from items: [NSMenuItem], into result: inout [Entry], customMap: [String: CustomShortcut]) {
@@ -281,6 +324,10 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
                let cmd = plugin.commands.first(where: { $0.title == commandTitle }) {
                 pluginCommandShortcutStore.clearShortcut(forPlugin: plugin.identifier, command: cmd.identifier)
             }
+        case .scintillaCommands:
+            guard let cmdID = entry.scintillaCommandID else { break }
+            scintillaKeyMapStore.clearRemap(forCommandID: cmdID)
+            notifyScintillaRemapsChanged()
         }
         buildEntries()
         applyFilter()
@@ -405,11 +452,61 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
             } else {
                 shortcutDisplay = ""
             }
+        case .scintillaCommands:
+            guard let cmdID = entry.scintillaCommandID else {
+                shortcutDisplay = ""
+                break
+            }
+            let sck = nsKeyEquivalentToSCK(keyEq)
+            let scmod = nsModifiersToSCMOD(NSEvent.ModifierFlags(rawValue: UInt(bitPattern: mods)))
+            let remap = ScintillaKeyRemap(commandID: cmdID, key: sck, modifiers: scmod)
+            scintillaKeyMapStore.setRemap(remap)
+            shortcutDisplay = remap.displayString
+            notifyScintillaRemapsChanged()
         }
         buildEntries()
         applyFilter()
         let assignedMsg = Localization.string(.shortcutMapperAssigned, default: "Assigned")
         statusLabel.stringValue = "\(assignedMsg) \(shortcutDisplay) → \(entry.title)"
+    }
+
+    private func notifyScintillaRemapsChanged() {
+        onScintillaRemapsChanged?()
+    }
+
+    /// Translate NSEvent key equivalent strings to Scintilla SCK_* values.
+    private func nsKeyEquivalentToSCK(_ key: String) -> Int {
+        guard let ch = key.unicodeScalars.first else { return 0 }
+        switch ch.value {
+        case 0xF700: return SCK.up
+        case 0xF701: return SCK.down
+        case 0xF702: return SCK.left
+        case 0xF703: return SCK.right
+        case 0xF729: return SCK.home
+        case 0xF72B: return SCK.end
+        case 0xF72C: return SCK.prior
+        case 0xF72D: return SCK.next
+        case 0xF728: return SCK.delete
+        case 0xF727: return SCK.insert
+        case 0x001B: return SCK.escape
+        case 0x0008: return SCK.back
+        case 0x007F: return SCK.back  // macOS Delete key sends DEL
+        case 0x0009: return SCK.tab
+        case 0x000D: return SCK.`return`
+        default:
+            let v = Int(ch.value)
+            if v >= 32 && v < 127 { return Int(Character(ch).asciiValue ?? 0) }
+            return 0
+        }
+    }
+
+    /// Translate NSEvent.ModifierFlags to Scintilla SCMOD_* flags.
+    private func nsModifiersToSCMOD(_ flags: NSEvent.ModifierFlags) -> Int {
+        var mod = 0
+        if flags.contains(.command) { mod |= SCMOD.ctrl }   // ⌘ = Ctrl in Scintilla on macOS
+        if flags.contains(.option)  { mod |= SCMOD.alt }
+        if flags.contains(.shift)   { mod |= SCMOD.shift }
+        return mod
     }
 
     private func findMenuConflict(keyEquivalent: String, modifiers: NSEvent.ModifierFlags, excluding title: String) -> String? {
@@ -515,11 +612,12 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
     private func configureContent() {
         guard let root = window?.contentView else { return }
 
-        categoryControl.segmentCount = 4
+        categoryControl.segmentCount = 5
         categoryControl.setLabel("Main Menu", forSegment: 0)
         categoryControl.setLabel("Macros", forSegment: 1)
         categoryControl.setLabel("Run Commands", forSegment: 2)
         categoryControl.setLabel("Plugins", forSegment: 3)
+        categoryControl.setLabel("Scintilla", forSegment: 4)
         categoryControl.trackingMode = .selectOne
         categoryControl.selectedSegment = 0
         categoryControl.target = self
