@@ -892,9 +892,17 @@ private var appearanceObservation: NSKeyValueObservation?
 
     @objc func locateCurrentFile(_ sender: Any?) {
         guard let fileURL = activeEditorController()?.sessionFileURL else { return }
+        let folderURL = fileURL.deletingLastPathComponent()
         if fileBrowserPanel.window?.isVisible != true {
             do {
-                fileBrowserPanel.show(workspace: try WorkspaceDocument.folderWorkspace(from: fileURL.deletingLastPathComponent()))
+                let workspace = try WorkspaceDocument.folderWorkspace(from: folderURL)
+                fileBrowserPanel.show(workspace: workspace)
+                fileBrowserPanel.startWatching(url: folderURL) { [weak self] in
+                    guard let self else { return }
+                    if let updated = try? WorkspaceDocument.folderWorkspace(from: folderURL) {
+                        self.fileBrowserPanel.show(workspace: updated)
+                    }
+                }
             } catch {
                 NSApp.presentError(error)
                 return
