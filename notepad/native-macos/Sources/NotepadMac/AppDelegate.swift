@@ -613,8 +613,11 @@ private var appearanceObservation: NSKeyValueObservation?
 
     @discardableResult
     private func openFile(_ url: URL, persistSession: Bool) -> EditorWindowController? {
-        // Resolve symlinks and aliases to their real path
-        let url = url.resolvingSymlinksInPath()
+        // Resolve macOS aliases (Finder alias files) and symlinks to their real path.
+        // URL.resolvingSymlinksInPath() handles POSIX symlinks; URL(resolvingAliasFileAt:)
+        // additionally resolves Finder/.alias bundle files.
+        let resolvedAlias = (try? URL(resolvingAliasFileAt: url, options: [])) ?? url
+        let url = resolvedAlias.resolvingSymlinksInPath()
 
         // Handle directory URLs
         var isDir: ObjCBool = false
