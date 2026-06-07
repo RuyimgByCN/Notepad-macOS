@@ -114,10 +114,28 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let enableVirtualSpace: Bool
     public let backspaceUnindents: Bool
     public let autoIndent: Bool
+    /// Auto-indent mode: 0=none, 1=basic (copy prev line indent), 2=advanced (basic + bracket-aware)
+    public let autoIndentMode: Int
+    /// File auto-detection mode: 0=disabled, 1=check on tab activate, 2=real-time monitoring
+    public let fileAutoDetection: Int
+    /// When true, externally modified files are auto-reloaded without a confirmation dialog
+    public let updateSilently: Bool
     public let largeFileSizeMB: Int  // Files above this threshold skip syntax highlight and URL scan
+    /// When true, auto-complete is disabled while a large file is open
+    public let largeFileSuppressAutoComplete: Bool
+    /// When true, smart highlighting is disabled while a large file is open
+    public let largeFileSuppressSmartHighlight: Bool
+    /// When true, brace/bracket matching is disabled while a large file is open
+    public let largeFileSuppressBraceMatch: Bool
+    /// When true, word wrap is disabled while a large file is open
+    public let largeFileSuppressWordWrap: Bool
+    /// When true, syntax highlighting (lexer) is disabled while a large file is open
+    public let largeFileSuppressSyntaxHighlight: Bool
     public let scrollBeyondLastLine: Bool
     public let autoCompleteFromNthChar: Int  // 0 = disabled, 1+ = trigger after N chars typed
     public let caretNoBlink: Bool
+    /// Caret blink period in milliseconds (100-2000). Ignored when caretNoBlink is true.
+    public let caretBlinkRate: Int
     public let currentLineFrameWidth: Int   // 0 = fill, 1-4 = frame width in pixels
     public let lineWrapIndent: Int          // 0=fixed, 1=same, 2=indent, 3=deepindent
     public let foldMarginStyle: Int         // 0=simple arrows, 1=box tree, 2=circle tree
@@ -232,6 +250,76 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let toolbarVisible: Bool
     /// When false, the bookmark/margin marker column is hidden
     public let showBookmarkMargin: Bool
+    /// When false, skip the confirmation dialog before "Replace All in Open Documents"
+    public let confirmReplaceInAllDocs: Bool
+    /// Max number of entries kept in the Find/Replace history dropdowns (1-50)
+    public let maxFindHistoryCount: Int
+    /// When true, the tab bar is hidden
+    public let tabbarHide: Bool
+    /// After an external file reload, scroll to restore the last caret position
+    public let reloadScrollToLastCaret: Bool
+    /// Font face name for the editor (empty = use default "Menlo")
+    public let editorFontName: String
+    /// When true, the editor font is rendered in bold weight
+    public let editorFontBold: Bool
+    /// When false, the close (×) button is hidden on every tab
+    public let tabbarShowCloseButton: Bool
+    /// When true, trailing whitespace is stripped from every line automatically on save
+    public let trimTrailingSpacesOnSave: Bool
+    /// When true, line endings in pasted text are converted to match the current document's EOL style
+    public let pasteConvertEndings: Bool
+    /// Caret sticky mode: 0=disabled, 1=enabled, 2=enabled for whitespace only
+    public let caretStickyMode: Int
+    /// When true, the fold margin is shown and code folding is active
+    public let enableCodeFolding: Bool
+    /// When true, auto-complete matching ignores case (case-insensitive)
+    public let autoCompleteIgnoreCase: Bool
+    /// Whitespace display mode: 0=invisible, 1=visible always, 2=visible after indent, 3=visible only in indent
+    public let whitespaceDisplayMode: Int
+    /// Bidirectional text mode: 0=default, 1=left-to-right, 2=right-to-left
+    public let bidiMode: Int
+    /// When true, text is rendered with antialiased (smooth) font quality
+    public let smoothFont: Bool
+    /// When true, multiple selections are enabled in the editor
+    public let multiEditEnabled: Bool
+    /// Multi-paste mode: 0=paste once (into main selection), 1=paste into each selection
+    public let multiPasteMode: Int
+    /// Indent guide display mode: 0=none, 1=real, 2=lookForward, 3=lookBoth
+    public let indentGuideMode: Int
+    /// Word wrap mode: 0=none, 1=word, 2=whitespace, 3=character
+    public let wordWrapMode: Int
+    /// When true, the tab bar uses compact/reduced style (smaller height and font)
+    public let tabbarCompact: Bool
+    /// When true, show tab index numbers (1-9) in tab labels for ⌘1-⌘9 reference
+    public let tabbarShowIndexNumbers: Bool
+    /// When true, zoom changes in one tab are automatically applied to all open tabs
+    public let zoomSyncToAllTabs: Bool
+    /// When true, keyboard shortcut indicators are hidden from menu items
+    public let hideMenuShortcuts: Bool
+    /// When true, after monitoring-reload scroll to the last line of the file
+    public let scrollToLastLineOnMonitorReload: Bool
+    /// Alpha value for additional (non-primary) selections in multi-select mode (0-255, 256=opaque)
+    public let additionalSelAlpha: Int
+    /// When true, additional carets in multi-select mode blink in sync with the primary caret
+    public let additionalCaretsBlink: Bool
+    /// When true, additional carets in multi-select mode are drawn
+    public let additionalCaretsVisible: Bool
+    /// When true, the current line highlight remains visible even when the editor is unfocused
+    public let caretLineVisibleAlways: Bool
+    /// Dot size for whitespace markers in pixels (1-5); SCI_SETWHITESPACESIZE
+    public let whitespaceSize: Int
+    /// Alpha for primary selection background (0-255 transparent, 256=opaque); SCI_SETSELALPHA
+    public let selectionAlpha: Int
+    /// Control character display: 0=show as glyph, 1-6=use defined symbol; SCI_SETCONTROLCHARSYMBOL
+    public let controlCharDisplay: Int
+    /// When true, ANSI-encoded files are automatically opened as UTF-8 (upstream openAnsiAsUTF8)
+    public let openAnsiAsUtf8: Bool
+    /// When true, XML/HTML tag attributes are highlighted alongside tag-name matching (upstream TagAttrHighLight)
+    public let xmlTagAttributeHighlight: Bool
+    /// When true, XML tag matching is applied even in non-HTML/PHP/ASP zones (upstream HighLightNonHtmlZone)
+    public let highlightNonHtmlZone: Bool
+    /// Custom default directory for Save/Open dialogs (empty = use system default)
+    public let defaultSaveDirectory: String
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -279,10 +367,19 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         enableVirtualSpace: Bool = false,
         backspaceUnindents: Bool = true,
         autoIndent: Bool = true,
+        autoIndentMode: Int = 1,
+        fileAutoDetection: Int = 1,
+        updateSilently: Bool = false,
         largeFileSizeMB: Int = AppPreferences.defaultLargeFileMB,
+        largeFileSuppressAutoComplete: Bool = true,
+        largeFileSuppressSmartHighlight: Bool = true,
+        largeFileSuppressBraceMatch: Bool = true,
+        largeFileSuppressWordWrap: Bool = true,
+        largeFileSuppressSyntaxHighlight: Bool = true,
         scrollBeyondLastLine: Bool = false,
         autoCompleteFromNthChar: Int = 3,
         caretNoBlink: Bool = false,
+        caretBlinkRate: Int = 500,
         currentLineFrameWidth: Int = 0,
         lineWrapIndent: Int = 0,
         foldMarginStyle: Int = 0,
@@ -346,7 +443,42 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         appearanceMode: Int = 0,
         taskListCustomTags: String = "",
         toolbarVisible: Bool = true,
-        showBookmarkMargin: Bool = true
+        showBookmarkMargin: Bool = true,
+        confirmReplaceInAllDocs: Bool = true,
+        maxFindHistoryCount: Int = 20,
+        tabbarHide: Bool = false,
+        reloadScrollToLastCaret: Bool = false,
+        editorFontName: String = "",
+        editorFontBold: Bool = false,
+        tabbarShowCloseButton: Bool = true,
+        trimTrailingSpacesOnSave: Bool = false,
+        pasteConvertEndings: Bool = true,
+        caretStickyMode: Int = 0,
+        enableCodeFolding: Bool = true,
+        autoCompleteIgnoreCase: Bool = true,
+        whitespaceDisplayMode: Int = 0,
+        bidiMode: Int = 0,
+        smoothFont: Bool = true,
+        multiEditEnabled: Bool = true,
+        multiPasteMode: Int = 1,
+        indentGuideMode: Int = 2,
+        wordWrapMode: Int = 1,
+        tabbarCompact: Bool = false,
+        tabbarShowIndexNumbers: Bool = false,
+        zoomSyncToAllTabs: Bool = false,
+        hideMenuShortcuts: Bool = false,
+        scrollToLastLineOnMonitorReload: Bool = false,
+        additionalSelAlpha: Int = 256,
+        additionalCaretsBlink: Bool = true,
+        additionalCaretsVisible: Bool = true,
+        caretLineVisibleAlways: Bool = false,
+        whitespaceSize: Int = 1,
+        selectionAlpha: Int = 256,
+        controlCharDisplay: Int = 0,
+        openAnsiAsUtf8: Bool = false,
+        xmlTagAttributeHighlight: Bool = true,
+        highlightNonHtmlZone: Bool = false,
+        defaultSaveDirectory: String = ""
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -393,10 +525,19 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.enableVirtualSpace = enableVirtualSpace
         self.backspaceUnindents = backspaceUnindents
         self.autoIndent = autoIndent
+        self.autoIndentMode = max(0, min(2, autoIndentMode))
+        self.fileAutoDetection = max(0, min(2, fileAutoDetection))
+        self.updateSilently = updateSilently
         self.largeFileSizeMB = max(Self.minimumLargeFileMB, min(largeFileSizeMB, Self.maximumLargeFileMB))
+        self.largeFileSuppressAutoComplete = largeFileSuppressAutoComplete
+        self.largeFileSuppressSmartHighlight = largeFileSuppressSmartHighlight
+        self.largeFileSuppressBraceMatch = largeFileSuppressBraceMatch
+        self.largeFileSuppressWordWrap = largeFileSuppressWordWrap
+        self.largeFileSuppressSyntaxHighlight = largeFileSuppressSyntaxHighlight
         self.scrollBeyondLastLine = scrollBeyondLastLine
         self.autoCompleteFromNthChar = max(0, autoCompleteFromNthChar)
         self.caretNoBlink = caretNoBlink
+        self.caretBlinkRate = max(100, min(2000, caretBlinkRate))
         self.currentLineFrameWidth = max(0, min(4, currentLineFrameWidth))
         self.lineWrapIndent = max(0, min(3, lineWrapIndent))
         self.foldMarginStyle = max(0, min(2, foldMarginStyle))
@@ -461,6 +602,41 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.taskListCustomTags = taskListCustomTags
         self.toolbarVisible = toolbarVisible
         self.showBookmarkMargin = showBookmarkMargin
+        self.confirmReplaceInAllDocs = confirmReplaceInAllDocs
+        self.maxFindHistoryCount = max(1, min(50, maxFindHistoryCount))
+        self.tabbarHide = tabbarHide
+        self.reloadScrollToLastCaret = reloadScrollToLastCaret
+        self.editorFontName = editorFontName
+        self.editorFontBold = editorFontBold
+        self.tabbarShowCloseButton = tabbarShowCloseButton
+        self.trimTrailingSpacesOnSave = trimTrailingSpacesOnSave
+        self.pasteConvertEndings = pasteConvertEndings
+        self.caretStickyMode = max(0, min(2, caretStickyMode))
+        self.enableCodeFolding = enableCodeFolding
+        self.autoCompleteIgnoreCase = autoCompleteIgnoreCase
+        self.whitespaceDisplayMode = max(0, min(3, whitespaceDisplayMode))
+        self.bidiMode = max(0, min(2, bidiMode))
+        self.smoothFont = smoothFont
+        self.multiEditEnabled = multiEditEnabled
+        self.multiPasteMode = max(0, min(1, multiPasteMode))
+        self.indentGuideMode = max(0, min(3, indentGuideMode))
+        self.wordWrapMode = max(0, min(3, wordWrapMode))
+        self.tabbarCompact = tabbarCompact
+        self.tabbarShowIndexNumbers = tabbarShowIndexNumbers
+        self.zoomSyncToAllTabs = zoomSyncToAllTabs
+        self.hideMenuShortcuts = hideMenuShortcuts
+        self.scrollToLastLineOnMonitorReload = scrollToLastLineOnMonitorReload
+        self.additionalSelAlpha = max(0, min(256, additionalSelAlpha))
+        self.additionalCaretsBlink = additionalCaretsBlink
+        self.additionalCaretsVisible = additionalCaretsVisible
+        self.caretLineVisibleAlways = caretLineVisibleAlways
+        self.whitespaceSize = max(1, min(5, whitespaceSize))
+        self.selectionAlpha = max(0, min(256, selectionAlpha))
+        self.controlCharDisplay = max(0, min(6, controlCharDisplay))
+        self.openAnsiAsUtf8 = openAnsiAsUtf8
+        self.xmlTagAttributeHighlight = xmlTagAttributeHighlight
+        self.highlightNonHtmlZone = highlightNonHtmlZone
+        self.defaultSaveDirectory = defaultSaveDirectory
     }
 
     /// Parse languageTabOverrides string into a dictionary.
@@ -534,7 +710,50 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         smartHighlightWholeWord: Bool? = nil,
         caretWidth: Int? = nil,
         enableVirtualSpace: Bool? = nil,
-        showBookmarkMargin: Bool? = nil
+        autoIndentMode: Int? = nil,
+        fileAutoDetection: Int? = nil,
+        updateSilently: Bool? = nil,
+        showBookmarkMargin: Bool? = nil,
+        largeFileSuppressAutoComplete: Bool? = nil,
+        largeFileSuppressSmartHighlight: Bool? = nil,
+        largeFileSuppressBraceMatch: Bool? = nil,
+        largeFileSuppressWordWrap: Bool? = nil,
+        largeFileSuppressSyntaxHighlight: Bool? = nil,
+        confirmReplaceInAllDocs: Bool? = nil,
+        maxFindHistoryCount: Int? = nil,
+        tabbarHide: Bool? = nil,
+        reloadScrollToLastCaret: Bool? = nil,
+        editorFontName: String? = nil,
+        editorFontBold: Bool? = nil,
+        tabbarShowCloseButton: Bool? = nil,
+        trimTrailingSpacesOnSave: Bool? = nil,
+        pasteConvertEndings: Bool? = nil,
+        caretStickyMode: Int? = nil,
+        enableCodeFolding: Bool? = nil,
+        autoCompleteIgnoreCase: Bool? = nil,
+        whitespaceDisplayMode: Int? = nil,
+        bidiMode: Int? = nil,
+        smoothFont: Bool? = nil,
+        multiEditEnabled: Bool? = nil,
+        multiPasteMode: Int? = nil,
+        indentGuideMode: Int? = nil,
+        wordWrapMode: Int? = nil,
+        tabbarCompact: Bool? = nil,
+        tabbarShowIndexNumbers: Bool? = nil,
+        zoomSyncToAllTabs: Bool? = nil,
+        hideMenuShortcuts: Bool? = nil,
+        scrollToLastLineOnMonitorReload: Bool? = nil,
+        additionalSelAlpha: Int? = nil,
+        additionalCaretsBlink: Bool? = nil,
+        additionalCaretsVisible: Bool? = nil,
+        caretLineVisibleAlways: Bool? = nil,
+        whitespaceSize: Int? = nil,
+        selectionAlpha: Int? = nil,
+        controlCharDisplay: Int? = nil,
+        openAnsiAsUtf8: Bool? = nil,
+        xmlTagAttributeHighlight: Bool? = nil,
+        highlightNonHtmlZone: Bool? = nil,
+        defaultSaveDirectory: String? = nil
     ) -> AppPreferences {
         AppPreferences(
             editorFontSize: editorFontSize ?? self.editorFontSize,
@@ -577,10 +796,19 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             enableVirtualSpace: enableVirtualSpace ?? self.enableVirtualSpace,
             backspaceUnindents: backspaceUnindents,
             autoIndent: autoIndent,
+            autoIndentMode: autoIndentMode ?? self.autoIndentMode,
+            fileAutoDetection: fileAutoDetection ?? self.fileAutoDetection,
+            updateSilently: updateSilently ?? self.updateSilently,
             largeFileSizeMB: largeFileSizeMB,
+            largeFileSuppressAutoComplete: largeFileSuppressAutoComplete ?? self.largeFileSuppressAutoComplete,
+            largeFileSuppressSmartHighlight: largeFileSuppressSmartHighlight ?? self.largeFileSuppressSmartHighlight,
+            largeFileSuppressBraceMatch: largeFileSuppressBraceMatch ?? self.largeFileSuppressBraceMatch,
+            largeFileSuppressWordWrap: largeFileSuppressWordWrap ?? self.largeFileSuppressWordWrap,
+            largeFileSuppressSyntaxHighlight: largeFileSuppressSyntaxHighlight ?? self.largeFileSuppressSyntaxHighlight,
             scrollBeyondLastLine: scrollBeyondLastLine,
             autoCompleteFromNthChar: autoCompleteFromNthChar,
             caretNoBlink: caretNoBlink,
+            caretBlinkRate: caretBlinkRate,
             currentLineFrameWidth: currentLineFrameWidth,
             lineWrapIndent: lineWrapIndent,
             foldMarginStyle: foldMarginStyle,
@@ -643,7 +871,42 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             columnSelectionToMultiEditing: columnSelectionToMultiEditing,
             taskListCustomTags: taskListCustomTags,
             toolbarVisible: toolbarVisible,
-            showBookmarkMargin: showBookmarkMargin ?? self.showBookmarkMargin
+            showBookmarkMargin: showBookmarkMargin ?? self.showBookmarkMargin,
+            confirmReplaceInAllDocs: confirmReplaceInAllDocs ?? self.confirmReplaceInAllDocs,
+            maxFindHistoryCount: maxFindHistoryCount ?? self.maxFindHistoryCount,
+            tabbarHide: tabbarHide ?? self.tabbarHide,
+            reloadScrollToLastCaret: reloadScrollToLastCaret ?? self.reloadScrollToLastCaret,
+            editorFontName: editorFontName ?? self.editorFontName,
+            editorFontBold: editorFontBold ?? self.editorFontBold,
+            tabbarShowCloseButton: tabbarShowCloseButton ?? self.tabbarShowCloseButton,
+            trimTrailingSpacesOnSave: trimTrailingSpacesOnSave ?? self.trimTrailingSpacesOnSave,
+            pasteConvertEndings: pasteConvertEndings ?? self.pasteConvertEndings,
+            caretStickyMode: caretStickyMode ?? self.caretStickyMode,
+            enableCodeFolding: enableCodeFolding ?? self.enableCodeFolding,
+            autoCompleteIgnoreCase: autoCompleteIgnoreCase ?? self.autoCompleteIgnoreCase,
+            whitespaceDisplayMode: whitespaceDisplayMode ?? self.whitespaceDisplayMode,
+            bidiMode: bidiMode ?? self.bidiMode,
+            smoothFont: smoothFont ?? self.smoothFont,
+            multiEditEnabled: multiEditEnabled ?? self.multiEditEnabled,
+            multiPasteMode: multiPasteMode ?? self.multiPasteMode,
+            indentGuideMode: indentGuideMode ?? self.indentGuideMode,
+            wordWrapMode: wordWrapMode ?? self.wordWrapMode,
+            tabbarCompact: tabbarCompact ?? self.tabbarCompact,
+            tabbarShowIndexNumbers: tabbarShowIndexNumbers ?? self.tabbarShowIndexNumbers,
+            zoomSyncToAllTabs: zoomSyncToAllTabs ?? self.zoomSyncToAllTabs,
+            hideMenuShortcuts: hideMenuShortcuts ?? self.hideMenuShortcuts,
+            scrollToLastLineOnMonitorReload: scrollToLastLineOnMonitorReload ?? self.scrollToLastLineOnMonitorReload,
+            additionalSelAlpha: additionalSelAlpha ?? self.additionalSelAlpha,
+            additionalCaretsBlink: additionalCaretsBlink ?? self.additionalCaretsBlink,
+            additionalCaretsVisible: additionalCaretsVisible ?? self.additionalCaretsVisible,
+            caretLineVisibleAlways: caretLineVisibleAlways ?? self.caretLineVisibleAlways,
+            whitespaceSize: whitespaceSize ?? self.whitespaceSize,
+            selectionAlpha: selectionAlpha ?? self.selectionAlpha,
+            controlCharDisplay: controlCharDisplay ?? self.controlCharDisplay,
+            openAnsiAsUtf8: openAnsiAsUtf8 ?? self.openAnsiAsUtf8,
+            xmlTagAttributeHighlight: xmlTagAttributeHighlight ?? self.xmlTagAttributeHighlight,
+            highlightNonHtmlZone: highlightNonHtmlZone ?? self.highlightNonHtmlZone,
+            defaultSaveDirectory: defaultSaveDirectory ?? self.defaultSaveDirectory
         )
     }
 
@@ -706,10 +969,19 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             enableVirtualSpace: enableVirtualSpace,
             backspaceUnindents: backspaceUnindents,
             autoIndent: autoIndent,
+            autoIndentMode: autoIndentMode,
+            fileAutoDetection: fileAutoDetection,
+            updateSilently: updateSilently,
             largeFileSizeMB: largeFileSizeMB,
+            largeFileSuppressAutoComplete: largeFileSuppressAutoComplete,
+            largeFileSuppressSmartHighlight: largeFileSuppressSmartHighlight,
+            largeFileSuppressBraceMatch: largeFileSuppressBraceMatch,
+            largeFileSuppressWordWrap: largeFileSuppressWordWrap,
+            largeFileSuppressSyntaxHighlight: largeFileSuppressSyntaxHighlight,
             scrollBeyondLastLine: scrollBeyondLastLine,
             autoCompleteFromNthChar: autoCompleteFromNthChar,
             caretNoBlink: caretNoBlink,
+            caretBlinkRate: caretBlinkRate,
             currentLineFrameWidth: currentLineFrameWidth,
             lineWrapIndent: lineWrapIndent,
             foldMarginStyle: foldMarginStyle,
@@ -772,7 +1044,35 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             columnSelectionToMultiEditing: columnSelectionToMultiEditing,
             taskListCustomTags: taskListCustomTags,
             toolbarVisible: toolbarVisible,
-            showBookmarkMargin: showBookmarkMargin
+            showBookmarkMargin: showBookmarkMargin,
+            confirmReplaceInAllDocs: confirmReplaceInAllDocs,
+            maxFindHistoryCount: maxFindHistoryCount,
+            tabbarHide: tabbarHide,
+            reloadScrollToLastCaret: reloadScrollToLastCaret,
+            editorFontName: editorFontName,
+            editorFontBold: editorFontBold,
+            tabbarShowCloseButton: tabbarShowCloseButton,
+            trimTrailingSpacesOnSave: trimTrailingSpacesOnSave,
+            pasteConvertEndings: pasteConvertEndings,
+            caretStickyMode: caretStickyMode,
+            enableCodeFolding: enableCodeFolding,
+            autoCompleteIgnoreCase: autoCompleteIgnoreCase,
+            whitespaceDisplayMode: whitespaceDisplayMode,
+            bidiMode: bidiMode,
+            smoothFont: smoothFont,
+            multiEditEnabled: multiEditEnabled,
+            multiPasteMode: multiPasteMode,
+            indentGuideMode: indentGuideMode,
+            wordWrapMode: wordWrapMode,
+            tabbarCompact: tabbarCompact,
+            tabbarShowIndexNumbers: tabbarShowIndexNumbers,
+            zoomSyncToAllTabs: zoomSyncToAllTabs,
+            hideMenuShortcuts: hideMenuShortcuts,
+            scrollToLastLineOnMonitorReload: scrollToLastLineOnMonitorReload,
+            openAnsiAsUtf8: openAnsiAsUtf8,
+            xmlTagAttributeHighlight: xmlTagAttributeHighlight,
+            highlightNonHtmlZone: highlightNonHtmlZone,
+            defaultSaveDirectory: defaultSaveDirectory
         )
     }
 
@@ -794,6 +1094,178 @@ public struct AppPreferences: Codable, Equatable, Sendable {
 
     public func withInsertSpacesInsteadOfTabs(_ insertSpacesInsteadOfTabs: Bool) -> AppPreferences {
         copy(insertSpacesInsteadOfTabs: insertSpacesInsteadOfTabs)
+    }
+
+    public func withLargeFileSuppressAutoComplete(_ suppress: Bool) -> AppPreferences {
+        copy(largeFileSuppressAutoComplete: suppress)
+    }
+
+    public func withLargeFileSuppressSmartHighlight(_ suppress: Bool) -> AppPreferences {
+        copy(largeFileSuppressSmartHighlight: suppress)
+    }
+
+    public func withLargeFileSuppressBraceMatch(_ suppress: Bool) -> AppPreferences {
+        copy(largeFileSuppressBraceMatch: suppress)
+    }
+
+    public func withLargeFileSuppressWordWrap(_ suppress: Bool) -> AppPreferences {
+        copy(largeFileSuppressWordWrap: suppress)
+    }
+
+    public func withLargeFileSuppressSyntaxHighlight(_ suppress: Bool) -> AppPreferences {
+        copy(largeFileSuppressSyntaxHighlight: suppress)
+    }
+
+    public func withConfirmReplaceInAllDocs(_ confirm: Bool) -> AppPreferences {
+        copy(confirmReplaceInAllDocs: confirm)
+    }
+
+    public func withMaxFindHistoryCount(_ count: Int) -> AppPreferences {
+        copy(maxFindHistoryCount: count)
+    }
+
+    public func withTabbarHide(_ hide: Bool) -> AppPreferences {
+        copy(tabbarHide: hide)
+    }
+
+    public func withReloadScrollToLastCaret(_ scroll: Bool) -> AppPreferences {
+        copy(reloadScrollToLastCaret: scroll)
+    }
+
+    public func withEditorFontName(_ name: String) -> AppPreferences {
+        copy(editorFontName: name)
+    }
+
+    public func withEditorFontBold(_ bold: Bool) -> AppPreferences {
+        copy(editorFontBold: bold)
+    }
+
+    public func withTabbarShowCloseButton(_ show: Bool) -> AppPreferences {
+        copy(tabbarShowCloseButton: show)
+    }
+
+    public func withTrimTrailingSpacesOnSave(_ trim: Bool) -> AppPreferences {
+        copy(trimTrailingSpacesOnSave: trim)
+    }
+
+    public func withPasteConvertEndings(_ convert: Bool) -> AppPreferences {
+        copy(pasteConvertEndings: convert)
+    }
+
+    public func withCaretStickyMode(_ mode: Int) -> AppPreferences {
+        copy(caretStickyMode: mode)
+    }
+
+    public func withEnableCodeFolding(_ enabled: Bool) -> AppPreferences {
+        copy(enableCodeFolding: enabled)
+    }
+
+    public func withAutoCompleteIgnoreCase(_ ignore: Bool) -> AppPreferences {
+        copy(autoCompleteIgnoreCase: ignore)
+    }
+
+    public func withWhitespaceDisplayMode(_ mode: Int) -> AppPreferences {
+        copy(whitespaceDisplayMode: max(0, min(3, mode)))
+    }
+
+    public func withBidiMode(_ mode: Int) -> AppPreferences {
+        copy(bidiMode: max(0, min(2, mode)))
+    }
+
+    public func withSmoothFont(_ on: Bool) -> AppPreferences {
+        copy(smoothFont: on)
+    }
+
+    public func withMultiEditEnabled(_ on: Bool) -> AppPreferences {
+        copy(multiEditEnabled: on)
+    }
+
+    public func withMultiPasteMode(_ mode: Int) -> AppPreferences {
+        copy(multiPasteMode: max(0, min(1, mode)))
+    }
+
+    public func withIndentGuideMode(_ mode: Int) -> AppPreferences {
+        copy(indentGuideMode: max(0, min(3, mode)))
+    }
+
+    public func withWordWrapMode(_ mode: Int) -> AppPreferences {
+        copy(wordWrapMode: max(0, min(3, mode)))
+    }
+
+    public func withTabbarCompact(_ on: Bool) -> AppPreferences {
+        copy(tabbarCompact: on)
+    }
+
+    public func withTabbarShowIndexNumbers(_ on: Bool) -> AppPreferences {
+        copy(tabbarShowIndexNumbers: on)
+    }
+
+    public func withZoomSyncToAllTabs(_ on: Bool) -> AppPreferences {
+        copy(zoomSyncToAllTabs: on)
+    }
+
+    public func withHideMenuShortcuts(_ on: Bool) -> AppPreferences {
+        copy(hideMenuShortcuts: on)
+    }
+
+    public func withScrollToLastLineOnMonitorReload(_ on: Bool) -> AppPreferences {
+        copy(scrollToLastLineOnMonitorReload: on)
+    }
+
+    public func withAdditionalSelAlpha(_ alpha: Int) -> AppPreferences {
+        copy(additionalSelAlpha: max(0, min(256, alpha)))
+    }
+
+    public func withAdditionalCaretsBlink(_ on: Bool) -> AppPreferences {
+        copy(additionalCaretsBlink: on)
+    }
+
+    public func withAdditionalCaretsVisible(_ on: Bool) -> AppPreferences {
+        copy(additionalCaretsVisible: on)
+    }
+
+    public func withCaretLineVisibleAlways(_ on: Bool) -> AppPreferences {
+        copy(caretLineVisibleAlways: on)
+    }
+
+    public func withWhitespaceSize(_ size: Int) -> AppPreferences {
+        copy(whitespaceSize: max(1, min(5, size)))
+    }
+
+    public func withSelectionAlpha(_ alpha: Int) -> AppPreferences {
+        copy(selectionAlpha: max(0, min(256, alpha)))
+    }
+
+    public func withControlCharDisplay(_ mode: Int) -> AppPreferences {
+        copy(controlCharDisplay: max(0, min(6, mode)))
+    }
+
+    public func withOpenAnsiAsUtf8(_ on: Bool) -> AppPreferences {
+        copy(openAnsiAsUtf8: on)
+    }
+
+    public func withXmlTagAttributeHighlight(_ on: Bool) -> AppPreferences {
+        copy(xmlTagAttributeHighlight: on)
+    }
+
+    public func withHighlightNonHtmlZone(_ on: Bool) -> AppPreferences {
+        copy(highlightNonHtmlZone: on)
+    }
+
+    public func withDefaultSaveDirectory(_ dir: String) -> AppPreferences {
+        copy(defaultSaveDirectory: dir)
+    }
+
+    public func withAutoIndentMode(_ mode: Int) -> AppPreferences {
+        copy(autoIndentMode: max(0, min(2, mode)))
+    }
+
+    public func withFileAutoDetection(_ mode: Int) -> AppPreferences {
+        copy(fileAutoDetection: max(0, min(2, mode)))
+    }
+
+    public func withUpdateSilently(_ on: Bool) -> AppPreferences {
+        copy(updateSilently: on)
     }
 }
 
@@ -840,10 +1312,19 @@ public final class PreferencesStore {
         static let enableVirtualSpace = "notepadMac.enableVirtualSpace"
         static let backspaceUnindents = "notepadMac.backspaceUnindents"
         static let autoIndent = "notepadMac.autoIndent"
+        static let autoIndentMode = "notepadMac.autoIndentMode"
+        static let fileAutoDetection = "notepadMac.fileAutoDetection"
+        static let updateSilently = "notepadMac.updateSilently"
         static let largeFileSizeMB = "notepadMac.largeFileSizeMB"
+        static let largeFileSuppressAutoComplete = "notepadMac.largeFileSuppressAutoComplete"
+        static let largeFileSuppressSmartHighlight = "notepadMac.largeFileSuppressSmartHighlight"
+        static let largeFileSuppressBraceMatch = "notepadMac.largeFileSuppressBraceMatch"
+        static let largeFileSuppressWordWrap = "notepadMac.largeFileSuppressWordWrap"
+        static let largeFileSuppressSyntaxHighlight = "notepadMac.largeFileSuppressSyntaxHighlight"
         static let scrollBeyondLastLine = "notepadMac.scrollBeyondLastLine"
         static let autoCompleteFromNthChar = "notepadMac.autoCompleteFromNthChar"
         static let caretNoBlink = "notepadMac.caretNoBlink"
+        static let caretBlinkRate = "notepadMac.caretBlinkRate"
         static let currentLineFrameWidth = "notepadMac.currentLineFrameWidth"
         static let lineWrapIndent = "notepadMac.lineWrapIndent"
         static let foldMarginStyle = "notepadMac.foldMarginStyle"
@@ -915,6 +1396,41 @@ public final class PreferencesStore {
         static let taskListCustomTags = "notepadMac.taskListCustomTags"
         static let toolbarVisible = "notepadMac.toolbarVisible"
         static let showBookmarkMargin = "notepadMac.showBookmarkMargin"
+        static let confirmReplaceInAllDocs = "notepadMac.confirmReplaceInAllDocs"
+        static let maxFindHistoryCount = "notepadMac.maxFindHistoryCount"
+        static let tabbarHide = "notepadMac.tabbarHide"
+        static let reloadScrollToLastCaret = "notepadMac.reloadScrollToLastCaret"
+        static let editorFontName = "notepadMac.editorFontName"
+        static let editorFontBold = "notepadMac.editorFontBold"
+        static let tabbarShowCloseButton = "notepadMac.tabbarShowCloseButton"
+        static let trimTrailingSpacesOnSave = "notepadMac.trimTrailingSpacesOnSave"
+        static let pasteConvertEndings = "notepadMac.pasteConvertEndings"
+        static let caretStickyMode = "notepadMac.caretStickyMode"
+        static let enableCodeFolding = "notepadMac.enableCodeFolding"
+        static let autoCompleteIgnoreCase = "notepadMac.autoCompleteIgnoreCase"
+        static let whitespaceDisplayMode = "notepadMac.whitespaceDisplayMode"
+        static let bidiMode = "notepadMac.bidiMode"
+        static let smoothFont = "notepadMac.smoothFont"
+        static let multiEditEnabled = "notepadMac.multiEditEnabled"
+        static let multiPasteMode = "notepadMac.multiPasteMode"
+        static let indentGuideMode = "notepadMac.indentGuideMode"
+        static let wordWrapMode = "notepadMac.wordWrapMode"
+        static let tabbarCompact = "notepadMac.tabbarCompact"
+        static let tabbarShowIndexNumbers = "notepadMac.tabbarShowIndexNumbers"
+        static let zoomSyncToAllTabs = "notepadMac.zoomSyncToAllTabs"
+        static let hideMenuShortcuts = "notepadMac.hideMenuShortcuts"
+        static let scrollToLastLineOnMonitorReload = "notepadMac.scrollToLastLineOnMonitorReload"
+        static let additionalSelAlpha = "notepadMac.additionalSelAlpha"
+        static let additionalCaretsBlink = "notepadMac.additionalCaretsBlink"
+        static let additionalCaretsVisible = "notepadMac.additionalCaretsVisible"
+        static let caretLineVisibleAlways = "notepadMac.caretLineVisibleAlways"
+        static let whitespaceSize = "notepadMac.whitespaceSize"
+        static let selectionAlpha = "notepadMac.selectionAlpha"
+        static let controlCharDisplay = "notepadMac.controlCharDisplay"
+        static let openAnsiAsUtf8 = "notepadMac.openAnsiAsUtf8"
+        static let xmlTagAttributeHighlight = "notepadMac.xmlTagAttributeHighlight"
+        static let highlightNonHtmlZone = "notepadMac.highlightNonHtmlZone"
+        static let defaultSaveDirectory = "notepadMac.defaultSaveDirectory"
     }
 
     private let defaults: UserDefaults
@@ -966,10 +1482,19 @@ public final class PreferencesStore {
             enableVirtualSpace: defaults.object(forKey: Key.enableVirtualSpace) as? Bool ?? AppPreferences.defaultValue.enableVirtualSpace,
             backspaceUnindents: defaults.object(forKey: Key.backspaceUnindents) as? Bool ?? AppPreferences.defaultValue.backspaceUnindents,
             autoIndent: defaults.object(forKey: Key.autoIndent) as? Bool ?? AppPreferences.defaultValue.autoIndent,
+            autoIndentMode: defaults.object(forKey: Key.autoIndentMode) as? Int ?? 1,
+            fileAutoDetection: defaults.object(forKey: Key.fileAutoDetection) as? Int ?? 1,
+            updateSilently: defaults.object(forKey: Key.updateSilently) as? Bool ?? false,
             largeFileSizeMB: defaults.object(forKey: Key.largeFileSizeMB) as? Int ?? AppPreferences.defaultValue.largeFileSizeMB,
+            largeFileSuppressAutoComplete: defaults.object(forKey: Key.largeFileSuppressAutoComplete) as? Bool ?? AppPreferences.defaultValue.largeFileSuppressAutoComplete,
+            largeFileSuppressSmartHighlight: defaults.object(forKey: Key.largeFileSuppressSmartHighlight) as? Bool ?? AppPreferences.defaultValue.largeFileSuppressSmartHighlight,
+            largeFileSuppressBraceMatch: defaults.object(forKey: Key.largeFileSuppressBraceMatch) as? Bool ?? AppPreferences.defaultValue.largeFileSuppressBraceMatch,
+            largeFileSuppressWordWrap: defaults.object(forKey: Key.largeFileSuppressWordWrap) as? Bool ?? AppPreferences.defaultValue.largeFileSuppressWordWrap,
+            largeFileSuppressSyntaxHighlight: defaults.object(forKey: Key.largeFileSuppressSyntaxHighlight) as? Bool ?? AppPreferences.defaultValue.largeFileSuppressSyntaxHighlight,
             scrollBeyondLastLine: defaults.object(forKey: Key.scrollBeyondLastLine) as? Bool ?? AppPreferences.defaultValue.scrollBeyondLastLine,
             autoCompleteFromNthChar: defaults.object(forKey: Key.autoCompleteFromNthChar) as? Int ?? AppPreferences.defaultValue.autoCompleteFromNthChar,
             caretNoBlink: defaults.object(forKey: Key.caretNoBlink) as? Bool ?? false,
+            caretBlinkRate: defaults.object(forKey: Key.caretBlinkRate) as? Int ?? 500,
             currentLineFrameWidth: defaults.object(forKey: Key.currentLineFrameWidth) as? Int ?? 0,
             lineWrapIndent: defaults.object(forKey: Key.lineWrapIndent) as? Int ?? 0,
             foldMarginStyle: defaults.object(forKey: Key.foldMarginStyle) as? Int ?? 0,
@@ -1033,7 +1558,42 @@ public final class PreferencesStore {
             appearanceMode: defaults.object(forKey: Key.appearanceMode) as? Int ?? 0,
             taskListCustomTags: defaults.string(forKey: Key.taskListCustomTags) ?? "",
             toolbarVisible: defaults.object(forKey: Key.toolbarVisible) as? Bool ?? true,
-            showBookmarkMargin: defaults.object(forKey: Key.showBookmarkMargin) as? Bool ?? true
+            showBookmarkMargin: defaults.object(forKey: Key.showBookmarkMargin) as? Bool ?? true,
+            confirmReplaceInAllDocs: defaults.object(forKey: Key.confirmReplaceInAllDocs) as? Bool ?? true,
+            maxFindHistoryCount: defaults.object(forKey: Key.maxFindHistoryCount) as? Int ?? 20,
+            tabbarHide: defaults.object(forKey: Key.tabbarHide) as? Bool ?? false,
+            reloadScrollToLastCaret: defaults.object(forKey: Key.reloadScrollToLastCaret) as? Bool ?? false,
+            editorFontName: defaults.string(forKey: Key.editorFontName) ?? "",
+            editorFontBold: defaults.object(forKey: Key.editorFontBold) as? Bool ?? false,
+            tabbarShowCloseButton: defaults.object(forKey: Key.tabbarShowCloseButton) as? Bool ?? true,
+            trimTrailingSpacesOnSave: defaults.object(forKey: Key.trimTrailingSpacesOnSave) as? Bool ?? false,
+            pasteConvertEndings: defaults.object(forKey: Key.pasteConvertEndings) as? Bool ?? true,
+            caretStickyMode: defaults.object(forKey: Key.caretStickyMode) as? Int ?? 0,
+            enableCodeFolding: defaults.object(forKey: Key.enableCodeFolding) as? Bool ?? true,
+            autoCompleteIgnoreCase: defaults.object(forKey: Key.autoCompleteIgnoreCase) as? Bool ?? true,
+            whitespaceDisplayMode: defaults.object(forKey: Key.whitespaceDisplayMode) as? Int ?? 0,
+            bidiMode: defaults.object(forKey: Key.bidiMode) as? Int ?? 0,
+            smoothFont: defaults.object(forKey: Key.smoothFont) as? Bool ?? true,
+            multiEditEnabled: defaults.object(forKey: Key.multiEditEnabled) as? Bool ?? true,
+            multiPasteMode: defaults.object(forKey: Key.multiPasteMode) as? Int ?? 1,
+            indentGuideMode: defaults.object(forKey: Key.indentGuideMode) as? Int ?? 2,
+            wordWrapMode: defaults.object(forKey: Key.wordWrapMode) as? Int ?? 1,
+            tabbarCompact: defaults.object(forKey: Key.tabbarCompact) as? Bool ?? false,
+            tabbarShowIndexNumbers: defaults.object(forKey: Key.tabbarShowIndexNumbers) as? Bool ?? false,
+            zoomSyncToAllTabs: defaults.object(forKey: Key.zoomSyncToAllTabs) as? Bool ?? false,
+            hideMenuShortcuts: defaults.object(forKey: Key.hideMenuShortcuts) as? Bool ?? false,
+            scrollToLastLineOnMonitorReload: defaults.object(forKey: Key.scrollToLastLineOnMonitorReload) as? Bool ?? false,
+            additionalSelAlpha: defaults.object(forKey: Key.additionalSelAlpha) as? Int ?? 256,
+            additionalCaretsBlink: defaults.object(forKey: Key.additionalCaretsBlink) as? Bool ?? true,
+            additionalCaretsVisible: defaults.object(forKey: Key.additionalCaretsVisible) as? Bool ?? true,
+            caretLineVisibleAlways: defaults.object(forKey: Key.caretLineVisibleAlways) as? Bool ?? false,
+            whitespaceSize: defaults.object(forKey: Key.whitespaceSize) as? Int ?? 1,
+            selectionAlpha: defaults.object(forKey: Key.selectionAlpha) as? Int ?? 256,
+            controlCharDisplay: defaults.object(forKey: Key.controlCharDisplay) as? Int ?? 0,
+            openAnsiAsUtf8: defaults.object(forKey: Key.openAnsiAsUtf8) as? Bool ?? false,
+            xmlTagAttributeHighlight: defaults.object(forKey: Key.xmlTagAttributeHighlight) as? Bool ?? true,
+            highlightNonHtmlZone: defaults.object(forKey: Key.highlightNonHtmlZone) as? Bool ?? false,
+            defaultSaveDirectory: defaults.string(forKey: Key.defaultSaveDirectory) ?? ""
         )
     }
 
@@ -1087,10 +1647,19 @@ public final class PreferencesStore {
         defaults.set(preferences.enableVirtualSpace, forKey: Key.enableVirtualSpace)
         defaults.set(preferences.backspaceUnindents, forKey: Key.backspaceUnindents)
         defaults.set(preferences.autoIndent, forKey: Key.autoIndent)
+        defaults.set(preferences.autoIndentMode, forKey: Key.autoIndentMode)
+        defaults.set(preferences.fileAutoDetection, forKey: Key.fileAutoDetection)
+        defaults.set(preferences.updateSilently, forKey: Key.updateSilently)
         defaults.set(preferences.largeFileSizeMB, forKey: Key.largeFileSizeMB)
+        defaults.set(preferences.largeFileSuppressAutoComplete, forKey: Key.largeFileSuppressAutoComplete)
+        defaults.set(preferences.largeFileSuppressSmartHighlight, forKey: Key.largeFileSuppressSmartHighlight)
+        defaults.set(preferences.largeFileSuppressBraceMatch, forKey: Key.largeFileSuppressBraceMatch)
+        defaults.set(preferences.largeFileSuppressWordWrap, forKey: Key.largeFileSuppressWordWrap)
+        defaults.set(preferences.largeFileSuppressSyntaxHighlight, forKey: Key.largeFileSuppressSyntaxHighlight)
         defaults.set(preferences.scrollBeyondLastLine, forKey: Key.scrollBeyondLastLine)
         defaults.set(preferences.autoCompleteFromNthChar, forKey: Key.autoCompleteFromNthChar)
         defaults.set(preferences.caretNoBlink, forKey: Key.caretNoBlink)
+        defaults.set(preferences.caretBlinkRate, forKey: Key.caretBlinkRate)
         defaults.set(preferences.currentLineFrameWidth, forKey: Key.currentLineFrameWidth)
         defaults.set(preferences.lineWrapIndent, forKey: Key.lineWrapIndent)
         defaults.set(preferences.foldMarginStyle, forKey: Key.foldMarginStyle)
@@ -1158,6 +1727,41 @@ public final class PreferencesStore {
         defaults.set(preferences.taskListCustomTags, forKey: Key.taskListCustomTags)
         defaults.set(preferences.toolbarVisible, forKey: Key.toolbarVisible)
         defaults.set(preferences.showBookmarkMargin, forKey: Key.showBookmarkMargin)
+        defaults.set(preferences.confirmReplaceInAllDocs, forKey: Key.confirmReplaceInAllDocs)
+        defaults.set(preferences.maxFindHistoryCount, forKey: Key.maxFindHistoryCount)
+        defaults.set(preferences.tabbarHide, forKey: Key.tabbarHide)
+        defaults.set(preferences.reloadScrollToLastCaret, forKey: Key.reloadScrollToLastCaret)
+        defaults.set(preferences.editorFontName, forKey: Key.editorFontName)
+        defaults.set(preferences.editorFontBold, forKey: Key.editorFontBold)
+        defaults.set(preferences.tabbarShowCloseButton, forKey: Key.tabbarShowCloseButton)
+        defaults.set(preferences.trimTrailingSpacesOnSave, forKey: Key.trimTrailingSpacesOnSave)
+        defaults.set(preferences.pasteConvertEndings, forKey: Key.pasteConvertEndings)
+        defaults.set(preferences.caretStickyMode, forKey: Key.caretStickyMode)
+        defaults.set(preferences.enableCodeFolding, forKey: Key.enableCodeFolding)
+        defaults.set(preferences.autoCompleteIgnoreCase, forKey: Key.autoCompleteIgnoreCase)
+        defaults.set(preferences.whitespaceDisplayMode, forKey: Key.whitespaceDisplayMode)
+        defaults.set(preferences.bidiMode, forKey: Key.bidiMode)
+        defaults.set(preferences.smoothFont, forKey: Key.smoothFont)
+        defaults.set(preferences.multiEditEnabled, forKey: Key.multiEditEnabled)
+        defaults.set(preferences.multiPasteMode, forKey: Key.multiPasteMode)
+        defaults.set(preferences.indentGuideMode, forKey: Key.indentGuideMode)
+        defaults.set(preferences.wordWrapMode, forKey: Key.wordWrapMode)
+        defaults.set(preferences.tabbarCompact, forKey: Key.tabbarCompact)
+        defaults.set(preferences.tabbarShowIndexNumbers, forKey: Key.tabbarShowIndexNumbers)
+        defaults.set(preferences.zoomSyncToAllTabs, forKey: Key.zoomSyncToAllTabs)
+        defaults.set(preferences.hideMenuShortcuts, forKey: Key.hideMenuShortcuts)
+        defaults.set(preferences.scrollToLastLineOnMonitorReload, forKey: Key.scrollToLastLineOnMonitorReload)
+        defaults.set(preferences.additionalSelAlpha, forKey: Key.additionalSelAlpha)
+        defaults.set(preferences.additionalCaretsBlink, forKey: Key.additionalCaretsBlink)
+        defaults.set(preferences.additionalCaretsVisible, forKey: Key.additionalCaretsVisible)
+        defaults.set(preferences.caretLineVisibleAlways, forKey: Key.caretLineVisibleAlways)
+        defaults.set(preferences.whitespaceSize, forKey: Key.whitespaceSize)
+        defaults.set(preferences.selectionAlpha, forKey: Key.selectionAlpha)
+        defaults.set(preferences.controlCharDisplay, forKey: Key.controlCharDisplay)
+        defaults.set(preferences.openAnsiAsUtf8, forKey: Key.openAnsiAsUtf8)
+        defaults.set(preferences.xmlTagAttributeHighlight, forKey: Key.xmlTagAttributeHighlight)
+        defaults.set(preferences.highlightNonHtmlZone, forKey: Key.highlightNonHtmlZone)
+        defaults.set(preferences.defaultSaveDirectory, forKey: Key.defaultSaveDirectory)
         defaults.synchronize()
     }
 
@@ -1166,7 +1770,8 @@ public final class PreferencesStore {
     }
 
     public func saveFindHistory(_ history: [String]) {
-        let capped = Array(history.prefix(20))
+        let limit = load().maxFindHistoryCount
+        let capped = Array(history.prefix(limit))
         defaults.set(capped, forKey: Key.findHistory)
         defaults.synchronize()
     }
@@ -1176,7 +1781,8 @@ public final class PreferencesStore {
     }
 
     public func saveReplaceHistory(_ history: [String]) {
-        let capped = Array(history.prefix(20))
+        let limit = load().maxFindHistoryCount
+        let capped = Array(history.prefix(limit))
         defaults.set(capped, forKey: Key.replaceHistory)
         defaults.synchronize()
     }

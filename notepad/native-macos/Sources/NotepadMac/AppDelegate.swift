@@ -1490,6 +1490,10 @@ private var appearanceObservation: NSKeyValueObservation?
         switch action {
         case .closeOthers:
             closeDocumentControllers(ordered.filter { $0 !== targetController })
+        case .closeAllButPinned:
+            closeDocumentControllers(ordered.filter { $0 !== targetController && !$0.isPinnedToTab })
+        case .closeUnchanged:
+            closeDocumentControllers(ordered.filter { !$0.tabItem.isDirty })
         case .closeToLeft:
             closeDocumentControllers(Array(ordered[..<targetIndex]))
         case .closeToRight:

@@ -54,6 +54,15 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let printFontSizeLabel = NSTextField(labelWithString: "")
     private let printFontSizeField = NSTextField(string: "0")
     private let printFontSizeStepper = NSStepper()
+    private let printMarginsLabel = NSTextField(labelWithString: "")
+    private let printMarginTopLabel = NSTextField(labelWithString: "")
+    private let printMarginTopField = NSTextField(string: "36")
+    private let printMarginBottomLabel = NSTextField(labelWithString: "")
+    private let printMarginBottomField = NSTextField(string: "36")
+    private let printMarginLeftLabel = NSTextField(labelWithString: "")
+    private let printMarginLeftField = NSTextField(string: "36")
+    private let printMarginRightLabel = NSTextField(labelWithString: "")
+    private let printMarginRightField = NSTextField(string: "36")
     // Delimiter section (in Window tab)
     private let delimiterSectionLabel = NSTextField(labelWithString: "")
     private let delimiterLeftLabel = NSTextField(labelWithString: "")
@@ -66,7 +75,13 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let shortTitleButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let saveAllConfirmButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoCompleteIgnoreNumbersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let reloadScrollToLastCaretButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let openDirFollowsDocButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let openAnsiAsUtf8Button = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let xmlTagAttributeHighlightButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let highlightNonHtmlZoneButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let defaultSaveDirLabel = NSTextField(labelWithString: "")
+    private let defaultSaveDirField = NSTextField(string: "")
     private let folderDropAsWorkspaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let folderDropRecursiveOpenButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let defaultLangLabel = NSTextField(labelWithString: "")
@@ -83,6 +98,9 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let localizationPopup = NSPopUpButton()
     private let fontSizeField = NSTextField(string: "")
     private let fontSizeStepper = NSStepper()
+    private let editorFontNameLabel = NSTextField(labelWithString: "")
+    private let editorFontNameField = NSTextField(string: "")
+    private let editorFontBoldButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let wrapsLinesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabSizeLabel = NSTextField(labelWithString: "")
     private let tabSizeField = NSTextField(string: "")
@@ -109,15 +127,29 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let caretWidthLabel = NSTextField(labelWithString: "")
     private let caretWidthSegmented = NSSegmentedControl()
     private let caretNoBlinkButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let caretBlinkRateLabel = NSTextField(labelWithString: "")
+    private let caretBlinkRateField = NSTextField(string: "")
+    private let caretBlinkRateStepper = NSStepper()
+    private let caretStickyModeLabel = NSTextField(labelWithString: "")
+    private let caretStickyModePopup = NSPopUpButton()
     private let currentLineFrameLabel = NSTextField(labelWithString: "")
     private let currentLineFrameSegmented = NSSegmentedControl()
     private let lineWrapIndentLabel = NSTextField(labelWithString: "")
     private let lineWrapIndentPopup = NSPopUpButton()
+    private let enableCodeFoldingButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let foldMarginStyleLabel = NSTextField(labelWithString: "")
     private let foldMarginStylePopup = NSPopUpButton()
     private let virtualSpaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let backspaceUnindentsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoIndentButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoIndentModeLabel = NSTextField(labelWithString: "")
+    private let autoIndentModePopup = NSPopUpButton()
+    private let fileAutoDetectionLabel = NSTextField(labelWithString: "")
+    private let fileAutoDetectionPopup = NSPopUpButton()
+    private let updateSilentlyButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let zoomSyncToAllTabsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let hideMenuShortcutsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let scrollToLastLineOnMonitorReloadButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let scrollBeyondLastLineButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let selectedTextDragDropButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let lineNumberDynamicWidthButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -128,6 +160,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let displayDefaultsSectionLabel = NSTextField(labelWithString: "")
     private let showLineNumberMarginButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let showWhitespaceButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let whitespaceDisplayModeLabel = NSTextField(labelWithString: "")
+    private let whitespaceDisplayModePopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let bidiModeLabel = NSTextField(labelWithString: "")
+    private let bidiModePopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let showEOLButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let showIndentGuidesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let highlightCurrentLineButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -146,14 +182,46 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let autoCompleteTABFillupButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoCompleteEnterCommitButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoCompleteBriefButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let autoCompleteIgnoreCaseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let htmlXmlCloseTagButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let muteAllSoundsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let trimTrailingSpacesOnSaveButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let pasteConvertEndingsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let smoothFontButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let multiEditEnabledButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let multiPasteModeLabel = NSTextField(labelWithString: "")
+    private let multiPasteModePopup = NSPopUpButton()
+    private let indentGuideModeLabel = NSTextField(labelWithString: "")
+    private let indentGuideModePopup = NSPopUpButton()
+    private let wordWrapModeLabel = NSTextField(labelWithString: "")
+    private let wordWrapModePopup = NSPopUpButton()
+    // Multi-select appearance
+    private let additionalSelAlphaLabel = NSTextField(labelWithString: "")
+    private let additionalSelAlphaField = NSTextField(string: "256")
+    private let additionalSelAlphaStepper = NSStepper()
+    private let additionalCaretsBlinkButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let additionalCaretsVisibleButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let caretLineVisibleAlwaysButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    // Whitespace & selection display
+    private let whitespaceSizeLabel = NSTextField(labelWithString: "")
+    private let whitespaceSizeField = NSTextField(string: "1")
+    private let whitespaceSizeStepper = NSStepper()
+    private let selectionAlphaLabel = NSTextField(labelWithString: "")
+    private let selectionAlphaField = NSTextField(string: "256")
+    private let selectionAlphaStepper = NSStepper()
+    private let controlCharDisplayLabel = NSTextField(labelWithString: "")
+    private let controlCharDisplayPopup = NSPopUpButton()
     private let linePaddingLabel = NSTextField(labelWithString: "")
     private let linePaddingSegmented = NSSegmentedControl()
     private let largeFileSectionLabel = NSTextField(labelWithString: "")
     private let largeFileMBLabel = NSTextField(labelWithString: "")
     private let largeFileMBField = NSTextField(string: "50")
     private let largeFileMBStepper = NSStepper()
+    private let largeFileSuppressAutoCompleteButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let largeFileSuppressSmartHighlightButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let largeFileSuppressBraceMatchButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let largeFileSuppressWordWrapButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let largeFileSuppressSyntaxHighlightButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let newDocEncodingPopup = NSPopUpButton()
     private let newDocLineEndingPopup = NSPopUpButton()
     private let searchMatchCaseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
@@ -174,6 +242,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let fillFindFromSelectionButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let autoSelectWordUnderCaretButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let findInFilesIgnoreUnsavedButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let confirmReplaceInAllDocsButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let maxFindHistoryLabel = NSTextField(labelWithString: "")
+    private let maxFindHistoryField = NSTextField(string: "")
+    private let maxFindHistoryStepper = NSStepper()
     private let findTransparencyLabel = NSTextField(labelWithString: "")
     private let findTransparencySlider = NSSlider()
     // File change detection (in Session & Files tab)
@@ -193,9 +265,13 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let taskListTagsField = NSTextField(string: "")
     // Tabbar section (in Window tab)
     private let tabbarSectionLabel = NSTextField(labelWithString: "")
+    private let tabbarHideButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabbarDoubleClickCloseButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabbarLockDragDropButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabbarExitOnLastTabButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let tabbarShowCloseButtonButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let tabbarCompactButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let tabbarShowIndexNumbersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabbarMaxLabelLengthLabel = NSTextField(labelWithString: "")
     private let tabbarMaxLabelLengthField = NSTextField(string: "0")
     private let tabbarMaxLabelLengthStepper = NSStepper()
@@ -268,6 +344,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         localizationChoiceLabel.stringValue = Localization.string(.preferencesLocalization)
         editorSectionLabel.stringValue = Localization.string(.preferencesEditorSection)
         fontSizeLabel.stringValue = Localization.string(.preferencesFontSize)
+        editorFontNameLabel.stringValue = "Font name:"
+        editorFontBoldButton.title = "Bold"
         findDefaultsSectionLabel.stringValue = Localization.string(.preferencesFindDefaults)
         dateTimeSectionLabel.stringValue = Localization.string(.preferencesDateTimeSection)
         dateTimeFormatLabel.stringValue = Localization.string(.preferencesDateTimeFormat)
@@ -322,6 +400,12 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             caretWidthSegmented.setLabel(Localization.string(.preferencesCaretWidthThick, default: "Thick"), forSegment: 2)
         }
         caretNoBlinkButton.title = Localization.string(.preferencesCaretNoBlink, default: "Disable caret blinking")
+        caretBlinkRateLabel.stringValue = "Blink rate (ms):"
+        caretBlinkRateField.placeholderString = "100-2000"
+        caretBlinkRateStepper.minValue = 100
+        caretBlinkRateStepper.maxValue = 2000
+        caretBlinkRateStepper.increment = 50
+        caretStickyModeLabel.stringValue = "Caret sticky mode:"
         currentLineFrameLabel.stringValue = Localization.string(.preferencesCurrentLineFrame, default: "Current line highlight:")
         if currentLineFrameSegmented.segmentCount == 4 {
             currentLineFrameSegmented.setLabel(Localization.string(.preferencesCurrentLineFrameFill, default: "Fill"), forSegment: 0)
@@ -330,10 +414,21 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             currentLineFrameSegmented.setLabel("3px", forSegment: 3)
         }
         lineWrapIndentLabel.stringValue = Localization.string(.preferencesLineWrapIndent, default: "Wrap indent:")
+        enableCodeFoldingButton.title = "Enable code folding"
         foldMarginStyleLabel.stringValue = Localization.string(.preferencesFoldMarginStyle, default: "Fold margin style:")
         virtualSpaceButton.title = Localization.string(.preferencesVirtualSpace, default: "Enable virtual space")
         backspaceUnindentsButton.title = Localization.string(.preferencesBackspaceUnindents, default: "Backspace key unindents")
         autoIndentButton.title = Localization.string(.preferencesAutoIndent, default: "Auto-indent new lines")
+        autoIndentModeLabel.stringValue = "Auto-indent mode:"
+        autoIndentModePopup.removeAllItems()
+        autoIndentModePopup.addItems(withTitles: ["None", "Basic", "Advanced (bracket-aware)"])
+        fileAutoDetectionLabel.stringValue = "File change detection:"
+        fileAutoDetectionPopup.removeAllItems()
+        fileAutoDetectionPopup.addItems(withTitles: ["Disabled", "On tab activate", "Real-time monitoring"])
+        updateSilentlyButton.title = "Auto-reload changed files without confirmation"
+        zoomSyncToAllTabsButton.title = "Sync zoom level to all tabs when zooming"
+        hideMenuShortcutsButton.title = "Hide keyboard shortcuts in menu items"
+        scrollToLastLineOnMonitorReloadButton.title = "Scroll to last line after monitoring reload"
         scrollBeyondLastLineButton.title = Localization.string(.preferencesScrollBeyondLastLine, default: "Scroll beyond last line")
         selectedTextDragDropButton.title = "Allow dragging selected text within editor"
         lineNumberDynamicWidthButton.title = "Dynamic line number margin width"
@@ -343,6 +438,12 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         displayDefaultsSectionLabel.stringValue = "Display Defaults"
         showLineNumberMarginButton.title = "Show line number margin"
         showWhitespaceButton.title = "Show whitespace"
+        whitespaceDisplayModeLabel.stringValue = "Whitespace mode:"
+        whitespaceDisplayModePopup.removeAllItems()
+        whitespaceDisplayModePopup.addItems(withTitles: ["Don't show", "Always", "After indent", "Only in indent"])
+        bidiModeLabel.stringValue = "Text direction:"
+        bidiModePopup.removeAllItems()
+        bidiModePopup.addItems(withTitles: ["Default", "Left to right", "Right to left"])
         showEOLButton.title = "Show EOL characters"
         showIndentGuidesButton.title = "Show indent guides"
         highlightCurrentLineButton.title = "Highlight current line"
@@ -362,6 +463,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         autoCompleteLabel.stringValue = Localization.string(.preferencesAutoCompleteFrom, default: "Auto-complete from Nth character (0=off):")
         largeFileSectionLabel.stringValue = Localization.string(.preferencesLargeFileSection, default: "Large File")
         largeFileMBLabel.stringValue = Localization.string(.preferencesLargeFileMB, default: "Large file threshold (MB):")
+        largeFileSuppressAutoCompleteButton.title = Localization.string(.preferencesLargeFileSuppressAutoComplete, default: "Disable auto-complete for large files")
+        largeFileSuppressSmartHighlightButton.title = Localization.string(.preferencesLargeFileSuppressSmartHighlight, default: "Disable smart highlighting for large files")
+        largeFileSuppressBraceMatchButton.title = Localization.string(.preferencesLargeFileSuppressBraceMatch, default: "Disable brace matching for large files")
+        largeFileSuppressWordWrapButton.title = Localization.string(.preferencesLargeFileSuppressWordWrap, default: "Disable word wrap for large files")
+        largeFileSuppressSyntaxHighlightButton.title = Localization.string(.preferencesLargeFileSuppressSyntaxHighlight, default: "Disable syntax highlighting for large files")
         newDocumentSectionLabel.stringValue = Localization.string(.preferencesNewDocumentSection, default: "New Document")
         newDocEncodingLabel.stringValue = Localization.string(.preferencesNewDocEncoding, default: "Encoding:")
         newDocLineEndingLabel.stringValue = Localization.string(.preferencesNewDocLineEnding, default: "Line Ending:")
@@ -384,8 +490,46 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         autoCompleteTABFillupButton.title = "Tab key commits auto-complete selection"
         autoCompleteEnterCommitButton.title = "Enter key also commits auto-complete selection"
         autoCompleteBriefButton.title = "Brief mode (hide function prototypes in list)"
+        autoCompleteIgnoreCaseButton.title = "Ignore case when matching completions"
         htmlXmlCloseTagButton.title = "Auto-close HTML/XML tags when typing '>'"
         muteAllSoundsButton.title = "Mute all sounds"
+        trimTrailingSpacesOnSaveButton.title = "Trim trailing whitespace on save"
+        pasteConvertEndingsButton.title = "Convert line endings when pasting"
+        smoothFontButton.title = "Smooth font rendering (antialiased)"
+        multiEditEnabledButton.title = "Enable multiple selections"
+        multiPasteModeLabel.stringValue = "Multi-paste mode:"
+        multiPasteModePopup.removeAllItems()
+        multiPasteModePopup.addItems(withTitles: ["Paste once (main selection)", "Paste into each selection"])
+        indentGuideModeLabel.stringValue = "Indent guide mode:"
+        indentGuideModePopup.removeAllItems()
+        indentGuideModePopup.addItems(withTitles: ["None", "Real", "Look forward", "Look both"])
+        wordWrapModeLabel.stringValue = "Word wrap mode:"
+        wordWrapModePopup.removeAllItems()
+        wordWrapModePopup.addItems(withTitles: ["None", "Word", "Whitespace", "Character"])
+        additionalSelAlphaLabel.stringValue = "Additional selection alpha:"
+        additionalSelAlphaField.formatter = integerFormatter
+        whitespaceSizeField.formatter = integerFormatter
+        selectionAlphaField.formatter = integerFormatter
+        additionalSelAlphaStepper.minValue = 0
+        additionalSelAlphaStepper.maxValue = 256
+        additionalSelAlphaStepper.increment = 16
+        additionalSelAlphaStepper.valueWraps = false
+        additionalCaretsBlinkButton.title = "Additional carets blink"
+        additionalCaretsVisibleButton.title = "Show additional carets"
+        caretLineVisibleAlwaysButton.title = "Highlight current line when unfocused"
+        whitespaceSizeLabel.stringValue = "Whitespace dot size (px):"
+        whitespaceSizeStepper.minValue = 1
+        whitespaceSizeStepper.maxValue = 5
+        whitespaceSizeStepper.increment = 1
+        whitespaceSizeStepper.valueWraps = false
+        selectionAlphaLabel.stringValue = "Selection alpha:"
+        selectionAlphaStepper.minValue = 0
+        selectionAlphaStepper.maxValue = 256
+        selectionAlphaStepper.increment = 16
+        selectionAlphaStepper.valueWraps = false
+        controlCharDisplayLabel.stringValue = "Control char display:"
+        controlCharDisplayPopup.removeAllItems()
+        controlCharDisplayPopup.addItems(withTitles: ["Show as glyph", "Arrow", "Dot", "Small circle", "Large circle", "Space", "Nbsp"])
         inSelectionSectionLabel.stringValue = "In-Selection Search"
         inSelectionThresholdLabel.stringValue = "Auto-check In Selection threshold (chars):"
         keepFindDialogOpenButton.title = "Keep Find dialog open after Replace All"
@@ -394,6 +538,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         fillFindFromSelectionButton.title = "Fill Find field with selected text when opening Find dialog"
         autoSelectWordUnderCaretButton.title = "Auto-select word under caret when no selection"
         findInFilesIgnoreUnsavedButton.title = "Find in Files: ignore unsaved changes in open documents"
+        confirmReplaceInAllDocsButton.title = "Confirm before Replace All in Open Documents"
+        maxFindHistoryLabel.stringValue = "Max find/replace history:"
         copyLineWithoutSelectionButton.title = "Copy / Cut whole line when nothing is selected"
         smartHighlightUseFindSettingsButton.title = "Smart highlight uses Find dialog Match Case / Whole Word settings"
         urlIndicatorStyleLabel.stringValue = "URL style:"
@@ -403,8 +549,12 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         taskListTagsField.placeholderString = "TODO, FIXME, NOTE, HACK, BUG, XXX"
         findTransparencyLabel.stringValue = "Find dialog transparency when unfocused:"
         tabbarSectionLabel.stringValue = "Tab Bar"
+        tabbarHideButton.title = "Hide tab bar"
         tabbarDoubleClickCloseButton.title = "Double-click tab to close"
         tabbarLockDragDropButton.title = "Lock tab bar (disable drag-drop reordering)"
+        tabbarShowCloseButtonButton.title = "Show close button on tabs"
+        tabbarCompactButton.title = "Compact (reduced) tab bar"
+        tabbarShowIndexNumbersButton.title = "Show tab index numbers (1-9)"
         tabbarExitOnLastTabButton.title = "Exit app when last tab is closed"
         tabbarMaxLabelLengthLabel.stringValue = "Max tab label length (0 = unlimited):"
         printSectionLabel.stringValue = "Print"
@@ -432,6 +582,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         shortTitleButton.title = "Short title (filename only in title bar)"
         saveAllConfirmButton.title = "Confirm before Save All"
         autoCompleteIgnoreNumbersButton.title = "Auto-complete: ignore words starting with digits"
+        reloadScrollToLastCaretButton.title = "Scroll to last caret position after external file reload"
+        openAnsiAsUtf8Button.title = "Open ANSI files as UTF-8 (auto-reinterpret ANSI/Windows encodings as UTF-8)"
+        xmlTagAttributeHighlightButton.title = "Highlight tag attributes in XML/HTML matching"
+        highlightNonHtmlZoneButton.title = "Apply XML tag matching in non-HTML/PHP/ASP zones"
+        defaultSaveDirLabel.stringValue = "Default save directory (empty = system default):"
         printLineNumbersButton.title = "Print line numbers"
         openDirFollowsDocButton.title = Localization.string(.preferencesOpenDirFollowsDoc, default: "Open dialog starts in the current document's directory")
         folderDropAsWorkspaceButton.title = Localization.string(.preferencesFolderDropAsWorkspace, default: "Open dropped folder as workspace")
@@ -523,7 +678,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, replaceDoesNotMoveButton, findDialogMonospaceButton, findTransparencySlider, fileChangeDetectionButton, copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton, urlIndicatorStyleSegmented, langTabOverridesField, tabbarDoubleClickCloseButton, tabbarLockDragDropButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper, delimiterLeftField, delimiterRightField].forEach {
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, enableCodeFoldingButton, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, autoCompleteIgnoreCaseButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, replaceDoesNotMoveButton, findDialogMonospaceButton, fillFindFromSelectionButton, autoSelectWordUnderCaretButton, findInFilesIgnoreUnsavedButton, confirmReplaceInAllDocsButton, maxFindHistoryField, maxFindHistoryStepper, findTransparencySlider, fileChangeDetectionButton, copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton, urlIndicatorStyleSegmented, langTabOverridesField, tabbarHideButton, tabbarDoubleClickCloseButton, tabbarLockDragDropButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, reloadScrollToLastCaretButton, editorFontNameField, editorFontBoldButton, tabbarShowCloseButtonButton, caretBlinkRateField, caretBlinkRateStepper,
+         whitespaceDisplayModePopup, bidiModePopup, caretStickyModePopup, trimTrailingSpacesOnSaveButton, pasteConvertEndingsButton, smoothFontButton, multiEditEnabledButton, multiPasteModePopup, indentGuideModePopup, wordWrapModePopup, additionalSelAlphaField, additionalSelAlphaStepper, additionalCaretsBlinkButton, additionalCaretsVisibleButton, caretLineVisibleAlwaysButton, whitespaceSizeField, whitespaceSizeStepper, selectionAlphaField, selectionAlphaStepper, controlCharDisplayPopup, autoIndentModePopup, fileAutoDetectionPopup, updateSilentlyButton, zoomSyncToAllTabsButton, hideMenuShortcutsButton, scrollToLastLineOnMonitorReloadButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper,
+         printMarginTopField, printMarginBottomField, printMarginLeftField, printMarginRightField,
+         delimiterLeftField, delimiterRightField,
+         openAnsiAsUtf8Button, xmlTagAttributeHighlightButton, highlightNonHtmlZoneButton, defaultSaveDirField].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -539,10 +698,22 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         printFontSizeStepper.maxValue = 32
         printFontSizeStepper.increment = 1
         printFontSizeField.formatter = integerFormatter
+        printMarginsLabel.stringValue = "Margins (pt):"
+        printMarginTopLabel.stringValue = "Top:"
+        printMarginBottomLabel.stringValue = "Bottom:"
+        printMarginLeftLabel.stringValue = "Left:"
+        printMarginRightLabel.stringValue = "Right:"
+        for field in [printMarginTopField, printMarginBottomField, printMarginLeftField, printMarginRightField] {
+            field.formatter = integerFormatter
+        }
         inSelectionThresholdStepper.minValue = 1
         inSelectionThresholdStepper.maxValue = 10000
         inSelectionThresholdStepper.increment = 64
         inSelectionThresholdField.formatter = integerFormatter
+        maxFindHistoryStepper.minValue = 1
+        maxFindHistoryStepper.maxValue = 50
+        maxFindHistoryStepper.increment = 1
+        maxFindHistoryField.formatter = integerFormatter
         tabbarMaxLabelLengthStepper.minValue = 0
         tabbarMaxLabelLengthStepper.maxValue = 200
         tabbarMaxLabelLengthStepper.increment = 5
@@ -555,11 +726,24 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         largeFileMBStepper.maxValue = Double(AppPreferences.maximumLargeFileMB)
         largeFileMBStepper.increment = 10
         largeFileMBField.formatter = integerFormatter
+        largeFileSuppressAutoCompleteButton.target = self
+        largeFileSuppressAutoCompleteButton.action = #selector(controlChanged(_:))
+        largeFileSuppressSmartHighlightButton.target = self
+        largeFileSuppressSmartHighlightButton.action = #selector(controlChanged(_:))
+        largeFileSuppressBraceMatchButton.target = self
+        largeFileSuppressBraceMatchButton.action = #selector(controlChanged(_:))
+        largeFileSuppressWordWrapButton.target = self
+        largeFileSuppressWordWrapButton.action = #selector(controlChanged(_:))
+        largeFileSuppressSyntaxHighlightButton.target = self
+        largeFileSuppressSyntaxHighlightButton.action = #selector(controlChanged(_:))
         caretWidthSegmented.segmentCount = 3
         caretWidthSegmented.setLabel("Thin", forSegment: 0)
         caretWidthSegmented.setLabel("Medium", forSegment: 1)
         caretWidthSegmented.setLabel("Thick", forSegment: 2)
         caretWidthSegmented.trackingMode = .selectOne
+
+        caretStickyModePopup.removeAllItems()
+        caretStickyModePopup.addItems(withTitles: ["Disabled", "Enabled", "Enabled for whitespace"])
 
         currentLineFrameSegmented.segmentCount = 4
         currentLineFrameSegmented.setLabel("Fill", forSegment: 0)
@@ -626,29 +810,52 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          smartHighlightMatchCaseButton, smartHighlightWholeWordButton,
          markAllMatchCaseButton, markAllWholeWordButton, langMenuCompactButton,
          caretWidthLabel, caretWidthSegmented, caretNoBlinkButton,
+         caretBlinkRateLabel, caretBlinkRateField, caretBlinkRateStepper,
+         caretStickyModeLabel, caretStickyModePopup,
          currentLineFrameLabel, currentLineFrameSegmented,
          lineWrapIndentLabel, lineWrapIndentPopup,
+         enableCodeFoldingButton,
          foldMarginStyleLabel, foldMarginStylePopup,
          virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton,
          selectedTextDragDropButton, lineNumberDynamicWidthButton, columnSelectionToMultiEditingButton,
          showBookmarkMarginButton,
          showEdgeLineButton, edgeLineColumnLabel, edgeLineColumnField, edgeLineColumnStepper,
          displayDefaultsSectionLabel,
-         showLineNumberMarginButton, showWhitespaceButton, showEOLButton,
+         showLineNumberMarginButton, showWhitespaceButton,
+         whitespaceDisplayModeLabel, whitespaceDisplayModePopup,
+         bidiModeLabel, bidiModePopup,
+         showEOLButton,
          showIndentGuidesButton, highlightCurrentLineButton,
          showNpcCharactersButton, showWrapSymbolButton, showChangeHistoryButton,
          linePaddingLabel, linePaddingSegmented,
          autoCompleteLabel, autoCompleteField, autoCompleteStepper,
          largeFileSectionLabel, largeFileMBLabel, largeFileMBField, largeFileMBStepper,
+         largeFileSuppressAutoCompleteButton, largeFileSuppressSmartHighlightButton, largeFileSuppressBraceMatchButton, largeFileSuppressWordWrapButton, largeFileSuppressSyntaxHighlightButton,
          additionalEdgeColumnsLabel, additionalEdgeColumnsField,
          autoCompleteModeLabel, autoCompleteModePopup,
          autoCompleteChooseSingleButton, autoCompleteTABFillupButton,
          autoCompleteEnterCommitButton, autoCompleteBriefButton,
-         htmlXmlCloseTagButton, muteAllSoundsButton,
+         autoCompleteIgnoreCaseButton,
+         htmlXmlCloseTagButton, muteAllSoundsButton, trimTrailingSpacesOnSaveButton,
+         pasteConvertEndingsButton,
+         smoothFontButton, multiEditEnabledButton, multiPasteModeLabel, multiPasteModePopup,
+         indentGuideModeLabel, indentGuideModePopup,
+         wordWrapModeLabel, wordWrapModePopup,
+         additionalSelAlphaLabel, additionalSelAlphaField, additionalSelAlphaStepper,
+         additionalCaretsBlinkButton, additionalCaretsVisibleButton, caretLineVisibleAlwaysButton,
+         whitespaceSizeLabel, whitespaceSizeField, whitespaceSizeStepper,
+         selectionAlphaLabel, selectionAlphaField, selectionAlphaStepper,
+         controlCharDisplayLabel, controlCharDisplayPopup,
+         autoIndentModeLabel, autoIndentModePopup,
+         fileAutoDetectionLabel, fileAutoDetectionPopup,
+         updateSilentlyButton,
+         zoomSyncToAllTabsButton, hideMenuShortcutsButton, scrollToLastLineOnMonitorReloadButton,
          copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton,
          urlIndicatorStyleLabel, urlIndicatorStyleSegmented,
          langTabOverridesLabel, langTabOverridesField,
-         taskListTagsLabel, taskListTagsField
+         taskListTagsLabel, taskListTagsField,
+         editorFontNameLabel, editorFontNameField, editorFontBoldButton,
+         xmlTagAttributeHighlightButton, highlightNonHtmlZoneButton
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; editCV.addSubview($0) }
 
         // Tab 2 – Session & Files
@@ -666,9 +873,15 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          printHeaderSectionLabel, printHeaderLeftField, printHeaderCenterField, printHeaderRightField,
          printFooterSectionLabel, printFooterLeftField, printFooterCenterField, printFooterRightField,
          printColorModeLabel, printColorModePopup, printFontSizeLabel, printFontSizeField, printFontSizeStepper,
+         printMarginsLabel, printMarginTopLabel, printMarginTopField,
+         printMarginBottomLabel, printMarginBottomField,
+         printMarginLeftLabel, printMarginLeftField,
+         printMarginRightLabel, printMarginRightField,
          openDirFollowsDocButton, folderDropAsWorkspaceButton, folderDropRecursiveOpenButton,
          defaultLangLabel, defaultLangPopup,
-         fileChangeDetectionButton
+         fileChangeDetectionButton,
+         openAnsiAsUtf8Button,
+         defaultSaveDirLabel, defaultSaveDirField
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; sessionCV.addSubview($0) }
 
         // Tab 3 – Find & Tools
@@ -683,17 +896,19 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          keepFindDialogOpenButton, replaceDoesNotMoveButton,
          findDialogMonospaceButton, fillFindFromSelectionButton,
          autoSelectWordUnderCaretButton, findInFilesIgnoreUnsavedButton,
+         confirmReplaceInAllDocsButton,
+         maxFindHistoryLabel, maxFindHistoryField, maxFindHistoryStepper,
          findTransparencyLabel, findTransparencySlider
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; toolsCV.addSubview($0) }
 
         // Tab 4 – Window
-        [tabbarSectionLabel, tabbarDoubleClickCloseButton, tabbarLockDragDropButton,
-         tabbarExitOnLastTabButton,
+        [tabbarSectionLabel, tabbarHideButton, tabbarDoubleClickCloseButton, tabbarLockDragDropButton,
+         tabbarExitOnLastTabButton, tabbarShowCloseButtonButton, tabbarCompactButton,
          tabbarMaxLabelLengthLabel, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper,
          delimiterSectionLabel, delimiterLeftLabel, delimiterLeftField,
          delimiterRightLabel, delimiterRightField,
          generalSectionLabel, statusBarVisibleButton, shortTitleButton,
-         saveAllConfirmButton, autoCompleteIgnoreNumbersButton,
+         saveAllConfirmButton, autoCompleteIgnoreNumbersButton, reloadScrollToLastCaretButton,
          appearanceSectionLabel, appearanceModeLabel, appearanceModeSegmented,
          postItSectionLabel, postItAlphaLabel, postItAlphaSlider
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; windowCV.addSubview($0) }
@@ -721,8 +936,19 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             fontSizeStepper.leadingAnchor.constraint(equalTo: fontSizeField.trailingAnchor, constant: 8),
             fontSizeStepper.centerYAnchor.constraint(equalTo: fontSizeField.centerYAnchor),
 
+            editorFontNameLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            editorFontNameLabel.topAnchor.constraint(equalTo: fontSizeField.bottomAnchor, constant: 14),
+            editorFontNameLabel.widthAnchor.constraint(equalToConstant: 80),
+
+            editorFontNameField.leadingAnchor.constraint(equalTo: editorFontNameLabel.trailingAnchor, constant: 12),
+            editorFontNameField.centerYAnchor.constraint(equalTo: editorFontNameLabel.centerYAnchor),
+            editorFontNameField.widthAnchor.constraint(equalToConstant: 180),
+
+            editorFontBoldButton.leadingAnchor.constraint(equalTo: editorFontNameField.leadingAnchor),
+            editorFontBoldButton.topAnchor.constraint(equalTo: editorFontNameLabel.bottomAnchor, constant: 8),
+
             wrapsLinesButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
-            wrapsLinesButton.topAnchor.constraint(equalTo: fontSizeField.bottomAnchor, constant: 14),
+            wrapsLinesButton.topAnchor.constraint(equalTo: editorFontBoldButton.bottomAnchor, constant: 14),
 
             tabSizeLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
             tabSizeLabel.topAnchor.constraint(equalTo: wrapsLinesButton.bottomAnchor, constant: 14),
@@ -775,8 +1001,14 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             xmlTagMatchButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             xmlTagMatchButton.topAnchor.constraint(equalTo: customPairsAddButton.bottomAnchor, constant: 10),
 
+            xmlTagAttributeHighlightButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            xmlTagAttributeHighlightButton.topAnchor.constraint(equalTo: xmlTagMatchButton.bottomAnchor, constant: 6),
+
+            highlightNonHtmlZoneButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            highlightNonHtmlZoneButton.topAnchor.constraint(equalTo: xmlTagAttributeHighlightButton.bottomAnchor, constant: 6),
+
             clickableLinksButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
-            clickableLinksButton.topAnchor.constraint(equalTo: xmlTagMatchButton.bottomAnchor, constant: 10),
+            clickableLinksButton.topAnchor.constraint(equalTo: highlightNonHtmlZoneButton.bottomAnchor, constant: 10),
 
             smartHighlightMatchCaseButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             smartHighlightMatchCaseButton.topAnchor.constraint(equalTo: clickableLinksButton.bottomAnchor, constant: 10),
@@ -803,8 +1035,27 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             caretNoBlinkButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             caretNoBlinkButton.topAnchor.constraint(equalTo: caretWidthLabel.bottomAnchor, constant: 10),
 
+            caretBlinkRateLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            caretBlinkRateLabel.topAnchor.constraint(equalTo: caretNoBlinkButton.bottomAnchor, constant: 10),
+            caretBlinkRateLabel.widthAnchor.constraint(equalToConstant: 110),
+
+            caretBlinkRateField.leadingAnchor.constraint(equalTo: caretBlinkRateLabel.trailingAnchor, constant: 8),
+            caretBlinkRateField.centerYAnchor.constraint(equalTo: caretBlinkRateLabel.centerYAnchor),
+            caretBlinkRateField.widthAnchor.constraint(equalToConstant: 60),
+
+            caretBlinkRateStepper.leadingAnchor.constraint(equalTo: caretBlinkRateField.trailingAnchor, constant: 4),
+            caretBlinkRateStepper.centerYAnchor.constraint(equalTo: caretBlinkRateLabel.centerYAnchor),
+
+            caretStickyModeLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            caretStickyModeLabel.topAnchor.constraint(equalTo: caretBlinkRateLabel.bottomAnchor, constant: 10),
+            caretStickyModeLabel.widthAnchor.constraint(equalToConstant: 120),
+
+            caretStickyModePopup.leadingAnchor.constraint(equalTo: caretStickyModeLabel.trailingAnchor, constant: 8),
+            caretStickyModePopup.centerYAnchor.constraint(equalTo: caretStickyModeLabel.centerYAnchor),
+            caretStickyModePopup.widthAnchor.constraint(equalToConstant: 180),
+
             currentLineFrameLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
-            currentLineFrameLabel.topAnchor.constraint(equalTo: caretNoBlinkButton.bottomAnchor, constant: 10),
+            currentLineFrameLabel.topAnchor.constraint(equalTo: caretStickyModeLabel.bottomAnchor, constant: 10),
             currentLineFrameLabel.widthAnchor.constraint(equalToConstant: 140),
 
             currentLineFrameSegmented.leadingAnchor.constraint(equalTo: currentLineFrameLabel.trailingAnchor, constant: 8),
@@ -817,8 +1068,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             lineWrapIndentPopup.leadingAnchor.constraint(equalTo: lineWrapIndentLabel.trailingAnchor, constant: 8),
             lineWrapIndentPopup.centerYAnchor.constraint(equalTo: lineWrapIndentLabel.centerYAnchor),
 
+            enableCodeFoldingButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            enableCodeFoldingButton.topAnchor.constraint(equalTo: lineWrapIndentLabel.bottomAnchor, constant: 10),
+
             foldMarginStyleLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
-            foldMarginStyleLabel.topAnchor.constraint(equalTo: lineWrapIndentLabel.bottomAnchor, constant: 10),
+            foldMarginStyleLabel.topAnchor.constraint(equalTo: enableCodeFoldingButton.bottomAnchor, constant: 10),
             foldMarginStyleLabel.widthAnchor.constraint(equalToConstant: 140),
 
             foldMarginStylePopup.leadingAnchor.constraint(equalTo: foldMarginStyleLabel.trailingAnchor, constant: 8),
@@ -870,8 +1124,22 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             showWhitespaceButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             showWhitespaceButton.topAnchor.constraint(equalTo: showLineNumberMarginButton.bottomAnchor, constant: 6),
 
+            whitespaceDisplayModeLabel.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            whitespaceDisplayModeLabel.topAnchor.constraint(equalTo: showWhitespaceButton.bottomAnchor, constant: 6),
+
+            whitespaceDisplayModePopup.leadingAnchor.constraint(equalTo: whitespaceDisplayModeLabel.trailingAnchor, constant: 8),
+            whitespaceDisplayModePopup.centerYAnchor.constraint(equalTo: whitespaceDisplayModeLabel.centerYAnchor),
+            whitespaceDisplayModePopup.widthAnchor.constraint(equalToConstant: 150),
+
+            bidiModeLabel.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            bidiModeLabel.topAnchor.constraint(equalTo: whitespaceDisplayModeLabel.bottomAnchor, constant: 6),
+
+            bidiModePopup.leadingAnchor.constraint(equalTo: bidiModeLabel.trailingAnchor, constant: 8),
+            bidiModePopup.centerYAnchor.constraint(equalTo: bidiModeLabel.centerYAnchor),
+            bidiModePopup.widthAnchor.constraint(equalToConstant: 130),
+
             showEOLButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
-            showEOLButton.topAnchor.constraint(equalTo: showWhitespaceButton.bottomAnchor, constant: 6),
+            showEOLButton.topAnchor.constraint(equalTo: bidiModeLabel.bottomAnchor, constant: 6),
 
             showIndentGuidesButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             showIndentGuidesButton.topAnchor.constraint(equalTo: showEOLButton.bottomAnchor, constant: 6),
@@ -918,8 +1186,23 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             largeFileMBStepper.leadingAnchor.constraint(equalTo: largeFileMBField.trailingAnchor, constant: 8),
             largeFileMBStepper.centerYAnchor.constraint(equalTo: largeFileMBField.centerYAnchor),
 
+            largeFileSuppressAutoCompleteButton.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            largeFileSuppressAutoCompleteButton.topAnchor.constraint(equalTo: largeFileMBLabel.bottomAnchor, constant: 10),
+
+            largeFileSuppressSmartHighlightButton.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            largeFileSuppressSmartHighlightButton.topAnchor.constraint(equalTo: largeFileSuppressAutoCompleteButton.bottomAnchor, constant: 8),
+
+            largeFileSuppressBraceMatchButton.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            largeFileSuppressBraceMatchButton.topAnchor.constraint(equalTo: largeFileSuppressSmartHighlightButton.bottomAnchor, constant: 8),
+
+            largeFileSuppressWordWrapButton.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            largeFileSuppressWordWrapButton.topAnchor.constraint(equalTo: largeFileSuppressBraceMatchButton.bottomAnchor, constant: 8),
+
+            largeFileSuppressSyntaxHighlightButton.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
+            largeFileSuppressSyntaxHighlightButton.topAnchor.constraint(equalTo: largeFileSuppressWordWrapButton.bottomAnchor, constant: 8),
+
             additionalEdgeColumnsLabel.leadingAnchor.constraint(equalTo: editorSectionLabel.leadingAnchor),
-            additionalEdgeColumnsLabel.topAnchor.constraint(equalTo: largeFileMBLabel.bottomAnchor, constant: 14),
+            additionalEdgeColumnsLabel.topAnchor.constraint(equalTo: largeFileSuppressSyntaxHighlightButton.bottomAnchor, constant: 14),
             additionalEdgeColumnsLabel.widthAnchor.constraint(equalToConstant: 200),
 
             additionalEdgeColumnsField.leadingAnchor.constraint(equalTo: additionalEdgeColumnsLabel.trailingAnchor, constant: 8),
@@ -946,14 +1229,137 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             autoCompleteBriefButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             autoCompleteBriefButton.topAnchor.constraint(equalTo: autoCompleteEnterCommitButton.bottomAnchor, constant: 8),
 
+            autoCompleteIgnoreCaseButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            autoCompleteIgnoreCaseButton.topAnchor.constraint(equalTo: autoCompleteBriefButton.bottomAnchor, constant: 8),
+
             htmlXmlCloseTagButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
-            htmlXmlCloseTagButton.topAnchor.constraint(equalTo: autoCompleteBriefButton.bottomAnchor, constant: 10),
+            htmlXmlCloseTagButton.topAnchor.constraint(equalTo: autoCompleteIgnoreCaseButton.bottomAnchor, constant: 10),
 
             muteAllSoundsButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             muteAllSoundsButton.topAnchor.constraint(equalTo: htmlXmlCloseTagButton.bottomAnchor, constant: 10),
 
+            trimTrailingSpacesOnSaveButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            trimTrailingSpacesOnSaveButton.topAnchor.constraint(equalTo: muteAllSoundsButton.bottomAnchor, constant: 10),
+
+            pasteConvertEndingsButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            pasteConvertEndingsButton.topAnchor.constraint(equalTo: trimTrailingSpacesOnSaveButton.bottomAnchor, constant: 10),
+
+            smoothFontButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            smoothFontButton.topAnchor.constraint(equalTo: pasteConvertEndingsButton.bottomAnchor, constant: 10),
+
+            multiEditEnabledButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            multiEditEnabledButton.topAnchor.constraint(equalTo: smoothFontButton.bottomAnchor, constant: 10),
+
+            multiPasteModeLabel.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            multiPasteModeLabel.topAnchor.constraint(equalTo: multiEditEnabledButton.bottomAnchor, constant: 10),
+            multiPasteModeLabel.widthAnchor.constraint(equalToConstant: 130),
+
+            multiPasteModePopup.leadingAnchor.constraint(equalTo: multiPasteModeLabel.trailingAnchor, constant: 8),
+            multiPasteModePopup.centerYAnchor.constraint(equalTo: multiPasteModeLabel.centerYAnchor),
+            multiPasteModePopup.widthAnchor.constraint(equalToConstant: 200),
+
+            indentGuideModeLabel.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            indentGuideModeLabel.topAnchor.constraint(equalTo: multiPasteModeLabel.bottomAnchor, constant: 10),
+            indentGuideModeLabel.widthAnchor.constraint(equalToConstant: 130),
+
+            indentGuideModePopup.leadingAnchor.constraint(equalTo: indentGuideModeLabel.trailingAnchor, constant: 8),
+            indentGuideModePopup.centerYAnchor.constraint(equalTo: indentGuideModeLabel.centerYAnchor),
+            indentGuideModePopup.widthAnchor.constraint(equalToConstant: 200),
+
+            wordWrapModeLabel.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            wordWrapModeLabel.topAnchor.constraint(equalTo: indentGuideModeLabel.bottomAnchor, constant: 10),
+            wordWrapModeLabel.widthAnchor.constraint(equalToConstant: 130),
+
+            wordWrapModePopup.leadingAnchor.constraint(equalTo: wordWrapModeLabel.trailingAnchor, constant: 8),
+            wordWrapModePopup.centerYAnchor.constraint(equalTo: wordWrapModeLabel.centerYAnchor),
+            wordWrapModePopup.widthAnchor.constraint(equalToConstant: 200),
+
+            // Additional selection alpha
+            additionalSelAlphaLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            additionalSelAlphaLabel.topAnchor.constraint(equalTo: wordWrapModeLabel.bottomAnchor, constant: 14),
+            additionalSelAlphaLabel.widthAnchor.constraint(equalToConstant: 180),
+
+            additionalSelAlphaField.leadingAnchor.constraint(equalTo: additionalSelAlphaLabel.trailingAnchor, constant: 8),
+            additionalSelAlphaField.centerYAnchor.constraint(equalTo: additionalSelAlphaLabel.centerYAnchor),
+            additionalSelAlphaField.widthAnchor.constraint(equalToConstant: 50),
+
+            additionalSelAlphaStepper.leadingAnchor.constraint(equalTo: additionalSelAlphaField.trailingAnchor, constant: 4),
+            additionalSelAlphaStepper.centerYAnchor.constraint(equalTo: additionalSelAlphaLabel.centerYAnchor),
+
+            additionalCaretsBlinkButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            additionalCaretsBlinkButton.topAnchor.constraint(equalTo: additionalSelAlphaLabel.bottomAnchor, constant: 10),
+
+            additionalCaretsVisibleButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            additionalCaretsVisibleButton.topAnchor.constraint(equalTo: additionalCaretsBlinkButton.bottomAnchor, constant: 10),
+
+            caretLineVisibleAlwaysButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            caretLineVisibleAlwaysButton.topAnchor.constraint(equalTo: additionalCaretsVisibleButton.bottomAnchor, constant: 10),
+
+            // Whitespace size
+            whitespaceSizeLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            whitespaceSizeLabel.topAnchor.constraint(equalTo: caretLineVisibleAlwaysButton.bottomAnchor, constant: 14),
+            whitespaceSizeLabel.widthAnchor.constraint(equalToConstant: 160),
+
+            whitespaceSizeField.leadingAnchor.constraint(equalTo: whitespaceSizeLabel.trailingAnchor, constant: 8),
+            whitespaceSizeField.centerYAnchor.constraint(equalTo: whitespaceSizeLabel.centerYAnchor),
+            whitespaceSizeField.widthAnchor.constraint(equalToConstant: 40),
+
+            whitespaceSizeStepper.leadingAnchor.constraint(equalTo: whitespaceSizeField.trailingAnchor, constant: 4),
+            whitespaceSizeStepper.centerYAnchor.constraint(equalTo: whitespaceSizeLabel.centerYAnchor),
+
+            // Selection alpha
+            selectionAlphaLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            selectionAlphaLabel.topAnchor.constraint(equalTo: whitespaceSizeLabel.bottomAnchor, constant: 14),
+            selectionAlphaLabel.widthAnchor.constraint(equalToConstant: 160),
+
+            selectionAlphaField.leadingAnchor.constraint(equalTo: selectionAlphaLabel.trailingAnchor, constant: 8),
+            selectionAlphaField.centerYAnchor.constraint(equalTo: selectionAlphaLabel.centerYAnchor),
+            selectionAlphaField.widthAnchor.constraint(equalToConstant: 50),
+
+            selectionAlphaStepper.leadingAnchor.constraint(equalTo: selectionAlphaField.trailingAnchor, constant: 4),
+            selectionAlphaStepper.centerYAnchor.constraint(equalTo: selectionAlphaLabel.centerYAnchor),
+
+            // Control char display
+            controlCharDisplayLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            controlCharDisplayLabel.topAnchor.constraint(equalTo: selectionAlphaLabel.bottomAnchor, constant: 14),
+            controlCharDisplayLabel.widthAnchor.constraint(equalToConstant: 160),
+
+            controlCharDisplayPopup.leadingAnchor.constraint(equalTo: controlCharDisplayLabel.trailingAnchor, constant: 8),
+            controlCharDisplayPopup.centerYAnchor.constraint(equalTo: controlCharDisplayLabel.centerYAnchor),
+            controlCharDisplayPopup.widthAnchor.constraint(equalToConstant: 200),
+
+            // Auto-indent mode
+            autoIndentModeLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            autoIndentModeLabel.topAnchor.constraint(equalTo: controlCharDisplayLabel.bottomAnchor, constant: 14),
+            autoIndentModeLabel.widthAnchor.constraint(equalToConstant: 130),
+
+            autoIndentModePopup.leadingAnchor.constraint(equalTo: autoIndentModeLabel.trailingAnchor, constant: 8),
+            autoIndentModePopup.centerYAnchor.constraint(equalTo: autoIndentModeLabel.centerYAnchor),
+            autoIndentModePopup.widthAnchor.constraint(equalToConstant: 200),
+
+            // File auto-detection
+            fileAutoDetectionLabel.leadingAnchor.constraint(equalTo: fontSizeLabel.leadingAnchor),
+            fileAutoDetectionLabel.topAnchor.constraint(equalTo: autoIndentModeLabel.bottomAnchor, constant: 14),
+            fileAutoDetectionLabel.widthAnchor.constraint(equalToConstant: 160),
+
+            fileAutoDetectionPopup.leadingAnchor.constraint(equalTo: fileAutoDetectionLabel.trailingAnchor, constant: 8),
+            fileAutoDetectionPopup.centerYAnchor.constraint(equalTo: fileAutoDetectionLabel.centerYAnchor),
+            fileAutoDetectionPopup.widthAnchor.constraint(equalToConstant: 200),
+
+            updateSilentlyButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            updateSilentlyButton.topAnchor.constraint(equalTo: fileAutoDetectionLabel.bottomAnchor, constant: 10),
+
+            zoomSyncToAllTabsButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            zoomSyncToAllTabsButton.topAnchor.constraint(equalTo: updateSilentlyButton.bottomAnchor, constant: 10),
+
+            hideMenuShortcutsButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            hideMenuShortcutsButton.topAnchor.constraint(equalTo: zoomSyncToAllTabsButton.bottomAnchor, constant: 10),
+
+            scrollToLastLineOnMonitorReloadButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
+            scrollToLastLineOnMonitorReloadButton.topAnchor.constraint(equalTo: hideMenuShortcutsButton.bottomAnchor, constant: 10),
+
             copyLineWithoutSelectionButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
-            copyLineWithoutSelectionButton.topAnchor.constraint(equalTo: muteAllSoundsButton.bottomAnchor, constant: 10),
+            copyLineWithoutSelectionButton.topAnchor.constraint(equalTo: scrollToLastLineOnMonitorReloadButton.bottomAnchor, constant: 10),
 
             smartHighlightUseFindSettingsButton.leadingAnchor.constraint(equalTo: fontSizeField.leadingAnchor),
             smartHighlightUseFindSettingsButton.topAnchor.constraint(equalTo: copyLineWithoutSelectionButton.bottomAnchor, constant: 10),
@@ -1054,8 +1460,19 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             fileChangeDetectionButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             fileChangeDetectionButton.topAnchor.constraint(equalTo: autoReloadButton.bottomAnchor, constant: 10),
 
+            openAnsiAsUtf8Button.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            openAnsiAsUtf8Button.topAnchor.constraint(equalTo: fileChangeDetectionButton.bottomAnchor, constant: 10),
+
+            defaultSaveDirLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            defaultSaveDirLabel.topAnchor.constraint(equalTo: openAnsiAsUtf8Button.bottomAnchor, constant: 14),
+            defaultSaveDirLabel.widthAnchor.constraint(equalToConstant: 260),
+
+            defaultSaveDirField.leadingAnchor.constraint(equalTo: defaultSaveDirLabel.trailingAnchor, constant: 8),
+            defaultSaveDirField.centerYAnchor.constraint(equalTo: defaultSaveDirLabel.centerYAnchor),
+            defaultSaveDirField.widthAnchor.constraint(equalToConstant: 160),
+
             snapshotModeButton.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
-            snapshotModeButton.topAnchor.constraint(equalTo: fileChangeDetectionButton.bottomAnchor, constant: 10),
+            snapshotModeButton.topAnchor.constraint(equalTo: defaultSaveDirLabel.bottomAnchor, constant: 10),
 
             periodicBackupLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
             periodicBackupLabel.topAnchor.constraint(equalTo: snapshotModeButton.bottomAnchor, constant: 10),
@@ -1154,7 +1571,43 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             printFontSizeStepper.leadingAnchor.constraint(equalTo: printFontSizeField.trailingAnchor, constant: 6),
             printFontSizeStepper.centerYAnchor.constraint(equalTo: printFontSizeField.centerYAnchor),
 
-            sessionCV.bottomAnchor.constraint(equalTo: printFontSizeLabel.bottomAnchor, constant: 24)
+            printMarginsLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printMarginsLabel.topAnchor.constraint(equalTo: printFontSizeLabel.bottomAnchor, constant: 10),
+            printMarginsLabel.widthAnchor.constraint(equalToConstant: 80),
+
+            printMarginTopLabel.leadingAnchor.constraint(equalTo: printMarginsLabel.trailingAnchor, constant: 8),
+            printMarginTopLabel.centerYAnchor.constraint(equalTo: printMarginsLabel.centerYAnchor),
+            printMarginTopLabel.widthAnchor.constraint(equalToConstant: 32),
+
+            printMarginTopField.leadingAnchor.constraint(equalTo: printMarginTopLabel.trailingAnchor, constant: 4),
+            printMarginTopField.centerYAnchor.constraint(equalTo: printMarginsLabel.centerYAnchor),
+            printMarginTopField.widthAnchor.constraint(equalToConstant: 50),
+
+            printMarginBottomLabel.leadingAnchor.constraint(equalTo: printMarginTopField.trailingAnchor, constant: 10),
+            printMarginBottomLabel.centerYAnchor.constraint(equalTo: printMarginsLabel.centerYAnchor),
+            printMarginBottomLabel.widthAnchor.constraint(equalToConstant: 48),
+
+            printMarginBottomField.leadingAnchor.constraint(equalTo: printMarginBottomLabel.trailingAnchor, constant: 4),
+            printMarginBottomField.centerYAnchor.constraint(equalTo: printMarginsLabel.centerYAnchor),
+            printMarginBottomField.widthAnchor.constraint(equalToConstant: 50),
+
+            printMarginLeftLabel.leadingAnchor.constraint(equalTo: rememberSessionButton.leadingAnchor),
+            printMarginLeftLabel.topAnchor.constraint(equalTo: printMarginsLabel.bottomAnchor, constant: 8),
+            printMarginLeftLabel.widthAnchor.constraint(equalToConstant: 80),
+
+            printMarginLeftField.leadingAnchor.constraint(equalTo: printMarginLeftLabel.trailingAnchor, constant: 8),
+            printMarginLeftField.centerYAnchor.constraint(equalTo: printMarginLeftLabel.centerYAnchor),
+            printMarginLeftField.widthAnchor.constraint(equalToConstant: 50),
+
+            printMarginRightLabel.leadingAnchor.constraint(equalTo: printMarginLeftField.trailingAnchor, constant: 10),
+            printMarginRightLabel.centerYAnchor.constraint(equalTo: printMarginLeftLabel.centerYAnchor),
+            printMarginRightLabel.widthAnchor.constraint(equalToConstant: 40),
+
+            printMarginRightField.leadingAnchor.constraint(equalTo: printMarginRightLabel.trailingAnchor, constant: 4),
+            printMarginRightField.centerYAnchor.constraint(equalTo: printMarginLeftLabel.centerYAnchor),
+            printMarginRightField.widthAnchor.constraint(equalToConstant: 50),
+
+            sessionCV.bottomAnchor.constraint(equalTo: printMarginLeftLabel.bottomAnchor, constant: 24)
         ])
 
         // ── Tab 3: Find & Tools ────────────────────────────────
@@ -1249,8 +1702,22 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             findInFilesIgnoreUnsavedButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
             findInFilesIgnoreUnsavedButton.topAnchor.constraint(equalTo: autoSelectWordUnderCaretButton.bottomAnchor, constant: 10),
 
+            confirmReplaceInAllDocsButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            confirmReplaceInAllDocsButton.topAnchor.constraint(equalTo: findInFilesIgnoreUnsavedButton.bottomAnchor, constant: 10),
+
+            maxFindHistoryLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            maxFindHistoryLabel.topAnchor.constraint(equalTo: confirmReplaceInAllDocsButton.bottomAnchor, constant: 10),
+            maxFindHistoryLabel.widthAnchor.constraint(equalToConstant: 200),
+
+            maxFindHistoryField.leadingAnchor.constraint(equalTo: maxFindHistoryLabel.trailingAnchor, constant: 8),
+            maxFindHistoryField.centerYAnchor.constraint(equalTo: maxFindHistoryLabel.centerYAnchor),
+            maxFindHistoryField.widthAnchor.constraint(equalToConstant: 50),
+
+            maxFindHistoryStepper.leadingAnchor.constraint(equalTo: maxFindHistoryField.trailingAnchor, constant: 4),
+            maxFindHistoryStepper.centerYAnchor.constraint(equalTo: maxFindHistoryLabel.centerYAnchor),
+
             findTransparencyLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
-            findTransparencyLabel.topAnchor.constraint(equalTo: findInFilesIgnoreUnsavedButton.bottomAnchor, constant: 14),
+            findTransparencyLabel.topAnchor.constraint(equalTo: maxFindHistoryLabel.bottomAnchor, constant: 14),
             findTransparencyLabel.widthAnchor.constraint(equalToConstant: 240),
 
             findTransparencySlider.leadingAnchor.constraint(equalTo: findTransparencyLabel.trailingAnchor, constant: 8),
@@ -1265,8 +1732,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             tabbarSectionLabel.leadingAnchor.constraint(equalTo: windowCV.leadingAnchor, constant: lead),
             tabbarSectionLabel.topAnchor.constraint(equalTo: windowCV.topAnchor, constant: 20),
 
+            tabbarHideButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            tabbarHideButton.topAnchor.constraint(equalTo: tabbarSectionLabel.bottomAnchor, constant: 14),
+
             tabbarDoubleClickCloseButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
-            tabbarDoubleClickCloseButton.topAnchor.constraint(equalTo: tabbarSectionLabel.bottomAnchor, constant: 14),
+            tabbarDoubleClickCloseButton.topAnchor.constraint(equalTo: tabbarHideButton.bottomAnchor, constant: 10),
 
             tabbarLockDragDropButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
             tabbarLockDragDropButton.topAnchor.constraint(equalTo: tabbarDoubleClickCloseButton.bottomAnchor, constant: 10),
@@ -1274,8 +1744,13 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             tabbarExitOnLastTabButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
             tabbarExitOnLastTabButton.topAnchor.constraint(equalTo: tabbarLockDragDropButton.bottomAnchor, constant: 10),
 
+            tabbarShowCloseButtonButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            tabbarShowCloseButtonButton.topAnchor.constraint(equalTo: tabbarExitOnLastTabButton.bottomAnchor, constant: 10),
+            tabbarCompactButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            tabbarCompactButton.topAnchor.constraint(equalTo: tabbarShowCloseButtonButton.bottomAnchor, constant: 10),
+
             tabbarMaxLabelLengthLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
-            tabbarMaxLabelLengthLabel.topAnchor.constraint(equalTo: tabbarExitOnLastTabButton.bottomAnchor, constant: 14),
+            tabbarMaxLabelLengthLabel.topAnchor.constraint(equalTo: tabbarCompactButton.bottomAnchor, constant: 14),
             tabbarMaxLabelLengthLabel.widthAnchor.constraint(equalToConstant: 200),
 
             tabbarMaxLabelLengthField.leadingAnchor.constraint(equalTo: tabbarMaxLabelLengthLabel.trailingAnchor, constant: 8),
@@ -1319,8 +1794,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             autoCompleteIgnoreNumbersButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
             autoCompleteIgnoreNumbersButton.topAnchor.constraint(equalTo: saveAllConfirmButton.bottomAnchor, constant: 10),
 
+            reloadScrollToLastCaretButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            reloadScrollToLastCaretButton.topAnchor.constraint(equalTo: autoCompleteIgnoreNumbersButton.bottomAnchor, constant: 10),
+
             appearanceSectionLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
-            appearanceSectionLabel.topAnchor.constraint(equalTo: autoCompleteIgnoreNumbersButton.bottomAnchor, constant: 18),
+            appearanceSectionLabel.topAnchor.constraint(equalTo: reloadScrollToLastCaretButton.bottomAnchor, constant: 18),
 
             appearanceModeLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
             appearanceModeLabel.topAnchor.constraint(equalTo: appearanceSectionLabel.bottomAnchor, constant: 12),
@@ -1348,6 +1826,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         let preferences = preferencesStore.load()
         fontSizeField.doubleValue = preferences.editorFontSize
         fontSizeStepper.doubleValue = preferences.editorFontSize
+        editorFontNameField.stringValue = preferences.editorFontName
+        editorFontBoldButton.state = preferences.editorFontBold ? .on : .off
         wrapsLinesButton.state = preferences.wrapsLines ? .on : .off
         tabSizeField.intValue = Int32(preferences.tabSize)
         tabSizeStepper.intValue = Int32(preferences.tabSize)
@@ -1361,6 +1841,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         customPairsData = preferences.customMatchedPairs
         customPairsTableView.reloadData()
         xmlTagMatchButton.state = preferences.enableXmlTagMatch ? .on : .off
+        xmlTagAttributeHighlightButton.state = preferences.xmlTagAttributeHighlight ? .on : .off
+        highlightNonHtmlZoneButton.state = preferences.highlightNonHtmlZone ? .on : .off
         clickableLinksButton.state = preferences.enableClickableLinks ? .on : .off
         smartHighlightMatchCaseButton.state = preferences.smartHighlightMatchCase ? .on : .off
         smartHighlightWholeWordButton.state = preferences.smartHighlightWholeWord ? .on : .off
@@ -1369,8 +1851,12 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         langMenuCompactButton.state = preferences.langMenuCompact ? .on : .off
         caretWidthSegmented.selectedSegment = max(0, min(2, preferences.caretWidth - 1))
         caretNoBlinkButton.state = preferences.caretNoBlink ? .on : .off
+        caretBlinkRateField.intValue = Int32(preferences.caretBlinkRate)
+        caretBlinkRateStepper.intValue = Int32(preferences.caretBlinkRate)
+        caretStickyModePopup.selectItem(at: max(0, min(2, preferences.caretStickyMode)))
         currentLineFrameSegmented.selectedSegment = max(0, min(3, preferences.currentLineFrameWidth))
         lineWrapIndentPopup.selectItem(at: max(0, min(3, preferences.lineWrapIndent)))
+        enableCodeFoldingButton.state = preferences.enableCodeFolding ? .on : .off
         foldMarginStylePopup.selectItem(at: max(0, min(2, preferences.foldMarginStyle)))
         useFirstLineAsTabNameButton.state = preferences.useFirstLineAsTabName ? .on : .off
         recentFilesMaxField.intValue = Int32(preferences.recentFilesMaxCount)
@@ -1383,6 +1869,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         keepAbsentFilesButton.state = preferences.keepAbsentFilesInSession ? .on : .off
         autoReloadButton.state = preferences.autoReloadOnExternalChange ? .on : .off
         fileChangeDetectionButton.state = preferences.fileChangeDetectionEnabled ? .on : .off
+        openAnsiAsUtf8Button.state = preferences.openAnsiAsUtf8 ? .on : .off
+        defaultSaveDirField.stringValue = preferences.defaultSaveDirectory
         snapshotModeButton.state = preferences.snapshotModeEnabled ? .on : .off
         periodicBackupField.intValue = Int32(preferences.periodicBackupIntervalSeconds)
         periodicBackupStepper.intValue = Int32(preferences.periodicBackupIntervalSeconds)
@@ -1407,7 +1895,9 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         edgeLineColumnField.intValue = Int32(preferences.edgeLineColumn)
         edgeLineColumnStepper.intValue = Int32(preferences.edgeLineColumn)
         showLineNumberMarginButton.state = preferences.showLineNumberMargin ? .on : .off
-        showWhitespaceButton.state = preferences.showWhitespace ? .on : .off
+        showWhitespaceButton.state = preferences.whitespaceDisplayMode > 0 ? .on : .off
+        whitespaceDisplayModePopup.selectItem(at: max(0, min(3, preferences.whitespaceDisplayMode)))
+        bidiModePopup.selectItem(at: max(0, min(2, preferences.bidiMode)))
         showEOLButton.state = preferences.showEOL ? .on : .off
         showIndentGuidesButton.state = preferences.showIndentGuides ? .on : .off
         highlightCurrentLineButton.state = preferences.highlightCurrentLine ? .on : .off
@@ -1422,8 +1912,32 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         autoCompleteTABFillupButton.state = preferences.autoCompleteTABFillup ? .on : .off
         autoCompleteEnterCommitButton.state = preferences.autoCompleteEnterCommit ? .on : .off
         autoCompleteBriefButton.state = preferences.autoCompleteBrief ? .on : .off
+        autoCompleteIgnoreCaseButton.state = preferences.autoCompleteIgnoreCase ? .on : .off
         htmlXmlCloseTagButton.state = preferences.htmlXmlCloseTagEnabled ? .on : .off
         muteAllSoundsButton.state = preferences.muteAllSounds ? .on : .off
+        trimTrailingSpacesOnSaveButton.state = preferences.trimTrailingSpacesOnSave ? .on : .off
+        pasteConvertEndingsButton.state = preferences.pasteConvertEndings ? .on : .off
+        smoothFontButton.state = preferences.smoothFont ? .on : .off
+        multiEditEnabledButton.state = preferences.multiEditEnabled ? .on : .off
+        multiPasteModePopup.selectItem(at: preferences.multiPasteMode)
+        indentGuideModePopup.selectItem(at: preferences.indentGuideMode)
+        wordWrapModePopup.selectItem(at: preferences.wordWrapMode)
+        additionalSelAlphaField.intValue = Int32(preferences.additionalSelAlpha)
+        additionalSelAlphaStepper.intValue = Int32(preferences.additionalSelAlpha)
+        additionalCaretsBlinkButton.state = preferences.additionalCaretsBlink ? .on : .off
+        additionalCaretsVisibleButton.state = preferences.additionalCaretsVisible ? .on : .off
+        caretLineVisibleAlwaysButton.state = preferences.caretLineVisibleAlways ? .on : .off
+        whitespaceSizeField.intValue = Int32(preferences.whitespaceSize)
+        whitespaceSizeStepper.intValue = Int32(preferences.whitespaceSize)
+        selectionAlphaField.intValue = Int32(preferences.selectionAlpha)
+        selectionAlphaStepper.intValue = Int32(preferences.selectionAlpha)
+        controlCharDisplayPopup.selectItem(at: preferences.controlCharDisplay)
+        autoIndentModePopup.selectItem(at: preferences.autoIndentMode)
+        fileAutoDetectionPopup.selectItem(at: preferences.fileAutoDetection)
+        updateSilentlyButton.state = preferences.updateSilently ? .on : .off
+        zoomSyncToAllTabsButton.state = preferences.zoomSyncToAllTabs ? .on : .off
+        hideMenuShortcutsButton.state = preferences.hideMenuShortcuts ? .on : .off
+        scrollToLastLineOnMonitorReloadButton.state = preferences.scrollToLastLineOnMonitorReload ? .on : .off
         inSelectionThresholdField.intValue = Int32(preferences.inSelectionThreshold)
         inSelectionThresholdStepper.intValue = Int32(preferences.inSelectionThreshold)
         keepFindDialogOpenButton.state = preferences.keepFindDialogOpen ? .on : .off
@@ -1432,15 +1946,21 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         fillFindFromSelectionButton.state = preferences.fillFindFromSelection ? .on : .off
         autoSelectWordUnderCaretButton.state = preferences.autoSelectWordUnderCaret ? .on : .off
         findInFilesIgnoreUnsavedButton.state = preferences.findInFilesIgnoreUnsaved ? .on : .off
+        confirmReplaceInAllDocsButton.state = preferences.confirmReplaceInAllDocs ? .on : .off
+        maxFindHistoryField.intValue = Int32(preferences.maxFindHistoryCount)
+        maxFindHistoryStepper.intValue = Int32(preferences.maxFindHistoryCount)
         copyLineWithoutSelectionButton.state = preferences.copyLineWithoutSelection ? .on : .off
         smartHighlightUseFindSettingsButton.state = preferences.smartHighlightUseFindSettings ? .on : .off
         urlIndicatorStyleSegmented.selectedSegment = max(0, min(2, preferences.urlIndicatorStyle))
         langTabOverridesField.stringValue = preferences.languageTabOverrides
         taskListTagsField.stringValue = preferences.taskListCustomTags
         findTransparencySlider.doubleValue = preferences.findDialogTransparency
+        tabbarHideButton.state = preferences.tabbarHide ? .on : .off
         tabbarDoubleClickCloseButton.state = preferences.tabbarDoubleClickClose ? .on : .off
         tabbarLockDragDropButton.state = preferences.tabbarLockDragDrop ? .on : .off
         tabbarExitOnLastTabButton.state = preferences.tabbarExitOnLastTab ? .on : .off
+        tabbarShowCloseButtonButton.state = preferences.tabbarShowCloseButton ? .on : .off
+        tabbarCompactButton.state = preferences.tabbarCompact ? .on : .off
         tabbarMaxLabelLengthField.intValue = Int32(preferences.tabbarMaxLabelLength)
         tabbarMaxLabelLengthStepper.intValue = Int32(preferences.tabbarMaxLabelLength)
         let ps = preferences.printSettings
@@ -1453,16 +1973,26 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         printColorModePopup.selectItem(at: max(0, min(1, ps.colorMode)))
         printFontSizeField.intValue = Int32(ps.fontSize)
         printFontSizeStepper.intValue = Int32(ps.fontSize)
+        printMarginTopField.intValue = Int32(ps.marginTop)
+        printMarginBottomField.intValue = Int32(ps.marginBottom)
+        printMarginLeftField.intValue = Int32(ps.marginLeft)
+        printMarginRightField.intValue = Int32(ps.marginRight)
         delimiterLeftField.stringValue = preferences.delimiterLeft
         delimiterRightField.stringValue = preferences.delimiterRight
         statusBarVisibleButton.state = preferences.statusBarVisible ? .on : .off
         shortTitleButton.state = preferences.shortTitle ? .on : .off
         saveAllConfirmButton.state = preferences.saveAllConfirm ? .on : .off
         autoCompleteIgnoreNumbersButton.state = preferences.autoCompleteIgnoreNumbers ? .on : .off
+        reloadScrollToLastCaretButton.state = preferences.reloadScrollToLastCaret ? .on : .off
         appearanceModeSegmented.selectedSegment = max(0, min(2, preferences.appearanceMode))
         postItAlphaSlider.doubleValue = max(0.2, min(1.0, preferences.postItAlpha))
         largeFileMBField.intValue = Int32(preferences.largeFileSizeMB)
         largeFileMBStepper.intValue = Int32(preferences.largeFileSizeMB)
+        largeFileSuppressAutoCompleteButton.state = preferences.largeFileSuppressAutoComplete ? .on : .off
+        largeFileSuppressSmartHighlightButton.state = preferences.largeFileSuppressSmartHighlight ? .on : .off
+        largeFileSuppressBraceMatchButton.state = preferences.largeFileSuppressBraceMatch ? .on : .off
+        largeFileSuppressWordWrapButton.state = preferences.largeFileSuppressWordWrap ? .on : .off
+        largeFileSuppressSyntaxHighlightButton.state = preferences.largeFileSuppressSyntaxHighlight ? .on : .off
         additionalEdgeColumnsField.stringValue = preferences.additionalEdgeColumns
         selectNewDocEncodingPopup(preferences.defaultNewDocumentEncoding)
         selectNewDocLineEndingPopup(preferences.defaultNewDocumentLineEnding)
@@ -1537,6 +2067,12 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             inSelectionThresholdField.intValue = inSelectionThresholdStepper.intValue
         }
 
+        if sender as? NSTextField === maxFindHistoryField {
+            maxFindHistoryStepper.intValue = maxFindHistoryField.intValue
+        } else if maxFindHistoryStepper.intValue != maxFindHistoryField.intValue {
+            maxFindHistoryField.intValue = maxFindHistoryStepper.intValue
+        }
+
         if sender as? NSTextField === tabbarMaxLabelLengthField {
             tabbarMaxLabelLengthStepper.intValue = tabbarMaxLabelLengthField.intValue
         } else if tabbarMaxLabelLengthStepper.intValue != tabbarMaxLabelLengthField.intValue {
@@ -1566,7 +2102,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             searchEngineChoice: selectedSearchEngineChoice,
             customSearchEngineURL: searchEngineCustomURLField.stringValue,
             localizationFileName: selectedLocalizationFileName,
-            showWhitespace: showWhitespaceButton.state == .on,
+            showWhitespace: whitespaceDisplayModePopup.indexOfSelectedItem > 0,
             showEOL: showEOLButton.state == .on,
             showIndentGuides: showIndentGuidesButton.state == .on,
             highlightCurrentLine: highlightCurrentLineButton.state == .on,
@@ -1599,10 +2135,19 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             enableVirtualSpace: virtualSpaceButton.state == .on,
             backspaceUnindents: backspaceUnindentsButton.state == .on,
             autoIndent: autoIndentButton.state == .on,
+            autoIndentMode: autoIndentModePopup.indexOfSelectedItem,
+            fileAutoDetection: fileAutoDetectionPopup.indexOfSelectedItem,
+            updateSilently: updateSilentlyButton.state == .on,
             largeFileSizeMB: Int(largeFileMBField.intValue),
+            largeFileSuppressAutoComplete: largeFileSuppressAutoCompleteButton.state == .on,
+            largeFileSuppressSmartHighlight: largeFileSuppressSmartHighlightButton.state == .on,
+            largeFileSuppressBraceMatch: largeFileSuppressBraceMatchButton.state == .on,
+            largeFileSuppressWordWrap: largeFileSuppressWordWrapButton.state == .on,
+            largeFileSuppressSyntaxHighlight: largeFileSuppressSyntaxHighlightButton.state == .on,
             scrollBeyondLastLine: scrollBeyondLastLineButton.state == .on,
             autoCompleteFromNthChar: Int(autoCompleteField.intValue),
             caretNoBlink: caretNoBlinkButton.state == .on,
+            caretBlinkRate: Int(caretBlinkRateField.intValue),
             currentLineFrameWidth: currentLineFrameSegmented.selectedSegment,
             lineWrapIndent: lineWrapIndentPopup.indexOfSelectedItem,
             foldMarginStyle: foldMarginStylePopup.indexOfSelectedItem,
@@ -1652,10 +2197,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
                 ),
                 colorMode: printColorModePopup.indexOfSelectedItem,
                 fontSize: Double(printFontSizeField.intValue),
-                marginTop: existing.printSettings.marginTop,
-                marginBottom: existing.printSettings.marginBottom,
-                marginLeft: existing.printSettings.marginLeft,
-                marginRight: existing.printSettings.marginRight
+                marginTop: Double(printMarginTopField.intValue),
+                marginBottom: Double(printMarginBottomField.intValue),
+                marginLeft: Double(printMarginLeftField.intValue),
+                marginRight: Double(printMarginRightField.intValue)
             ),
             delimiterLeft: delimiterLeftField.stringValue,
             delimiterRight: delimiterRightField.stringValue,
@@ -1683,7 +2228,41 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             appearanceMode: appearanceModeSegmented.selectedSegment,
             taskListCustomTags: taskListTagsField.stringValue,
             toolbarVisible: existing.toolbarVisible,
-            showBookmarkMargin: showBookmarkMarginButton.state == .on
+            showBookmarkMargin: showBookmarkMarginButton.state == .on,
+            confirmReplaceInAllDocs: confirmReplaceInAllDocsButton.state == .on,
+            maxFindHistoryCount: Int(maxFindHistoryField.intValue),
+            tabbarHide: tabbarHideButton.state == .on,
+            reloadScrollToLastCaret: reloadScrollToLastCaretButton.state == .on,
+            editorFontName: editorFontNameField.stringValue,
+            editorFontBold: editorFontBoldButton.state == .on,
+            tabbarShowCloseButton: tabbarShowCloseButtonButton.state == .on,
+            trimTrailingSpacesOnSave: trimTrailingSpacesOnSaveButton.state == .on,
+            pasteConvertEndings: pasteConvertEndingsButton.state == .on,
+            caretStickyMode: caretStickyModePopup.indexOfSelectedItem,
+            enableCodeFolding: enableCodeFoldingButton.state == .on,
+            autoCompleteIgnoreCase: autoCompleteIgnoreCaseButton.state == .on,
+            whitespaceDisplayMode: whitespaceDisplayModePopup.indexOfSelectedItem,
+            bidiMode: bidiModePopup.indexOfSelectedItem,
+            smoothFont: smoothFontButton.state == .on,
+            multiEditEnabled: multiEditEnabledButton.state == .on,
+            multiPasteMode: multiPasteModePopup.indexOfSelectedItem,
+            indentGuideMode: indentGuideModePopup.indexOfSelectedItem,
+            wordWrapMode: wordWrapModePopup.indexOfSelectedItem,
+            tabbarCompact: tabbarCompactButton.state == .on,
+            zoomSyncToAllTabs: zoomSyncToAllTabsButton.state == .on,
+            hideMenuShortcuts: hideMenuShortcutsButton.state == .on,
+            scrollToLastLineOnMonitorReload: scrollToLastLineOnMonitorReloadButton.state == .on,
+            additionalSelAlpha: Int(additionalSelAlphaField.intValue),
+            additionalCaretsBlink: additionalCaretsBlinkButton.state == .on,
+            additionalCaretsVisible: additionalCaretsVisibleButton.state == .on,
+            caretLineVisibleAlways: caretLineVisibleAlwaysButton.state == .on,
+            whitespaceSize: Int(whitespaceSizeField.intValue),
+            selectionAlpha: Int(selectionAlphaField.intValue),
+            controlCharDisplay: controlCharDisplayPopup.indexOfSelectedItem,
+            openAnsiAsUtf8: openAnsiAsUtf8Button.state == .on,
+            xmlTagAttributeHighlight: xmlTagAttributeHighlightButton.state == .on,
+            highlightNonHtmlZone: highlightNonHtmlZoneButton.state == .on,
+            defaultSaveDirectory: defaultSaveDirField.stringValue
         )
         preferencesStore.save(preferences)
         loadPreferences()

@@ -1040,6 +1040,7 @@ enum AppMenu {
         viewMenu.addItem(NSMenuItem.separator())
 
         // --- Window chrome ---
+        viewMenu.addItem(withTitle: Localization.string(.viewShowTabBar, default: "Show Tab Bar"), action: #selector(EditorWindowController.toggleTabBarVisibility(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewShowToolbar, default: "Show Toolbar"), action: #selector(EditorWindowController.toggleToolbarVisibility(_:)), keyEquivalent: "")
         viewMenu.addItem(withTitle: Localization.string(.viewToggleStatusBar, default: "Show Status Bar"), action: #selector(EditorWindowController.toggleStatusBar(_:)), keyEquivalent: "")
         viewMenu.addItem(NSMenuItem.separator())

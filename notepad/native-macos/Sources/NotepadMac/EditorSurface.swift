@@ -31,18 +31,25 @@ protocol EditorSurface: AnyObject {
     func applyDiscontiguousSelections(_ ranges: [NSRange], mainSelectionIndex: Int) -> Bool
     func applyRectangularSelection(_ selection: RectangularSelectionLiveMetadata) -> Bool
     func applyFont(size: CGFloat)
+    func applyFont(name: String, size: CGFloat, bold: Bool)
     func applyLineWrapping(_ wraps: Bool, width: CGFloat)
+    func applyWordWrapMode(_ mode: Int)  // 0=none, 1=word, 2=whitespace, 3=character
     func applyCaretWidth(_ width: Int)
     func applyCaretNoBlink(_ noBlink: Bool)
+    func applyCaretPeriod(_ periodMs: Int)
     func applyAdditionalEdgeColumns(_ columns: [Int])
     func applyCurrentLineFrameWidth(_ width: Int)
     func applyLineWrapIndent(_ mode: Int)
     func applyFoldMarginStyle(_ style: Int)
+    func applyCodeFolding(_ enabled: Bool)
     func applyVirtualSpace(_ enabled: Bool)
     func applyBackspaceUnindents(_ enabled: Bool)
     func applyAutoIndent(_ enabled: Bool)
+    func applyAutoIndentMode(_ mode: Int) // 0=off, 1=basic, 2=advanced
     func applyScrollBeyondLastLine(_ enabled: Bool)
     func applySelectedTextDragDrop(_ enabled: Bool)
+    func applyPasteConvertEndings(_ enabled: Bool)
+    func applyCaretStickyMode(_ mode: Int)
     func applyLineNumberDynamicWidth(_ enabled: Bool)
     func applyBookmarkMarginVisible(_ visible: Bool)
     func applyColumnSelectionToMultiEditing(_ enabled: Bool)
@@ -52,10 +59,12 @@ protocol EditorSurface: AnyObject {
     func applyAutoCompleteTABFillup(_ on: Bool)
     func applyAutoCompleteEnterCommit(_ on: Bool)
     func applyAutoCompleteBrief(_ on: Bool)
+    func applyAutoCompleteIgnoreCase(_ ignore: Bool)
     func applyShowWhitespace(_ visible: Bool)
     func applyShowWhitespace(mode: Int)
     func applyShowEOL(_ visible: Bool)
     func applyIndentGuides(_ visible: Bool)
+    func applyIndentGuides(mode: Int)  // 0=none, 1=real, 2=lookForward, 3=lookBoth
     func applyCurrentLineHighlight(_ visible: Bool)
     func applyWrapSymbol(_ visible: Bool)
     func applyChangeHistory(_ enabled: Bool)
@@ -127,6 +136,8 @@ protocol EditorSurface: AnyObject {
     var supportsXmlTagMatch: Bool { get }
     func applyXmlTagHighlight(openRange: NSRange, closeRange: NSRange)
     func clearXmlTagHighlight()
+    func applyXmlAttributeHighlight(range: NSRange)
+    func clearXmlAttributeHighlight()
 
     // MARK: - Auto-pair insertion
     var supportsAutoPair: Bool { get }
@@ -155,6 +166,16 @@ protocol EditorSurface: AnyObject {
 
     // MARK: - Text direction (bidirectional)
     func applyBidirectional(_ mode: Int)  // 0=disabled, 1=L2R, 2=R2L
+    func applySmoothFont(_ on: Bool)
+    func applyMultiEditEnabled(_ on: Bool)
+    func applyMultiPasteMode(_ mode: Int) // 0=paste once, 1=paste into each selection
+    func applyAdditionalSelAlpha(_ alpha: Int) // 0-255 alpha, 256=opaque
+    func applyAdditionalCaretsBlink(_ on: Bool)
+    func applyAdditionalCaretsVisible(_ on: Bool)
+    func applyCaretLineVisibleAlways(_ on: Bool)
+    func applyWhitespaceSize(_ size: Int)  // 1-5 px dot size
+    func applySelectionAlpha(_ alpha: Int) // 0-256, 256=opaque
+    func applyControlCharDisplay(_ mode: Int) // 0=glyph, 1-6=symbol
 
     // MARK: - Copy/Cut behavior
     func applyCopyLineWithoutSelection(_ enabled: Bool)
@@ -243,17 +264,33 @@ final class TextViewEditorSurface: EditorSurface {
         textView.font = .monospacedSystemFont(ofSize: size, weight: .regular)
     }
 
+    func applyFont(name: String, size: CGFloat, bold: Bool) {
+        let fontName = name.trimmingCharacters(in: .whitespaces)
+        let weight: NSFont.Weight = bold ? .bold : .regular
+        if fontName.isEmpty {
+            textView.font = .monospacedSystemFont(ofSize: size, weight: weight)
+        } else {
+            textView.font = NSFont(name: fontName, size: size)
+                ?? .monospacedSystemFont(ofSize: size, weight: weight)
+        }
+    }
+
     func applyCaretWidth(_ width: Int) {}
     func applyCaretNoBlink(_ noBlink: Bool) {}
+    func applyCaretPeriod(_ periodMs: Int) {}
     func applyAdditionalEdgeColumns(_ columns: [Int]) {}
     func applyCurrentLineFrameWidth(_ width: Int) {}
     func applyLineWrapIndent(_ mode: Int) {}
     func applyFoldMarginStyle(_ style: Int) {}
+    func applyCodeFolding(_ enabled: Bool) {}
     func applyVirtualSpace(_ enabled: Bool) {}
     func applyBackspaceUnindents(_ enabled: Bool) {}
     func applyAutoIndent(_ enabled: Bool) {}
+    func applyAutoIndentMode(_ mode: Int) {}
     func applyScrollBeyondLastLine(_ enabled: Bool) {}
     func applySelectedTextDragDrop(_ enabled: Bool) {}
+    func applyPasteConvertEndings(_ enabled: Bool) {}
+    func applyCaretStickyMode(_ mode: Int) {}
     func applyLineNumberDynamicWidth(_ enabled: Bool) {}
     func applyBookmarkMarginVisible(_ visible: Bool) {}
     func applyColumnSelectionToMultiEditing(_ enabled: Bool) {}
@@ -263,6 +300,7 @@ final class TextViewEditorSurface: EditorSurface {
     func applyAutoCompleteTABFillup(_ on: Bool) {}
     func applyAutoCompleteEnterCommit(_ on: Bool) {}
     func applyAutoCompleteBrief(_ on: Bool) {}
+    func applyAutoCompleteIgnoreCase(_ ignore: Bool) {}
 
     func applyLineWrapping(_ wraps: Bool, width: CGFloat) {
         guard let textContainer = textView.textContainer else { return }
@@ -278,6 +316,8 @@ final class TextViewEditorSurface: EditorSurface {
         }
     }
 
+    func applyWordWrapMode(_ mode: Int) {}
+
     func applyShowWhitespace(_ visible: Bool) {}
 
     func applyShowWhitespace(mode: Int) {}
@@ -285,9 +325,8 @@ final class TextViewEditorSurface: EditorSurface {
     func applyShowEOL(_ visible: Bool) {}
 
     func applyIndentGuides(_ visible: Bool) {}
-
+    func applyIndentGuides(mode: Int) {}
     func applyCurrentLineHighlight(_ visible: Bool) {}
-
     func applyWrapSymbol(_ visible: Bool) {}
 
     func applyChangeHistory(_ enabled: Bool) {}
@@ -383,6 +422,8 @@ final class TextViewEditorSurface: EditorSurface {
     var supportsXmlTagMatch: Bool { false }
     func applyXmlTagHighlight(openRange: NSRange, closeRange: NSRange) {}
     func clearXmlTagHighlight() {}
+    func applyXmlAttributeHighlight(range: NSRange) {}
+    func clearXmlAttributeHighlight() {}
 
     var supportsAutoPair: Bool { false }
     func setAutoPairHandler(_ handler: ((Character) -> Void)?) {}
@@ -402,6 +443,16 @@ final class TextViewEditorSurface: EditorSurface {
 
     func applyLinePadding(_ pixels: Int) {}
     func applyBidirectional(_ mode: Int) {}
+    func applySmoothFont(_ on: Bool) {}
+    func applyMultiEditEnabled(_ on: Bool) {}
+    func applyMultiPasteMode(_ mode: Int) {}
+    func applyAdditionalSelAlpha(_ alpha: Int) {}
+    func applyAdditionalCaretsBlink(_ on: Bool) {}
+    func applyAdditionalCaretsVisible(_ on: Bool) {}
+    func applyCaretLineVisibleAlways(_ on: Bool) {}
+    func applyWhitespaceSize(_ size: Int) {}
+    func applySelectionAlpha(_ alpha: Int) {}
+    func applyControlCharDisplay(_ mode: Int) {}
     func applyCopyLineWithoutSelection(_ enabled: Bool) {}
     func styledSegments(ofSelection range: NSRange) -> [StyledSegment] {
         let nsText = textView.string as NSString
@@ -656,12 +707,23 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setFont(name: "Menlo", size: Int32(size.rounded()), bold: false, italic: false)
     }
 
+    func applyFont(name: String, size: CGFloat, bold: Bool) {
+        let fontName = name.trimmingCharacters(in: .whitespaces)
+        let resolvedName = fontName.isEmpty ? "Menlo" : fontName
+        bridge.setFont(name: resolvedName as NSString, size: Int32(size.rounded()), bold: bold, italic: false)
+    }
+
     func applyLineWrapping(_ wraps: Bool, width: CGFloat) {
         bridge.setGeneralProperty(
             ScintillaMessage.setWrapMode,
             parameter: wraps ? ScintillaWrapMode.word : ScintillaWrapMode.none,
             value: 0
         )
+    }
+
+    func applyWordWrapMode(_ mode: Int) {
+        let clamped = CLong(max(0, min(3, mode)))
+        bridge.setGeneralProperty(ScintillaMessage.setWrapMode, parameter: clamped, value: 0)
     }
 
     func applyCaretWidth(_ width: Int) {
@@ -687,6 +749,14 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setDragDropEnabled, parameter: enabled ? 1 : 0, value: 0)
     }
 
+    func applyPasteConvertEndings(_ enabled: Bool) {
+        bridge.setGeneralProperty(ScintillaMessage.setPasteConvertEndings, parameter: enabled ? 1 : 0, value: 0)
+    }
+
+    func applyCaretStickyMode(_ mode: Int) {
+        bridge.setGeneralProperty(ScintillaMessage.setCaretStickyMode, parameter: CLong(max(0, min(2, mode))), value: 0)
+    }
+
     func applyLineNumberDynamicWidth(_ enabled: Bool) {
         // When dynamic width is off, restore a fixed 40px line number margin width.
         // When enabled, set to 0 so the existing applyEditorSurface logic sizes it.
@@ -710,6 +780,10 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setCaretPeriod, parameter: noBlink ? 0 : 500, value: 0)
     }
 
+    func applyCaretPeriod(_ periodMs: Int) {
+        bridge.setGeneralProperty(ScintillaMessage.setCaretPeriod, parameter: CLong(periodMs), value: 0)
+    }
+
     func applyAdditionalEdgeColumns(_ columns: [Int]) {
         bridge.setGeneralProperty(ScintillaMessage.multiEdgeClearAll, parameter: 0, value: 0)
         for col in columns where col > 0 {
@@ -723,6 +797,10 @@ final class ScintillaEditorSurface: EditorSurface {
 
     func applyLineWrapIndent(_ mode: Int) {
         bridge.setGeneralProperty(ScintillaMessage.setWrapIndentMode, parameter: CLong(max(0, min(3, mode))), value: 0)
+    }
+
+    func applyCodeFolding(_ enabled: Bool) {
+        bridge.setGeneralProperty(ScintillaMessage.setMarginWidth, parameter: ScintillaMargin.fold, value: enabled ? 16 : 0)
     }
 
     func applyFoldMarginStyle(_ style: Int) {
@@ -800,6 +878,10 @@ final class ScintillaEditorSurface: EditorSurface {
         // Brief mode (hide function prototypes) is filtered at list-generation time
     }
 
+    func applyAutoCompleteIgnoreCase(_ ignore: Bool) {
+        bridge.setGeneralProperty(ScintillaMessage.setAutoCIgnoreCase, parameter: ignore ? 1 : 0, value: 0)
+    }
+
     func applyShowWhitespace(_ visible: Bool) {
         bridge.setGeneralProperty(
             ScintillaMessage.setViewWhitespace,
@@ -833,6 +915,15 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(
             ScintillaMessage.setIndentationGuides,
             parameter: visible ? ScintillaIndentGuideMode.lookForward : ScintillaIndentGuideMode.none,
+            value: 0
+        )
+    }
+
+    func applyIndentGuides(mode: Int) {
+        let clamped = CLong(max(0, min(3, mode)))
+        bridge.setGeneralProperty(
+            ScintillaMessage.setIndentationGuides,
+            parameter: clamped,
             value: 0
         )
     }
@@ -1557,33 +1648,87 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(text.utf16.count))
     }
 
+    // XML tag attribute highlight uses indicator 12 (distinct from tag-name indicator 11)
+    private static let xmlTagAttributeIndicator = 12
+
+    func applyXmlAttributeHighlight(range: NSRange) {
+        clearXmlAttributeHighlight()
+        let indicator = Self.xmlTagAttributeIndicator
+        bridge.setGeneralProperty(ScintillaMessage.indicSetStyle, parameter: indicator, value: ScintillaIndicatorStyle.roundBox)
+        // Light blue: RGB(100, 180, 255)
+        let rgb: CLong = 100 | (180 << 8) | (255 << 16)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetFore, parameter: indicator, value: rgb)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetAlpha, parameter: indicator, value: 80)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetUnder, parameter: indicator, value: 1)
+
+        let currentText = text
+        bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
+        guard let sciStart = scintillaPosition(in: currentText, utf16Location: range.location),
+              let sciEnd = scintillaPosition(in: currentText, utf16Location: NSMaxRange(range))
+        else { return }
+        bridge.setGeneralProperty(ScintillaMessage.indicatorFillRange, parameter: sciStart, value: sciEnd - sciStart)
+    }
+
+    func clearXmlAttributeHighlight() {
+        let indicator = Self.xmlTagAttributeIndicator
+        bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(text.utf16.count))
+    }
+
     // MARK: - Auto-indent
 
     private var autoIndentEnabled = false
+    /// Auto-indent mode: 0=off, 1=basic (copy prev line indent), 2=advanced (basic + bracket-aware)
+    private var autoIndentModeValue = 1
 
     func applyAutoIndent(_ enabled: Bool) {
         autoIndentEnabled = enabled
     }
 
+    func applyAutoIndentMode(_ mode: Int) {
+        autoIndentModeValue = max(0, min(2, mode))
+    }
+
     private func performAutoIndent() {
-        guard let caretPos = bridge.getGeneralProperty(ScintillaMessage.getCurrentPos, parameter: 0),
+        guard autoIndentModeValue > 0,
+              let caretPos = bridge.getGeneralProperty(ScintillaMessage.getCurrentPos, parameter: 0),
               let currentLine = bridge.getGeneralProperty(ScintillaMessage.lineFromPosition, parameter: caretPos),
               currentLine > 0 else { return }
 
         let prevLine = currentLine - 1
-        guard let indentCols = bridge.getGeneralProperty(ScintillaMessage.getLineIndentation, parameter: prevLine),
-              indentCols > 0 else { return }
+        let prevIndentCols = Int(bridge.getGeneralProperty(ScintillaMessage.getLineIndentation, parameter: prevLine) ?? 0)
 
         let useTabs = bridge.getGeneralProperty(ScintillaMessage.getUseTabs, parameter: 0) == 1
         let tabWidth = max(1, Int(bridge.getGeneralProperty(ScintillaMessage.getTabWidth, parameter: 0) ?? 4))
 
+        // Advanced mode: detect bracket-aware indent adjustment
+        var targetCols = prevIndentCols
+        if autoIndentModeValue >= 2 {
+            // Read previous line text via full text split (simple, reliable)
+            let lines = text.components(separatedBy: "\n")
+            if prevLine < lines.count {
+                let lineText = lines[prevLine]
+                let trimmed = lineText.trimmingCharacters(in: .whitespaces)
+                // Increase indent after opening brackets
+                if trimmed.hasSuffix("{") || trimmed.hasSuffix(":") || trimmed.hasSuffix("(") || trimmed.hasSuffix("[") {
+                    targetCols += (useTabs ? 1 : tabWidth)
+                }
+                // Decrease indent if line starts with closing bracket
+                if trimmed.hasPrefix("}") || trimmed.hasPrefix(")") || trimmed.hasPrefix("]") {
+                    targetCols = max(0, targetCols - (useTabs ? 1 : tabWidth))
+                }
+            }
+        }
+
+        guard targetCols > 0 else { return }
+
         let indentString: String
         if useTabs {
-            let tabs = Int(indentCols) / tabWidth
-            let spaces = Int(indentCols) % tabWidth
+            let tabs = targetCols / tabWidth
+            let spaces = targetCols % tabWidth
             indentString = String(repeating: "\t", count: tabs) + String(repeating: " ", count: spaces)
         } else {
-            indentString = String(repeating: " ", count: Int(indentCols))
+            indentString = String(repeating: " ", count: targetCols)
         }
 
         indentString.withCString { ptr in
@@ -1775,6 +1920,53 @@ final class ScintillaEditorSurface: EditorSurface {
 
     func applyBidirectional(_ mode: Int) {
         bridge.setGeneralProperty(ScintillaMessage.setBidirectional, parameter: CLong(mode), value: 0)
+    }
+
+    func applySmoothFont(_ on: Bool) {
+        // SCI_SETFONTQUALITY: 0=default, 1=non-antialiased, 2=antialiased, 3=LCD optimized
+        bridge.setGeneralProperty(ScintillaMessage.setFontQuality, parameter: on ? 2 : 0, value: 0)
+    }
+
+    func applyMultiEditEnabled(_ on: Bool) {
+        bridge.setGeneralProperty(ScintillaMessage.setMultipleSelection, parameter: on ? 1 : 0, value: 0)
+    }
+
+    func applyMultiPasteMode(_ mode: Int) {
+        // SC_MULTIPASTE_ONCE=0 (paste into main selection only)
+        // SC_MULTIPASTE_EACH=1 (paste into each selection)
+        bridge.setGeneralProperty(ScintillaMessage.setMultiPaste, parameter: CLong(max(0, min(1, mode))), value: 0)
+    }
+
+    func applyAdditionalSelAlpha(_ alpha: Int) {
+        // SCI_SETADDITIONALSELALPHA: 0-255 alpha, 256=opaque (no alpha)
+        bridge.setGeneralProperty(ScintillaMessage.setAdditionalSelAlpha, parameter: CLong(max(0, min(256, alpha))), value: 0)
+    }
+
+    func applyAdditionalCaretsBlink(_ on: Bool) {
+        bridge.setGeneralProperty(ScintillaMessage.setAdditionalCaretsBlink, parameter: on ? 1 : 0, value: 0)
+    }
+
+    func applyAdditionalCaretsVisible(_ on: Bool) {
+        bridge.setGeneralProperty(ScintillaMessage.setAdditionalCaretsVisible, parameter: on ? 1 : 0, value: 0)
+    }
+
+    func applyCaretLineVisibleAlways(_ on: Bool) {
+        bridge.setGeneralProperty(ScintillaMessage.setCaretLineVisibleAlways, parameter: on ? 1 : 0, value: 0)
+    }
+
+    func applyWhitespaceSize(_ size: Int) {
+        // SCI_SETWHITESPACESIZE: dot size in pixels (1-5)
+        bridge.setGeneralProperty(ScintillaMessage.setWhitespaceSize, parameter: CLong(max(1, min(5, size))), value: 0)
+    }
+
+    func applySelectionAlpha(_ alpha: Int) {
+        // SCI_SETSELALPHA: 0-255 transparent, 256=opaque
+        bridge.setGeneralProperty(ScintillaMessage.setSelAlpha, parameter: CLong(max(0, min(256, alpha))), value: 0)
+    }
+
+    func applyControlCharDisplay(_ mode: Int) {
+        // SCI_SETCONTROLCHARSYMBOL: 0=show as glyph, 1-6=use defined symbol
+        bridge.setGeneralProperty(ScintillaMessage.setControlCharSymbol, parameter: CLong(max(0, min(6, mode))), value: 0)
     }
 
     func applyCopyLineWithoutSelection(_ enabled: Bool) {
@@ -2464,6 +2656,7 @@ private enum ScintillaMessage {
     static let autoCStops: Int32 = 2105
     static let autoCSeparator: Int32 = 2106
     static let autoCChoose: Int32 = 2108
+    static let setAutoCIgnoreCase: Int32 = 2286
     static let callTipShow: Int32 = 2200
     static let callTipCancel: Int32 = 2201
     static let callTipPosStart: Int32 = 2214
@@ -2547,6 +2740,15 @@ private enum ScintillaMessage {
     static let setBidirectional: Int32 = 2709
     static let setCopyAllowsLineSelection: Int32 = 2660
     static let setDragDropEnabled: Int32 = 2819
+    static let setPasteConvertEndings: Int32 = 2467
+    static let setCaretStickyMode: Int32 = 2657
+    static let setFontQuality: Int32 = 2611
+    static let setAdditionalSelAlpha: Int32 = 2602
+    static let setAdditionalCaretsVisible: Int32 = 2608
+    static let setAdditionalCaretsBlink: Int32 = 2761
+    static let setWhitespaceSize: Int32 = 2087
+    static let setSelAlpha: Int32 = 2473
+    static let setControlCharSymbol: Int32 = 2388
     // Style query
     static let getStyleAt: Int32 = 2498
     static let styleGetFore: Int32 = 2481
@@ -2559,6 +2761,8 @@ private enum ScintillaMessage {
 private enum ScintillaWrapMode {
     static let none: CLong = 0
     static let word: CLong = 1
+    static let whitespace: CLong = 2
+    static let character: CLong = 3
 }
 
 private enum ScintillaWhitespaceMode {

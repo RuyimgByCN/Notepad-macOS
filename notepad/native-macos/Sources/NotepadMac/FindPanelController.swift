@@ -301,15 +301,17 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
         let replacement = replaceField.stringValue
         let searchOptions = options
 
-        let alert = NSAlert()
-        alert.messageText = Localization.string(.findReplaceAllInAllConfirmMessage, default: "Replace All in Open Documents")
-        alert.informativeText = String(
-            format: Localization.string(.findReplaceAllInAllConfirmDetail, default: "Replace all occurrences of \"%@\" with \"%@\" in all open documents?"),
-            query, replacement
-        )
-        alert.addButton(withTitle: Localization.string(.findReplaceAllInAllButton, default: "Replace All"))
-        alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        if preferencesStore.load().confirmReplaceInAllDocs {
+            let alert = NSAlert()
+            alert.messageText = Localization.string(.findReplaceAllInAllConfirmMessage, default: "Replace All in Open Documents")
+            alert.informativeText = String(
+                format: Localization.string(.findReplaceAllInAllConfirmDetail, default: "Replace all occurrences of \"%@\" with \"%@\" in all open documents?"),
+                query, replacement
+            )
+            alert.addButton(withTitle: Localization.string(.findReplaceAllInAllButton, default: "Replace All"))
+            alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
 
         var totalCount = 0
         if let appDelegate = NSApp.delegate as? AppDelegate {

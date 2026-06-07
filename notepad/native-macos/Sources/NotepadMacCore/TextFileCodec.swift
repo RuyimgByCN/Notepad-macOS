@@ -244,6 +244,37 @@ public enum TextFileCodec {
         case unsupportedEncoding
     }
 
+    /// Read a file with optional ANSI-as-UTF8 reinterpretation.
+    /// When `openAnsiAsUtf8` is true and the detected encoding is a legacy single-byte
+    /// encoding (not UTF-8/UTF-16), try to re-decode as UTF-8 first.
+    public static func read(_ url: URL, openAnsiAsUtf8: Bool = false) throws -> LoadedTextFile {
+        let result = try read(url)
+
+        if openAnsiAsUtf8 {
+            // If the detected encoding is not UTF-8 or UTF-16, try UTF-8 reinterpretation.
+            // This matches upstream's "openAnsiAsUTF8" semantics:
+            // ANSI/Windows-CP files that are actually UTF-8 should be re-read as UTF-8.
+            let isUnicode = result.encoding == .utf8
+                || result.encoding == .utf16
+                || result.encoding == .utf16LittleEndian
+                || result.encoding == .utf16BigEndian
+
+            if !isUnicode {
+                let data = try Data(contentsOf: url)
+                if let utf8Text = String(data: data, encoding: .utf8) {
+                    return LoadedTextFile(
+                        text: utf8Text,
+                        encoding: .utf8,
+                        lineEnding: LineEnding.detect(in: utf8Text),
+                        hasByteOrderMark: data.hasUTF8ByteOrderMark
+                    )
+                }
+            }
+        }
+
+        return result
+    }
+
     public static func read(_ url: URL) throws -> LoadedTextFile {
         let data = try Data(contentsOf: url)
         let legacySingleByteCandidates: [String.Encoding] = [

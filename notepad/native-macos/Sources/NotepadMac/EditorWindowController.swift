@@ -61,6 +61,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var lineEnding: LineEnding = .lf
     private var language: LanguageDefinition
     private var fontSize: CGFloat = 13
+    /// User-applied zoom offset (points) relative to the preference base font size.
+    /// Preserved across applyPreferences() calls so per-tab zoom survives pref changes.
+    private var fontSizeZoomDelta: CGFloat = 0
     private var isDirty = false
     private var wrapsLines = false
     private var whitespaceMode: WhitespaceDisplayMode = .invisible
@@ -72,12 +75,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var showsNpcCharacters = false
     private var caretWidth = 1
     private var caretNoBlink = false
+    private var caretBlinkRate = 500
     private var currentLineFrameWidth = 0
     private var lineWrapIndent = 0
     private var foldMarginStyle = 0
     private var useFirstLineAsTabName = false
     private var autoReloadOnExternalChange = false
     private var fileChangeDetectionEnabled = true
+    private var reloadScrollToLastCaret = false
+    private var editorFontName = ""
+    private var editorFontBold = false
     private var backupOnSaveMode: BackupOnSaveMode = .none
     private var useCustomBackupDirectory = false
     private var customBackupDirectory = ""
@@ -88,11 +95,34 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var enableVirtualSpace = false
     private var backspaceUnindents = true
     private var autoIndent = true
+    private var autoIndentMode = 1
+    private var fileAutoDetection = 1
+    private var updateSilently = false
     private var scrollBeyondLastLine = false
     private var selectedTextDragDrop = true
     private var lineNumberDynamicWidth = false
     private var columnSelectionToMultiEditing = false
     private var muteAllSounds = false
+    private var zoomSyncToAllTabs = false
+    private var hideMenuShortcuts = false
+    private var scrollToLastLineOnMonitorReload = false
+    private var trimTrailingSpacesOnSave = false
+    private var pasteConvertEndings = true
+    private var caretStickyMode = 0
+    private var enableCodeFolding = true
+    private var autoCompleteIgnoreCase = true
+    private var smoothFont = true
+    private var multiEditEnabled = true
+    private var multiPasteMode = 1
+    private var indentGuideMode = 2
+    private var wordWrapMode = 1
+    private var additionalSelAlpha = 256
+    private var additionalCaretsBlink = true
+    private var additionalCaretsVisible = true
+    private var caretLineVisibleAlways = false
+    private var whitespaceSize = 1
+    private var selectionAlpha = 256
+    private var controlCharDisplay = 0
     private var autoCompleteFromNthChar = 3
     private var autoCompleteMode = 3
     private var autoCompleteChooseSingle = true
@@ -106,6 +136,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var smartHighlightMatchCase = false
     private var smartHighlightWholeWord = true
     private var enablesXmlTagMatch = true
+    private var xmlTagAttributeHighlight = true
+    private var highlightNonHtmlZone = false
     private var htmlXmlCloseTagEnabled = true
     private var enablesAutoPair = true
     private var autoPairParentheses = true
@@ -138,6 +170,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var pinnedToTab = false
     private var windowTabColorIndex: Int? = nil
     private var statusFieldHeightConstraint: NSLayoutConstraint?
+    private var tabBarHeightConstraint: NSLayoutConstraint?
 
     var sessionFileURL: URL? {
         fileURL?.standardizedFileURL
@@ -357,11 +390,18 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.enableVirtualSpace = preferences.enableVirtualSpace
         self.backspaceUnindents = preferences.backspaceUnindents
         self.autoIndent = preferences.autoIndent
+        self.autoIndentMode = preferences.autoIndentMode
+        self.fileAutoDetection = preferences.fileAutoDetection
+        self.updateSilently = preferences.updateSilently
         self.scrollBeyondLastLine = preferences.scrollBeyondLastLine
         self.selectedTextDragDrop = preferences.selectedTextDragDrop
         self.lineNumberDynamicWidth = preferences.lineNumberDynamicWidth
         self.columnSelectionToMultiEditing = preferences.columnSelectionToMultiEditing
         self.linePadding = preferences.linePadding
+        self.muteAllSounds = preferences.muteAllSounds
+        self.zoomSyncToAllTabs = preferences.zoomSyncToAllTabs
+        self.hideMenuShortcuts = preferences.hideMenuShortcuts
+        self.scrollToLastLineOnMonitorReload = preferences.scrollToLastLineOnMonitorReload
         self.autoCompleteFromNthChar = preferences.autoCompleteFromNthChar
         self.autoCompleteMode = preferences.autoCompleteMode
         self.autoCompleteChooseSingle = preferences.autoCompleteChooseSingle
@@ -371,6 +411,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.customMatchedPairs = preferences.customMatchedPairs
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.tabMaxLabelLength = preferences.tabbarMaxLabelLength
+        tabBarView.showCloseButton = preferences.tabbarShowCloseButton
+        tabBarView.compactMode = preferences.tabbarCompact
+        tabBarView.showIndexNumbers = preferences.tabbarShowIndexNumbers
         self.enablesAutoPair = preferences.enableAutoPair
         self.autoPairParentheses = preferences.autoPairParentheses
         self.autoPairBrackets = preferences.autoPairBrackets
@@ -378,6 +421,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.autoPairSingleQuotes = preferences.autoPairSingleQuotes
         self.autoPairDoubleQuotes = preferences.autoPairDoubleQuotes
         self.enablesXmlTagMatch = preferences.enableXmlTagMatch
+        self.xmlTagAttributeHighlight = preferences.xmlTagAttributeHighlight
+        self.highlightNonHtmlZone = preferences.highlightNonHtmlZone
         self.htmlXmlCloseTagEnabled = preferences.htmlXmlCloseTagEnabled
         self.enablesClickableLinks = preferences.enableClickableLinks
         self.showsLineNumberMargin = preferences.showLineNumberMargin
@@ -502,6 +547,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func saveDocumentAs(_ sender: Any?) {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = displayStrings.saveAsName(fileURL: fileURL)
+        let prefs = preferencesStore.load()
+        if !prefs.defaultSaveDirectory.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: prefs.defaultSaveDirectory)
+        }
         panel.beginSheetModal(for: window!) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             self?.save(to: url)
@@ -511,6 +560,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func saveCopyAs(_ sender: Any?) {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = displayStrings.saveAsName(fileURL: fileURL)
+        let prefs = preferencesStore.load()
+        if !prefs.defaultSaveDirectory.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: prefs.defaultSaveDirectory)
+        }
         panel.beginSheetModal(for: window!) { [weak self] response in
             guard response == .OK, let self, let url = panel.url else { return }
             self.saveCopy(at: url)
@@ -526,7 +579,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
             do {
-                let loaded = try TextFileCodec.read(url)
+                let loaded = try TextFileCodec.read(url, openAnsiAsUtf8: preferencesStore.load().openAnsiAsUtf8)
                 self.insertText(loaded.text)
             } catch {
                 self.presentError(error)
@@ -775,7 +828,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func autoDetectEncoding(_ sender: Any?) {
         guard let url = fileURL else { return }
         do {
-            let loaded = try TextFileCodec.read(url)
+            let loaded = try TextFileCodec.read(url, openAnsiAsUtf8: preferencesStore.load().openAnsiAsUtf8)
             let detectedEncoding = loaded.encoding
             guard detectedEncoding != encoding else { return }
             encoding = detectedEncoding
@@ -915,6 +968,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func updateBraceHighlight() {
+        if isLargeFile && preferencesStore.load().largeFileSuppressBraceMatch { return }
         editorSurface.updateBraceHighlightAtUtf16Location(editorSurface.selectedRange.location)
     }
 
@@ -925,8 +979,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let cursorPos = min(editorSurface.selectedRange.location, nsLen)
         if let match = XmlTagMatcher.findMatch(in: text, cursorPosition: cursorPos) {
             editorSurface.applyXmlTagHighlight(openRange: match.openTagRange, closeRange: match.closeTagRange)
+            if xmlTagAttributeHighlight, let attrRange = match.attributeRange {
+                editorSurface.applyXmlAttributeHighlight(range: attrRange)
+            } else {
+                editorSurface.clearXmlAttributeHighlight()
+            }
         } else {
             editorSurface.clearXmlTagHighlight()
+            editorSurface.clearXmlAttributeHighlight()
         }
     }
 
@@ -1128,6 +1188,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func updateSmartHighlight() {
         guard enablesSmartHighlight else { return }
+        if isLargeFile && preferencesStore.load().largeFileSuppressSmartHighlight { return }
         let text = editorSurface.text
         let selection = editorSurface.selectedRange
         if selection.length > 0 {
@@ -1178,8 +1239,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     @objc func zoomRestore(_ sender: Any?) {
+        fontSizeZoomDelta = 0
         fontSize = CGFloat(preferencesStore.load().editorFontSize)
-        saveCurrentEditorPreferences()
         applyFont()
     }
 
@@ -1190,6 +1251,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     func applyFontSize(_ size: CGFloat) {
         fontSize = min(max(size, CGFloat(AppPreferences.minimumEditorFontSize)), CGFloat(AppPreferences.maximumEditorFontSize))
+        fontSizeZoomDelta = fontSize - CGFloat(preferencesStore.load().editorFontSize)
         applyFont()
     }
 
@@ -1260,11 +1322,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func setTextDirectionRTL(_ sender: Any?) {
         currentBidiMode = 2
         editorSurface.applyBidirectional(2)
+        saveCurrentEditorPreferences()
     }
 
     @objc func setTextDirectionLTR(_ sender: Any?) {
         currentBidiMode = 1
         editorSurface.applyBidirectional(1)
+        saveCurrentEditorPreferences()
     }
 
     @objc func increaseNumberAtCaret(_ sender: Any?) {
@@ -1871,7 +1935,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             beepIfEnabled()
             return
         }
-        let options = TextSearch.Options(matchCase: false, wholeWord: false, wraps: false, direction: .down)
+        let prefs = preferencesStore.load()
+        let options = TextSearch.Options(matchCase: prefs.markAllMatchCase, wholeWord: prefs.markAllWholeWord, wraps: false, direction: .down)
         let text = editorSurface.text
         let matches = TextSearch.findAll(query, in: text, options: options)
         guard !matches.isEmpty else {
@@ -2193,15 +2258,24 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     @objc func increaseFontSize(_ sender: Any?) {
-        fontSize = min(fontSize + 1, 32)
-        saveCurrentEditorPreferences()
+        let newSize = min(fontSize + 1, 32)
+        fontSizeZoomDelta += newSize - fontSize
+        fontSize = newSize
         applyFont()
+        if zoomSyncToAllTabs { syncZoomToAllWindows() }
     }
 
     @objc func decreaseFontSize(_ sender: Any?) {
-        fontSize = max(fontSize - 1, 9)
-        saveCurrentEditorPreferences()
+        let newSize = max(fontSize - 1, 9)
+        fontSizeZoomDelta += newSize - fontSize
+        fontSize = newSize
         applyFont()
+        if zoomSyncToAllTabs { syncZoomToAllWindows() }
+    }
+
+    private func syncZoomToAllWindows() {
+        guard let delegate = NSApp.delegate as? AppDelegate else { return }
+        delegate.syncZoomToAll(nil)
     }
 
     @objc func toggleAlwaysOnTop(_ sender: Any?) {
@@ -3602,9 +3676,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     func applyPreferences(_ preferences: AppPreferences) {
-        fontSize = CGFloat(preferences.editorFontSize)
+        fontSize = CGFloat(preferences.editorFontSize) + fontSizeZoomDelta
         wrapsLines = preferences.wrapsLines
-        whitespaceMode = preferences.showWhitespace ? .visibleAlways : .invisible
+        whitespaceMode = WhitespaceDisplayMode(rawValue: preferences.whitespaceDisplayMode) ?? .invisible
         showsEOL = preferences.showEOL
         showsIndentGuides = preferences.showIndentGuides
         highlightsCurrentLine = preferences.highlightCurrentLine
@@ -3626,12 +3700,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         showsNpcCharacters = preferences.showNpcCharacters
         caretWidth = preferences.caretWidth
         caretNoBlink = preferences.caretNoBlink
+        caretBlinkRate = preferences.caretBlinkRate
         currentLineFrameWidth = preferences.currentLineFrameWidth
         lineWrapIndent = preferences.lineWrapIndent
         foldMarginStyle = preferences.foldMarginStyle
         useFirstLineAsTabName = preferences.useFirstLineAsTabName
         autoReloadOnExternalChange = preferences.autoReloadOnExternalChange
         fileChangeDetectionEnabled = preferences.fileChangeDetectionEnabled
+        reloadScrollToLastCaret = preferences.reloadScrollToLastCaret
+        editorFontName = preferences.editorFontName
+        editorFontBold = preferences.editorFontBold
         backupOnSaveMode = preferences.backupOnSaveMode
         useCustomBackupDirectory = preferences.useCustomBackupDirectory
         customBackupDirectory = preferences.customBackupDirectory
@@ -3642,11 +3720,35 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         enableVirtualSpace = preferences.enableVirtualSpace
         backspaceUnindents = preferences.backspaceUnindents
         autoIndent = preferences.autoIndent
+        autoIndentMode = preferences.autoIndentMode
+        fileAutoDetection = preferences.fileAutoDetection
+        updateSilently = preferences.updateSilently
         scrollBeyondLastLine = preferences.scrollBeyondLastLine
         selectedTextDragDrop = preferences.selectedTextDragDrop
         lineNumberDynamicWidth = preferences.lineNumberDynamicWidth
         columnSelectionToMultiEditing = preferences.columnSelectionToMultiEditing
         muteAllSounds = preferences.muteAllSounds
+        zoomSyncToAllTabs = preferences.zoomSyncToAllTabs
+        hideMenuShortcuts = preferences.hideMenuShortcuts
+        scrollToLastLineOnMonitorReload = preferences.scrollToLastLineOnMonitorReload
+        trimTrailingSpacesOnSave = preferences.trimTrailingSpacesOnSave
+        pasteConvertEndings = preferences.pasteConvertEndings
+        caretStickyMode = preferences.caretStickyMode
+        enableCodeFolding = preferences.enableCodeFolding
+        autoCompleteIgnoreCase = preferences.autoCompleteIgnoreCase
+        smoothFont = preferences.smoothFont
+        multiEditEnabled = preferences.multiEditEnabled
+        multiPasteMode = preferences.multiPasteMode
+        indentGuideMode = preferences.indentGuideMode
+        wordWrapMode = preferences.wordWrapMode
+        additionalSelAlpha = preferences.additionalSelAlpha
+        additionalCaretsBlink = preferences.additionalCaretsBlink
+        additionalCaretsVisible = preferences.additionalCaretsVisible
+        caretLineVisibleAlways = preferences.caretLineVisibleAlways
+        whitespaceSize = preferences.whitespaceSize
+        selectionAlpha = preferences.selectionAlpha
+        controlCharDisplay = preferences.controlCharDisplay
+        currentBidiMode = preferences.bidiMode
         autoCompleteFromNthChar = preferences.autoCompleteFromNthChar
         autoCompleteMode = preferences.autoCompleteMode
         autoCompleteChooseSingle = preferences.autoCompleteChooseSingle
@@ -3677,13 +3779,41 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyAutoCompleteTABFillup(autoCompleteTABFillup)
         editorSurface.applyAutoCompleteEnterCommit(autoCompleteEnterCommit)
         editorSurface.applyAutoCompleteBrief(autoCompleteBrief)
+        editorSurface.applyAutoCompleteIgnoreCase(autoCompleteIgnoreCase)
+        editorSurface.applySmoothFont(smoothFont)
+        editorSurface.applyMultiEditEnabled(multiEditEnabled)
+        editorSurface.applyMultiPasteMode(multiPasteMode)
+        editorSurface.applyAdditionalSelAlpha(additionalSelAlpha)
+        editorSurface.applyAdditionalCaretsBlink(additionalCaretsBlink)
+        editorSurface.applyAdditionalCaretsVisible(additionalCaretsVisible)
+        editorSurface.applyCaretLineVisibleAlways(caretLineVisibleAlways)
+        editorSurface.applyWhitespaceSize(whitespaceSize)
+        editorSurface.applySelectionAlpha(selectionAlpha)
+        editorSurface.applyControlCharDisplay(controlCharDisplay)
+        editorSurface.applyBidirectional(currentBidiMode)
         editorSurface.applyCopyLineWithoutSelection(preferences.copyLineWithoutSelection)
         editorSurface.applyScintillaKeyRemaps(scintillaKeyMapStore.load())
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.lockDragDrop = preferences.tabbarLockDragDrop
         tabBarView.tabMaxLabelLength = preferences.tabbarMaxLabelLength
+        tabBarView.showCloseButton = preferences.tabbarShowCloseButton
+        tabBarView.compactMode = preferences.tabbarCompact
+        tabBarView.showIndexNumbers = preferences.tabbarShowIndexNumbers
+        applyTabBarVisibility(!preferences.tabbarHide)
         configureAutoPair()
         configureUrlHighlight()
+    }
+
+    func applyTabBarVisibility(_ visible: Bool) {
+        tabBarHeightConstraint?.constant = visible ? tabBarView.currentBarHeight : 0
+        tabBarView.isHidden = !visible
+    }
+
+    @objc func toggleTabBarVisibility(_ sender: Any?) {
+        var prefs = preferencesStore.load()
+        prefs = prefs.withTabbarHide(!prefs.tabbarHide)
+        preferencesStore.save(prefs)
+        applyTabBarVisibility(!prefs.tabbarHide)
     }
 
     func reapplyScintillaKeyRemaps() {
@@ -3854,7 +3984,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             menuItem.state = showsEdgeLine ? .on : .off
             return editorSurface.supportsAdvancedViewOptions
         case #selector(zoomRestore(_:)):
-            return fontSize != CGFloat(preferencesStore.load().editorFontSize)
+            return fontSizeZoomDelta != 0
         case #selector(beginOrEndSelect(_:)):
             menuItem.title = beginSelectPosition == nil
                 ? Localization.string(.editBeginSelect, default: "Begin Select")
@@ -3894,6 +4024,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return (pb.types?.contains(.rtf) == true || pb.types?.contains(.rtfd) == true) && !editorSurface.isReadOnly
         case #selector(toggleReadOnly(_:)):
             menuItem.state = editorSurface.isReadOnly ? .on : .off
+            return true
+        case #selector(toggleTabBarVisibility(_:)):
+            menuItem.state = !preferencesStore.load().tabbarHide ? .on : .off
             return true
         case #selector(toggleStatusBar(_:)):
             menuItem.state = showsStatusBar ? .on : .off
@@ -4020,6 +4153,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         tabBarView.onSelectTab = { [weak self] identity in self?.onTabSelect?(identity) }
         tabBarView.onCloseTab = { [weak self] identity in self?.onTabClose?(identity) }
         tabBarView.onTabContextAction = { [weak self] identity, action in self?.onTabContextAction?(identity, action) }
+        tabBarView.onRenameTab = { [weak self] _ in self?.renameDocument(nil) }
         tabBarView.onNewTab = { [weak self] in self?.onNewDocument?() }
         tabBarView.onReorderTab = { [weak self] identity, index in self?.onReorderTab?(identity, index) }
 
@@ -4043,7 +4177,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             tabBarView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             tabBarView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             tabBarView.topAnchor.constraint(equalTo: rootView.topAnchor),
-            tabBarView.heightAnchor.constraint(equalToConstant: EditorTabBarView.barHeight),
+            { tabBarHeightConstraint = tabBarView.heightAnchor.constraint(equalToConstant: EditorTabBarView.barHeight); return tabBarHeightConstraint! }(),
 
             editorSurface.view.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             editorSurface.view.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
@@ -4249,8 +4383,37 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         selfItem(Localization.string(.editSearchOnInternet, default: "Search on Internet"),
                  action: #selector(searchOnInternet(_:)))
+        menu.addItem(.separator())
+
+        // Quick edit actions
+        selfItem(Localization.string(.editDuplicateLineOrSelection, default: "Duplicate Current Line"),
+                 action: #selector(duplicateLineOrSelection(_:)))
+        selfItem(Localization.string(.editLineComment, default: "Toggle Line Comment"),
+                 action: #selector(toggleLineComment(_:)))
+        selfItem(Localization.string(.editBlockComment, default: "Block Comment"),
+                 action: #selector(streamComment(_:)))
+        selfItem(Localization.string(.editBlockUncomment, default: "Block Uncomment"),
+                 action: #selector(streamUncomment(_:)))
+        menu.addItem(.separator())
+
+        // Quick find
+        selfItem(Localization.string(.editFindAll, default: "Find All in Current Document"),
+                 action: #selector(findAllInDocument(_:)))
+        selfItem(Localization.string(.searchFindInFiles, default: "Find in Files..."),
+                 action: #selector(showFindInFilesPanel(_:)))
         selfItem(Localization.string(.editOpenSelectedFile, default: "Open File"),
                  action: #selector(openSelectedFile(_:)))
+        selfItem(Localization.string(.fileOpenContainingFolder, default: "Open Containing Folder"),
+                 action: #selector(openContainingFolder(_:)))
+        menu.addItem(.separator())
+
+        // Clipboard shortcuts for current file
+        selfItem(Localization.string(.editCopyCurrentFullPath, default: "Copy Full Path"),
+                 action: #selector(copyCurrentFullPath(_:)))
+        selfItem(Localization.string(.editCopyCurrentFilename, default: "Copy Filename"),
+                 action: #selector(copyCurrentFilename(_:)))
+        selfItem(Localization.string(.editCopyLink, default: "Copy Link"),
+                 action: #selector(copyLink(_:)))
 
         return menu
     }
@@ -4303,6 +4466,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func handleCharAddedForAutoComplete(_ char: Character) {
+        if isLargeFile && preferencesStore.load().largeFileSuppressAutoComplete { return }
         let threshold = autoCompleteFromNthChar
         guard threshold > 0, autoCompleteMode > 0, char.isLetter || char == "_" || char.isNumber else { return }
         // If ignoring numbers-only char additions when autoCompleteIgnoreNumbers is on
@@ -4420,7 +4584,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var isLargeFile = false
 
     private func load(_ url: URL) throws {
-        let loaded = try TextFileCodec.read(url)
+        let loaded = try TextFileCodec.read(url, openAnsiAsUtf8: preferencesStore.load().openAnsiAsUtf8)
         fileURL = url
         snapshotID = nil
         encoding = loaded.encoding
@@ -4428,6 +4592,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         lineEnding = loaded.lineEnding
         language = LanguageDetector.detect(url: url, in: languageCatalog)
         isLargeFile = loaded.text.utf8.count > largeFileSizeThreshold
+        if isLargeFile && preferencesStore.load().largeFileSuppressWordWrap {
+            editorSurface.applyLineWrapping(false, width: window?.contentView?.bounds.width ?? 0)
+        }
         editorSurface.text = loaded.text
         bookmarks = bookmarks.clamped(toLineCount: documentLineCount())
         editorSurface.syncBookmarkMarkers(bookmarks)
@@ -4464,6 +4631,17 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func save(to url: URL) {
+        if trimTrailingSpacesOnSave {
+            let current = editorSurface.text
+            let result = TextEditCommands.trimTrailingWhitespace(
+                in: current,
+                selectedRange: editorSurface.selectedRange
+            )
+            if result.text != current {
+                editorSurface.text = result.text
+                editorSurface.setSelectedRange(result.selectedRange)
+            }
+        }
         do {
             if backupOnSaveMode != .none, FileManager.default.fileExists(atPath: url.path),
                let backupURL = BackupPathBuilder.backupURL(
@@ -4718,7 +4896,6 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func saveCurrentEditorPreferences() {
         let preferences = preferencesStore.load()
-            .withEditorFontSize(Double(fontSize))
             .withWrapsLines(wrapsLines)
             .withViewToggles(
                 showWhitespace: whitespaceMode != .invisible,
@@ -4736,6 +4913,28 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 showNpcCharacters: showsNpcCharacters,
                 showBookmarkMargin: showsBookmarkMargin
             )
+            .withWhitespaceDisplayMode(whitespaceMode.rawValue)
+            .withBidiMode(currentBidiMode)
+            .withSmoothFont(smoothFont)
+            .withMultiEditEnabled(multiEditEnabled)
+            .withMultiPasteMode(multiPasteMode)
+            .withIndentGuideMode(indentGuideMode)
+            .withWordWrapMode(wordWrapMode)
+            .withAdditionalSelAlpha(additionalSelAlpha)
+            .withAdditionalCaretsBlink(additionalCaretsBlink)
+            .withAdditionalCaretsVisible(additionalCaretsVisible)
+            .withCaretLineVisibleAlways(caretLineVisibleAlways)
+            .withWhitespaceSize(whitespaceSize)
+            .withSelectionAlpha(selectionAlpha)
+            .withControlCharDisplay(controlCharDisplay)
+            .withAutoIndentMode(autoIndentMode)
+            .withFileAutoDetection(fileAutoDetection)
+            .withUpdateSilently(updateSilently)
+            .withZoomSyncToAllTabs(zoomSyncToAllTabs)
+            .withHideMenuShortcuts(hideMenuShortcuts)
+            .withScrollToLastLineOnMonitorReload(scrollToLastLineOnMonitorReload)
+            .withXmlTagAttributeHighlight(xmlTagAttributeHighlight)
+            .withHighlightNonHtmlZone(highlightNonHtmlZone)
         preferencesStore.save(preferences)
     }
 
@@ -5029,12 +5228,22 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func applyFont() {
-        editorSurface.applyFont(size: fontSize)
+        editorSurface.applyFont(name: editorFontName, size: fontSize, bold: editorFontBold)
         highlight()
     }
 
     private func applyLineWrapping() {
-        editorSurface.applyLineWrapping(wrapsLines, width: window?.contentView?.bounds.width ?? 0)
+        let width = window?.contentView?.bounds.width ?? 0
+        if wrapsLines {
+            // Use the configured word wrap mode (1=word, 2=whitespace, 3=character)
+            editorSurface.applyLineWrapping(true, width: width)
+            // Also send the exact mode via the mode-aware method
+            if editorSurface.supportsAdvancedViewOptions {
+                editorSurface.applyWordWrapMode(wordWrapMode)
+            }
+        } else {
+            editorSurface.applyLineWrapping(false, width: width)
+        }
         editorSurface.applyLineWrapIndent(lineWrapIndent)
     }
 
@@ -5044,7 +5253,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             editorSurface.applyShowWhitespace(mode: whitespaceMode.rawValue)
         }
         editorSurface.applyShowEOL(showsEOL)
-        editorSurface.applyIndentGuides(showsIndentGuides)
+        if showsIndentGuides {
+            editorSurface.applyIndentGuides(mode: indentGuideMode)
+        } else {
+            editorSurface.applyIndentGuides(false)
+        }
         editorSurface.applyCurrentLineHighlight(highlightsCurrentLine)
         editorSurface.applyWrapSymbol(showsWrapSymbol)
         editorSurface.applyChangeHistory(showsChangeHistory)
@@ -5052,15 +5265,19 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             editorSurface.applyNpcDisplay(showsNpcCharacters)
         }
         editorSurface.applyCaretWidth(caretWidth)
-        editorSurface.applyCaretNoBlink(caretNoBlink)
+        editorSurface.applyCaretPeriod(caretNoBlink ? 0 : caretBlinkRate)
         editorSurface.applyAdditionalEdgeColumns(additionalEdgeColumns)
         editorSurface.applyCurrentLineFrameWidth(currentLineFrameWidth)
         editorSurface.applyFoldMarginStyle(foldMarginStyle)
+        editorSurface.applyCodeFolding(enableCodeFolding)
         editorSurface.applyVirtualSpace(enableVirtualSpace)
         editorSurface.applyBackspaceUnindents(backspaceUnindents)
         editorSurface.applyAutoIndent(autoIndent)
+        editorSurface.applyAutoIndentMode(autoIndentMode)
         editorSurface.applyScrollBeyondLastLine(scrollBeyondLastLine)
         editorSurface.applySelectedTextDragDrop(selectedTextDragDrop)
+        editorSurface.applyPasteConvertEndings(pasteConvertEndings)
+        editorSurface.applyCaretStickyMode(caretStickyMode)
         editorSurface.applyLineNumberDynamicWidth(lineNumberDynamicWidth)
         editorSurface.applyColumnSelectionToMultiEditing(columnSelectionToMultiEditing)
         editorSurface.applyLinePadding(linePadding)
@@ -5099,6 +5316,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func highlight() {
+        guard !isLargeFile || !preferencesStore.load().largeFileSuppressSyntaxHighlight else { return }
         editorSurface.applyHighlight(
             language: language,
             styleCatalog: styleCatalog,
@@ -5157,12 +5375,17 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func reloadForMonitoring() {
         guard let url = fileURL else { return }
         do {
-            let loaded = try TextFileCodec.read(url)
+            let previousRange = reloadScrollToLastCaret ? editorSurface.selectedRange : nil
+            let loaded = try TextFileCodec.read(url, openAnsiAsUtf8: preferencesStore.load().openAnsiAsUtf8)
             fileChangeSnapshot = FileChangeSnapshot.captureIfPresent(url)
             editorSurface.text = loaded.text
-            // Scroll to end
-            let endRange = NSRange(location: (loaded.text as NSString).length, length: 0)
-            editorSurface.setSelectedRange(endRange)
+            if let saved = previousRange {
+                let clamped = NSRange(location: min(saved.location, (loaded.text as NSString).length), length: 0)
+                editorSurface.setSelectedRange(clamped)
+            } else {
+                let endRange = NSRange(location: (loaded.text as NSString).length, length: 0)
+                editorSurface.setSelectedRange(endRange)
+            }
             updateStatus()
             highlight()
         } catch {
@@ -5243,8 +5466,18 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func reloadMonitoredFileFromDisk() {
         guard let fileURL else { return }
 
+        let previousRange = reloadScrollToLastCaret ? editorSurface.selectedRange : nil
         do {
             try load(fileURL)
+            if scrollToLastLineOnMonitorReload {
+                // Scroll to last line of file
+                let textLen = (editorSurface.text as NSString).length
+                editorSurface.setSelectedRange(NSRange(location: textLen, length: 0))
+            } else if let saved = previousRange {
+                let textLen = (editorSurface.text as NSString).length
+                let clamped = NSRange(location: min(saved.location, textLen), length: 0)
+                editorSurface.setSelectedRange(clamped)
+            }
         } catch {
             presentError(error)
         }

@@ -232,4 +232,600 @@ final class PreferencesEnhancementTests: XCTestCase {
         let prefs = AppPreferences(muteAllSounds: false)
         XCTAssertFalse(prefs.muteAllSounds)
     }
+
+    // MARK: - Large File Performance Suppression
+
+    func testLargeFileSuppressAutoCompleteDefault() {
+        XCTAssertTrue(AppPreferences().largeFileSuppressAutoComplete)
+    }
+
+    func testLargeFileSuppressSmartHighlightDefault() {
+        XCTAssertTrue(AppPreferences().largeFileSuppressSmartHighlight)
+    }
+
+    func testLargeFileSuppressBraceMatchDefault() {
+        XCTAssertTrue(AppPreferences().largeFileSuppressBraceMatch)
+    }
+
+    func testLargeFileSuppressAutoCompleteRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.largeFileSuppressAC.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(largeFileSuppressAutoComplete: false))
+        XCTAssertFalse(store.load().largeFileSuppressAutoComplete)
+    }
+
+    func testLargeFileSuppressSmartHighlightRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.largeFileSuppressSH.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(largeFileSuppressSmartHighlight: false))
+        XCTAssertFalse(store.load().largeFileSuppressSmartHighlight)
+    }
+
+    func testLargeFileSuppressBraceMatchRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.largeFileSuppressBM.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(largeFileSuppressBraceMatch: false))
+        XCTAssertFalse(store.load().largeFileSuppressBraceMatch)
+    }
+
+    func testLargeFileSuppressWordWrapDefault() {
+        XCTAssertTrue(AppPreferences().largeFileSuppressWordWrap)
+    }
+
+    func testLargeFileSuppressWordWrapRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.largeFileSuppressWW.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(largeFileSuppressWordWrap: false))
+        XCTAssertFalse(store.load().largeFileSuppressWordWrap)
+    }
+
+    func testLargeFileSuppressSyntaxHighlightDefault() {
+        XCTAssertTrue(AppPreferences().largeFileSuppressSyntaxHighlight)
+    }
+
+    func testLargeFileSuppressSyntaxHighlightRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.largeFileSuppressSH2.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(largeFileSuppressSyntaxHighlight: false))
+        XCTAssertFalse(store.load().largeFileSuppressSyntaxHighlight)
+    }
+
+    // MARK: - Tab Bar Hide
+
+    func testTabbarHideDefault() {
+        XCTAssertFalse(AppPreferences().tabbarHide)
+    }
+
+    func testTabbarHideRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.tabbarHide.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(tabbarHide: true))
+        XCTAssertTrue(store.load().tabbarHide)
+    }
+
+    // MARK: - Reload Scroll To Last Caret
+
+    func testReloadScrollToLastCaretDefault() {
+        XCTAssertFalse(AppPreferences().reloadScrollToLastCaret)
+    }
+
+    func testReloadScrollToLastCaretRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.reloadScrollToLastCaret.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(reloadScrollToLastCaret: true))
+        XCTAssertTrue(store.load().reloadScrollToLastCaret)
+    }
+
+    // MARK: - Tab Bar Show Close Button
+
+    func testTabbarShowCloseButtonDefault() {
+        XCTAssertTrue(AppPreferences().tabbarShowCloseButton)
+    }
+
+    func testTabbarShowCloseButtonRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.tabbarShowCloseButton.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(tabbarShowCloseButton: false))
+        XCTAssertFalse(store.load().tabbarShowCloseButton)
+    }
+
+    // MARK: - Editor Font Name and Bold
+
+    func testEditorFontNameDefault() {
+        XCTAssertEqual(AppPreferences().editorFontName, "")
+    }
+
+    func testEditorFontNameRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.editorFontName.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(editorFontName: "Courier New"))
+        XCTAssertEqual(store.load().editorFontName, "Courier New")
+    }
+
+    func testEditorFontBoldDefault() {
+        XCTAssertFalse(AppPreferences().editorFontBold)
+    }
+
+    func testEditorFontBoldRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.editorFontBold.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(editorFontBold: true))
+        XCTAssertTrue(store.load().editorFontBold)
+    }
+
+    // MARK: - Confirm Replace In All Docs
+
+    func testConfirmReplaceInAllDocsDefault() {
+        XCTAssertTrue(AppPreferences().confirmReplaceInAllDocs)
+    }
+
+    func testConfirmReplaceInAllDocsRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.confirmReplaceInAllDocs.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(confirmReplaceInAllDocs: false))
+        XCTAssertFalse(store.load().confirmReplaceInAllDocs)
+    }
+
+    // MARK: - Max Find History Count
+
+    func testMaxFindHistoryCountDefault() {
+        XCTAssertEqual(AppPreferences().maxFindHistoryCount, 20)
+    }
+
+    func testMaxFindHistoryCountClampedAndRoundtrip() {
+        XCTAssertEqual(AppPreferences(maxFindHistoryCount: 0).maxFindHistoryCount, 1)
+        XCTAssertEqual(AppPreferences(maxFindHistoryCount: 100).maxFindHistoryCount, 50)
+
+        let defaults = UserDefaults(suiteName: "test.maxFindHistoryCount.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(maxFindHistoryCount: 30))
+        XCTAssertEqual(store.load().maxFindHistoryCount, 30)
+    }
+
+    // MARK: - Caret Blink Rate
+
+    func testCaretBlinkRateDefault() {
+        XCTAssertEqual(AppPreferences().caretBlinkRate, 500)
+    }
+
+    func testCaretBlinkRateClampedAndRoundtrip() {
+        XCTAssertEqual(AppPreferences(caretBlinkRate: 50).caretBlinkRate, 100)
+        XCTAssertEqual(AppPreferences(caretBlinkRate: 5000).caretBlinkRate, 2000)
+
+        let defaults = UserDefaults(suiteName: "test.caretBlinkRate.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(caretBlinkRate: 800))
+        XCTAssertEqual(store.load().caretBlinkRate, 800)
+    }
+
+    // MARK: - Trim Trailing Spaces on Save
+
+    func testTrimTrailingSpacesOnSaveDefault() {
+        XCTAssertFalse(AppPreferences().trimTrailingSpacesOnSave)
+    }
+
+    func testTrimTrailingSpacesOnSaveRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.trimTrailingSpacesOnSave.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(trimTrailingSpacesOnSave: true))
+        XCTAssertTrue(store.load().trimTrailingSpacesOnSave)
+    }
+
+    // MARK: - Paste Convert Endings
+
+    func testPasteConvertEndingsDefault() {
+        XCTAssertTrue(AppPreferences().pasteConvertEndings)
+    }
+
+    func testPasteConvertEndingsRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.pasteConvertEndings.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(pasteConvertEndings: false))
+        XCTAssertFalse(store.load().pasteConvertEndings)
+    }
+
+    // MARK: - Caret Sticky Mode
+
+    func testCaretStickyModeDefault() {
+        XCTAssertEqual(AppPreferences().caretStickyMode, 0)
+    }
+
+    func testCaretStickyModeRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.caretStickyMode.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(caretStickyMode: 2))
+        XCTAssertEqual(store.load().caretStickyMode, 2)
+    }
+
+    // MARK: - Enable Code Folding
+
+    func testEnableCodeFoldingDefault() {
+        XCTAssertTrue(AppPreferences().enableCodeFolding)
+    }
+
+    func testEnableCodeFoldingRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.enableCodeFolding.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(enableCodeFolding: false))
+        XCTAssertFalse(store.load().enableCodeFolding)
+    }
+
+    // MARK: - Auto-Complete Ignore Case
+
+    func testAutoCompleteIgnoreCaseDefault() {
+        XCTAssertTrue(AppPreferences().autoCompleteIgnoreCase)
+    }
+
+    func testAutoCompleteIgnoreCaseRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.autoCompleteIgnoreCase.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(autoCompleteIgnoreCase: false))
+        XCTAssertFalse(store.load().autoCompleteIgnoreCase)
+    }
+
+    // MARK: - Whitespace Display Mode
+
+    func testWhitespaceDisplayModeDefault() {
+        XCTAssertEqual(AppPreferences().whitespaceDisplayMode, 0)
+    }
+
+    func testWhitespaceDisplayModeRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.whitespaceDisplayMode.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(whitespaceDisplayMode: 2))
+        XCTAssertEqual(store.load().whitespaceDisplayMode, 2)
+    }
+
+    // MARK: - Bidi Mode
+
+    func testBidiModeDefault() {
+        XCTAssertEqual(AppPreferences().bidiMode, 0)
+    }
+
+    func testBidiModeRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.bidiMode.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(bidiMode: 2))
+        XCTAssertEqual(store.load().bidiMode, 2)
+    }
+
+    // MARK: - Smooth Font
+
+    func testSmoothFontDefault() {
+        XCTAssertTrue(AppPreferences().smoothFont, "Default smooth font should be true")
+    }
+
+    func testSmoothFontRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.smoothFont.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(smoothFont: false))
+        XCTAssertFalse(store.load().smoothFont)
+    }
+
+    // MARK: - Multi-Edit Enabled
+
+    func testMultiEditEnabledDefault() {
+        XCTAssertTrue(AppPreferences().multiEditEnabled, "Default multi-edit should be true")
+    }
+
+    func testMultiEditEnabledRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.multiEditEnabled.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(multiEditEnabled: false))
+        XCTAssertFalse(store.load().multiEditEnabled)
+    }
+
+    // MARK: - Multi-Paste Mode
+
+    func testMultiPasteModeDefault() {
+        XCTAssertEqual(AppPreferences().multiPasteMode, 1, "Default multi-paste mode should be 1 (each)")
+    }
+
+    func testMultiPasteModeClampedAndRoundtrip() {
+        let clamped = AppPreferences(multiPasteMode: 99)
+        XCTAssertEqual(clamped.multiPasteMode, 1, "Should clamp to max 1")
+        let negative = AppPreferences(multiPasteMode: -1)
+        XCTAssertEqual(negative.multiPasteMode, 0, "Should clamp to min 0")
+        let defaults = UserDefaults(suiteName: "test.multiPasteMode.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(multiPasteMode: 0))
+        XCTAssertEqual(store.load().multiPasteMode, 0)
+    }
+
+    // MARK: - Indent Guide Mode
+
+    func testIndentGuideModeDefault() {
+        XCTAssertEqual(AppPreferences().indentGuideMode, 2, "Default indent guide mode should be 2 (lookForward)")
+    }
+
+    func testIndentGuideModeClampedAndRoundtrip() {
+        let clamped = AppPreferences(indentGuideMode: 99)
+        XCTAssertEqual(clamped.indentGuideMode, 3, "Should clamp to max 3")
+        let negative = AppPreferences(indentGuideMode: -1)
+        XCTAssertEqual(negative.indentGuideMode, 0, "Should clamp to min 0")
+        let defaults = UserDefaults(suiteName: "test.indentGuideMode.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(indentGuideMode: 3))
+        XCTAssertEqual(store.load().indentGuideMode, 3)
+    }
+
+    // MARK: - Word Wrap Mode
+
+    func testWordWrapModeDefault() {
+        XCTAssertEqual(AppPreferences().wordWrapMode, 1, "Default word wrap mode should be 1 (word)")
+    }
+
+    func testWordWrapModeClampedAndRoundtrip() {
+        let clamped = AppPreferences(wordWrapMode: 99)
+        XCTAssertEqual(clamped.wordWrapMode, 3, "Should clamp to max 3")
+        let negative = AppPreferences(wordWrapMode: -1)
+        XCTAssertEqual(negative.wordWrapMode, 0, "Should clamp to min 0")
+        let defaults = UserDefaults(suiteName: "test.wordWrapMode.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(wordWrapMode: 2))
+        XCTAssertEqual(store.load().wordWrapMode, 2)
+    }
+
+    // MARK: - Additional Selection Alpha
+
+    func testAdditionalSelAlphaDefault() {
+        XCTAssertEqual(AppPreferences().additionalSelAlpha, 256, "Default should be 256 (opaque)")
+    }
+
+    func testAdditionalSelAlphaClampedAndRoundtrip() {
+        let clamped = AppPreferences(additionalSelAlpha: 999)
+        XCTAssertEqual(clamped.additionalSelAlpha, 256, "Should clamp to max 256")
+        let negative = AppPreferences(additionalSelAlpha: -5)
+        XCTAssertEqual(negative.additionalSelAlpha, 0, "Should clamp to min 0")
+        let defaults = UserDefaults(suiteName: "test.additionalSelAlpha.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(additionalSelAlpha: 128))
+        XCTAssertEqual(store.load().additionalSelAlpha, 128)
+    }
+
+    // MARK: - Additional Carets Blink
+
+    func testAdditionalCaretsBlinkDefault() {
+        XCTAssertTrue(AppPreferences().additionalCaretsBlink, "Default should be true")
+    }
+
+    func testAdditionalCaretsBlinkRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.additionalCaretsBlink.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(additionalCaretsBlink: false))
+        XCTAssertFalse(store.load().additionalCaretsBlink)
+    }
+
+    // MARK: - Additional Carets Visible
+
+    func testAdditionalCaretsVisibleDefault() {
+        XCTAssertTrue(AppPreferences().additionalCaretsVisible, "Default should be true")
+    }
+
+    func testAdditionalCaretsVisibleRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.additionalCaretsVisible.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(additionalCaretsVisible: false))
+        XCTAssertFalse(store.load().additionalCaretsVisible)
+    }
+
+    // MARK: - Caret Line Visible Always
+
+    func testCaretLineVisibleAlwaysDefault() {
+        XCTAssertFalse(AppPreferences().caretLineVisibleAlways, "Default should be false")
+    }
+
+    func testCaretLineVisibleAlwaysRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.caretLineVisibleAlways.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(caretLineVisibleAlways: true))
+        XCTAssertTrue(store.load().caretLineVisibleAlways)
+    }
+
+    // MARK: - Whitespace Size
+
+    func testWhitespaceSizeDefault() {
+        XCTAssertEqual(AppPreferences().whitespaceSize, 1, "Default should be 1")
+    }
+
+    func testWhitespaceSizeClampedAndRoundtrip() {
+        let clamped = AppPreferences(whitespaceSize: 99)
+        XCTAssertEqual(clamped.whitespaceSize, 5, "Should clamp to max 5")
+        let zero = AppPreferences(whitespaceSize: 0)
+        XCTAssertEqual(zero.whitespaceSize, 1, "Should clamp to min 1")
+        let defaults = UserDefaults(suiteName: "test.whitespaceSize.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(whitespaceSize: 3))
+        XCTAssertEqual(store.load().whitespaceSize, 3)
+    }
+
+    // MARK: - Selection Alpha
+
+    func testSelectionAlphaDefault() {
+        XCTAssertEqual(AppPreferences().selectionAlpha, 256, "Default should be 256 (opaque)")
+    }
+
+    func testSelectionAlphaClampedAndRoundtrip() {
+        let clamped = AppPreferences(selectionAlpha: 999)
+        XCTAssertEqual(clamped.selectionAlpha, 256, "Should clamp to max 256")
+        let negative = AppPreferences(selectionAlpha: -5)
+        XCTAssertEqual(negative.selectionAlpha, 0, "Should clamp to min 0")
+        let defaults = UserDefaults(suiteName: "test.selectionAlpha.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(selectionAlpha: 128))
+        XCTAssertEqual(store.load().selectionAlpha, 128)
+    }
+
+    // MARK: - Control Char Display
+
+    func testControlCharDisplayDefault() {
+        XCTAssertEqual(AppPreferences().controlCharDisplay, 0, "Default should be 0 (glyph)")
+    }
+
+    func testControlCharDisplayClampedAndRoundtrip() {
+        let clamped = AppPreferences(controlCharDisplay: 99)
+        XCTAssertEqual(clamped.controlCharDisplay, 6, "Should clamp to max 6")
+        let negative = AppPreferences(controlCharDisplay: -1)
+        XCTAssertEqual(negative.controlCharDisplay, 0, "Should clamp to min 0")
+        let defaults = UserDefaults(suiteName: "test.controlCharDisplay.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(controlCharDisplay: 3))
+        XCTAssertEqual(store.load().controlCharDisplay, 3)
+    }
+
+    // MARK: - Auto-Indent Mode
+
+    func testAutoIndentModeDefault() {
+        XCTAssertEqual(AppPreferences().autoIndentMode, 1, "Default should be 1 (basic)")
+    }
+
+    func testAutoIndentModeClampedAndRoundtrip() {
+        let clamped = AppPreferences(autoIndentMode: 99)
+        XCTAssertEqual(clamped.autoIndentMode, 2, "Should clamp to max 2")
+        let negative = AppPreferences(autoIndentMode: -1)
+        XCTAssertEqual(negative.autoIndentMode, 0, "Should clamp to min 0")
+        let defaults = UserDefaults(suiteName: "test.autoIndentMode.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(autoIndentMode: 2))
+        XCTAssertEqual(store.load().autoIndentMode, 2)
+    }
+
+    // MARK: - File Auto-Detection
+
+    func testFileAutoDetectionDefault() {
+        XCTAssertEqual(AppPreferences().fileAutoDetection, 1, "Default should be 1 (on-activate)")
+    }
+
+    func testFileAutoDetectionClampedAndRoundtrip() {
+        let clamped = AppPreferences(fileAutoDetection: 99)
+        XCTAssertEqual(clamped.fileAutoDetection, 2, "Should clamp to max 2")
+        let negative = AppPreferences(fileAutoDetection: -1)
+        XCTAssertEqual(negative.fileAutoDetection, 0, "Should clamp to min 0")
+        let defaults = UserDefaults(suiteName: "test.fileAutoDetection.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(fileAutoDetection: 2))
+        XCTAssertEqual(store.load().fileAutoDetection, 2)
+    }
+
+    // MARK: - Update Silently
+
+    func testUpdateSilentlyDefault() {
+        XCTAssertFalse(AppPreferences().updateSilently, "Default should be false")
+    }
+
+    func testUpdateSilentlyRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.updateSilently.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(updateSilently: true))
+        XCTAssertTrue(store.load().updateSilently)
+    }
+
+    // MARK: - Zoom Sync To All Tabs
+
+    func testZoomSyncToAllTabsDefault() {
+        XCTAssertFalse(AppPreferences().zoomSyncToAllTabs, "Default should be false")
+    }
+
+    func testZoomSyncToAllTabsRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.zoomSyncToAllTabs.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(zoomSyncToAllTabs: true))
+        XCTAssertTrue(store.load().zoomSyncToAllTabs)
+    }
+
+    // MARK: - Hide Menu Shortcuts
+
+    func testHideMenuShortcutsDefault() {
+        XCTAssertFalse(AppPreferences().hideMenuShortcuts, "Default should be false")
+    }
+
+    func testHideMenuShortcutsRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.hideMenuShortcuts.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(hideMenuShortcuts: true))
+        XCTAssertTrue(store.load().hideMenuShortcuts)
+    }
+
+    // MARK: - Scroll To Last Line On Monitor Reload
+
+    func testScrollToLastLineOnMonitorReloadDefault() {
+        XCTAssertFalse(AppPreferences().scrollToLastLineOnMonitorReload, "Default should be false")
+    }
+
+    func testScrollToLastLineOnMonitorReloadRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.scrollToLastLineOnMonitorReload.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(scrollToLastLineOnMonitorReload: true))
+        XCTAssertTrue(store.load().scrollToLastLineOnMonitorReload)
+    }
+
+    // MARK: - Tabbar Compact
+
+    func testTabbarCompactDefaultIsFalse() {
+        let prefs = AppPreferences()
+        XCTAssertFalse(prefs.tabbarCompact)
+    }
+
+    func testTabbarCompactRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.tabbarCompact.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(tabbarCompact: true))
+        XCTAssertTrue(store.load().tabbarCompact)
+    }
+
+    // MARK: - Open ANSI as UTF-8
+
+    func testOpenAnsiAsUtf8Default() {
+        let prefs = AppPreferences()
+        XCTAssertFalse(prefs.openAnsiAsUtf8, "Default openAnsiAsUtf8 should be false")
+    }
+
+    func testOpenAnsiAsUtf8Roundtrip() {
+        let defaults = UserDefaults(suiteName: "test.openAnsiAsUtf8.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(openAnsiAsUtf8: true))
+        XCTAssertTrue(store.load().openAnsiAsUtf8)
+    }
+
+    // MARK: - XML Tag Attribute Highlight
+
+    func testXmlTagAttributeHighlightDefault() {
+        let prefs = AppPreferences()
+        XCTAssertTrue(prefs.xmlTagAttributeHighlight, "Default xmlTagAttributeHighlight should be true")
+    }
+
+    func testXmlTagAttributeHighlightRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.xmlTagAttrHighlight.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(xmlTagAttributeHighlight: false))
+        XCTAssertFalse(store.load().xmlTagAttributeHighlight)
+    }
+
+    // MARK: - Highlight Non-HTML Zone
+
+    func testHighlightNonHtmlZoneDefault() {
+        let prefs = AppPreferences()
+        XCTAssertFalse(prefs.highlightNonHtmlZone, "Default highlightNonHtmlZone should be false")
+    }
+
+    func testHighlightNonHtmlZoneRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.highlightNonHtmlZone.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(highlightNonHtmlZone: true))
+        XCTAssertTrue(store.load().highlightNonHtmlZone)
+    }
+
+    // MARK: - Default Save Directory
+
+    func testDefaultSaveDirectoryDefault() {
+        let prefs = AppPreferences()
+        XCTAssertEqual(prefs.defaultSaveDirectory, "", "Default save directory should be empty string")
+    }
+
+    func testDefaultSaveDirectoryRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.defaultSaveDir.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(defaultSaveDirectory: "/Users/test/Documents"))
+        XCTAssertEqual(store.load().defaultSaveDirectory, "/Users/test/Documents")
+    }
 }

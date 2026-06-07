@@ -6,6 +6,8 @@ import Foundation
 
 enum TabContextAction {
     case closeOthers
+    case closeAllButPinned
+    case closeUnchanged
     case closeToLeft
     case closeToRight
     case copyFilename
@@ -31,9 +33,16 @@ enum TabContextAction {
 @MainActor
 final class EditorTabBarView: NSView {
     static let barHeight: CGFloat = 28
+    static let compactBarHeight: CGFloat = 22
+    static let normalTabFontSize: CGFloat = 12
+    static let compactTabFontSize: CGFloat = 10
+
+    /// Current effective bar height based on compactMode
+    var currentBarHeight: CGFloat { compactMode ? Self.compactBarHeight : Self.barHeight }
 
     var onSelectTab: ((EditorTabIdentity) -> Void)?
     var onCloseTab: ((EditorTabIdentity) -> Void)?
+    var onRenameTab: ((EditorTabIdentity) -> Void)?
     var onTabContextAction: ((EditorTabIdentity, TabContextAction) -> Void)?
     var onNewTab: (() -> Void)?
     /// Called when user drags a tab to a new position. Args: identity, target index.
@@ -44,6 +53,16 @@ final class EditorTabBarView: NSView {
     var tabMaxLabelLength = 0
     /// When true, drag-drop tab reordering is disabled
     var lockDragDrop = false
+    /// When false, the close (×) button is hidden on all tabs
+    var showCloseButton = true
+    /// When true, use compact/reduced style (smaller height and font)
+    var compactMode = false {
+        didSet { applyCompactStyle() }
+    }
+    /// When true, show tab index numbers (1-9) in tab labels
+    var showIndexNumbers = false {
+        didSet { rebuildTabs() }
+    }
     /// Optional custom tab context menu spec loaded from tabContextMenu.xml
     var tabContextMenuSpec: TabContextMenuSpec?
 
@@ -135,8 +154,10 @@ final class EditorTabBarView: NSView {
     @objc private func overflowButtonClicked(_ sender: Any?) {
         guard !state.items.isEmpty else { return }
         let menu = NSMenu(title: "")
-        for item in state.items {
-            let prefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
+        for (index, item) in state.items.enumerated() {
+            let statusPrefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
+            let indexPrefix = (showIndexNumbers && index < 9) ? "\(index + 1): " : ""
+            let prefix = indexPrefix + statusPrefix
             let it = ClosureMenuItem(title: prefix + item.title) { [weak self] in
                 self?.onSelectTab?(item.identity)
             }
@@ -223,6 +244,19 @@ final class EditorTabBarView: NSView {
         rebuildTabs()
     }
 
+    private func applyCompactStyle() {
+        let fontSize = compactMode ? Self.compactTabFontSize : Self.normalTabFontSize
+        invalidateIntrinsicContentSize()
+        // Update existing tab buttons
+        for btn in tabButtons {
+            btn.compactMode = compactMode
+        }
+        // Update new-tab button font
+        newTabButton.font = .systemFont(ofSize: fontSize, weight: .light)
+        // Trigger relayout
+        needsLayout = true
+    }
+
     private func rebuildTabs() {
         tabButtons.forEach { $0.removeFromSuperview() }
         tabButtons.removeAll()
@@ -234,11 +268,12 @@ final class EditorTabBarView: NSView {
         let tabMaxWidth = min(EditorTabButton.absoluteMaxWidth, halfBarWidth)
 
         var x: CGFloat = 0
-        for item in state.items {
+        for (index, item) in state.items.enumerated() {
             let isActive = item.identity == state.activeIdentity
             let btn = EditorTabButton(
                 item: item,
                 isActive: isActive,
+                tabIndex: showIndexNumbers ? index + 1 : nil,
                 onSelect: { [weak self] in self?.onSelectTab?(item.identity) },
                 onClose: { [weak self] in self?.onCloseTab?(item.identity) },
                 onContextAction: { [weak self] action in self?.onTabContextAction?(item.identity, action) }
@@ -247,15 +282,17 @@ final class EditorTabBarView: NSView {
             btn.maxLabelLength = tabMaxLabelLength
             btn.dynamicMaxWidth = tabMaxWidth
             btn.tabContextMenuSpec = tabContextMenuSpec
+            btn.showCloseButton = showCloseButton
+            btn.onRename = { [weak self] in self?.onRenameTab?(item.identity) }
             let w = btn.preferredWidth
-            btn.frame = CGRect(x: x, y: 0, width: w, height: Self.barHeight)
+            btn.frame = CGRect(x: x, y: 0, width: w, height: currentBarHeight)
             documentView.addSubview(btn)
             tabButtons.append(btn)
             x += w
         }
 
         let totalWidth = max(x, scrollView.bounds.width)
-        documentView.frame = CGRect(x: 0, y: 0, width: totalWidth, height: Self.barHeight)
+        documentView.frame = CGRect(x: 0, y: 0, width: totalWidth, height: currentBarHeight)
 
         // Show overflow button when tabs exceed the visible scroll area.
         let needsOverflow = x > validBarWidth
@@ -300,7 +337,7 @@ final class EditorTabBarView: NSView {
             }
             return
         }
-        documentView.frame = CGRect(x: 0, y: 0, width: max(documentView.frame.width, w), height: Self.barHeight)
+        documentView.frame = CGRect(x: 0, y: 0, width: max(documentView.frame.width, w), height: currentBarHeight)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -311,7 +348,7 @@ final class EditorTabBarView: NSView {
     }
 
     override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: Self.barHeight)
+        NSSize(width: NSView.noIntrinsicMetric, height: compactMode ? Self.compactBarHeight : Self.barHeight)
     }
 }
 
@@ -330,9 +367,12 @@ final class EditorTabButton: NSView {
 
     let item: EditorTabItem
     private let isActive: Bool
+    /// Optional 1-based tab index for display (nil = don't show)
+    private let tabIndex: Int?
     private let onSelect: () -> Void
     private let onClose: () -> Void
     private let onContextAction: (TabContextAction) -> Void
+    var onRename: (() -> Void)?
 
     private let titleLabel = NSTextField(labelWithString: "")
     private let pinBtn = NSButton()
@@ -347,10 +387,17 @@ final class EditorTabButton: NSView {
     var maxLabelLength = 0
     /// Optional XML-driven tab context menu spec
     var tabContextMenuSpec: TabContextMenuSpec?
+    /// When false, the close (×) button is never shown on this tab
+    var showCloseButton = true
+    /// When true, use compact style (smaller font)
+    var compactMode = false {
+        didSet { titleLabel.font = .systemFont(ofSize: compactMode ? EditorTabBarView.compactTabFontSize : EditorTabBarView.normalTabFontSize) }
+    }
 
-    init(item: EditorTabItem, isActive: Bool, onSelect: @escaping () -> Void, onClose: @escaping () -> Void, onContextAction: @escaping (TabContextAction) -> Void) {
+    init(item: EditorTabItem, isActive: Bool, tabIndex: Int? = nil, onSelect: @escaping () -> Void, onClose: @escaping () -> Void, onContextAction: @escaping (TabContextAction) -> Void) {
         self.item = item
         self.isActive = isActive
+        self.tabIndex = tabIndex
         self.onSelect = onSelect
         self.onClose = onClose
         self.onContextAction = onContextAction
@@ -362,7 +409,14 @@ final class EditorTabButton: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     private func setupViews() {
-        let prefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
+        let statusPrefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
+        let indexPrefix: String
+        if let idx = tabIndex, idx <= 9 {
+            indexPrefix = "\(idx): "
+        } else {
+            indexPrefix = ""
+        }
+        let prefix = indexPrefix + statusPrefix
         let rawTitle = item.title
         let truncatedTitle = maxLabelLength > 0 && rawTitle.count > maxLabelLength
             ? String(rawTitle.prefix(maxLabelLength)) + "…"
@@ -404,15 +458,17 @@ final class EditorTabButton: NSView {
         closeBtn.bezelStyle = .inline
         closeBtn.isBordered = false
         closeBtn.alphaValue = 0.55
-        closeBtn.isHidden = !isActive
+        closeBtn.isHidden = !showCloseButton || !isActive
         closeBtn.target = self
         closeBtn.action = #selector(closeTapped)
         addSubview(closeBtn)
     }
 
     var preferredWidth: CGFloat {
-        let prefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
-        let text = prefix + item.title
+        let statusPrefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
+        let indexPrefix: String
+        if let idx = tabIndex, idx <= 9 { indexPrefix = "\(idx): " } else { indexPrefix = "" }
+        let text = indexPrefix + statusPrefix + item.title
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12)]
         let textW = (text as NSString).size(withAttributes: attrs).width
         // Always reserve space for pin button because it appears on hover even when unpinned.
@@ -459,8 +515,17 @@ final class EditorTabButton: NSView {
     override func mouseDown(with event: NSEvent) {
         let loc = convert(event.locationInWindow, from: nil)
         if closeBtn.frame.insetBy(dx: -4, dy: -4).contains(loc) { return }
+        // Middle-click closes the tab
+        if event.buttonNumber == 2 {
+            onClose()
+            return
+        }
         if event.clickCount == 2 && doubleClickClosesTab {
             onClose()
+            return
+        }
+        if event.clickCount == 2 && !doubleClickClosesTab {
+            onRename?()
             return
         }
         onSelect()
@@ -468,7 +533,7 @@ final class EditorTabButton: NSView {
 
     override func mouseEntered(with event: NSEvent) {
         isHovered = true
-        closeBtn.isHidden = false
+        closeBtn.isHidden = !showCloseButton
         // Show pin button on hover even for unpinned tabs so users can discover the feature.
         pinBtn.isHidden = false
         needsDisplay = true
@@ -477,7 +542,7 @@ final class EditorTabButton: NSView {
 
     override func mouseExited(with event: NSEvent) {
         isHovered = false
-        closeBtn.isHidden = !isActive
+        closeBtn.isHidden = !showCloseButton || !isActive
         pinBtn.isHidden = !item.isPinned
         needsDisplay = true
         needsLayout = true
@@ -578,9 +643,10 @@ final class EditorTabButton: NSView {
         switch action {
         case .close:                return Localization.string(.fileClose, default: "Close")
         case .closeOthers, .closeAllButThis: return Localization.string(.fileCloseOthers, default: "Close Others")
+        case .closeAllButPinned:    return Localization.string(.fileCloseAllButPinned, default: "Close All but Pinned")
         case .closeToLeft:          return Localization.string(.fileCloseAllToLeft, default: "Close All to the Left")
         case .closeToRight:         return Localization.string(.fileCloseAllToRight, default: "Close All to the Right")
-        case .closeUnchanged:       return "Close All Unchanged"
+        case .closeUnchanged:       return Localization.string(.fileCloseUnchanged, default: "Close All Unchanged")
         case .save:                 return Localization.string(.fileSave, default: "Save")
         case .saveAs:               return Localization.string(.fileSaveAs, default: "Save As...")
         case .rename:               return Localization.string(.fileRename, default: "Rename...")
@@ -613,9 +679,10 @@ final class EditorTabButton: NSView {
         switch specAction {
         case .close:                return .closeOthers // handled specially below
         case .closeOthers, .closeAllButThis: return .closeOthers
+        case .closeAllButPinned:    return .closeAllButPinned
         case .closeToLeft:          return .closeToLeft
         case .closeToRight:         return .closeToRight
-        case .closeUnchanged:       return .closeOthers // approximation
+        case .closeUnchanged:       return .closeUnchanged
         case .save:                 return .save
         case .saveAs:               return .saveAs
         case .rename:               return .rename
@@ -723,8 +790,10 @@ final class EditorTabButton: NSView {
         let parent = NSMenuItem(title: Localization.string(.fileCloseOthers, default: "关闭多个标签页"), action: nil, keyEquivalent: "")
         let sub = NSMenu(title: "")
         sub.addItem(menuItem(Localization.string(.fileCloseOthers, default: "关闭其他标签页"), action: .closeOthers))
+        sub.addItem(menuItem(Localization.string(.fileCloseAllButPinned, default: "关闭除固定外所有标签页"), action: .closeAllButPinned))
         sub.addItem(menuItem(Localization.string(.fileCloseAllToLeft, default: "关闭左侧所有标签页"), action: .closeToLeft))
         sub.addItem(menuItem(Localization.string(.fileCloseAllToRight, default: "关闭右侧所有标签页"), action: .closeToRight))
+        sub.addItem(menuItem(Localization.string(.fileCloseUnchanged, default: "关闭未修改标签页"), action: .closeUnchanged))
         parent.submenu = sub
         return parent
     }
@@ -734,6 +803,7 @@ final class EditorTabButton: NSView {
         let sub = NSMenu(title: "")
         sub.addItem(menuItem(Localization.string(.fileOpenContainingFolder, default: "在 Finder 中显示"), action: .openContainingFolder))
         sub.addItem(menuItem(Localization.string(.fileOpenContainingFolderInTerminal, default: "在终端中打开"), action: .openContainingFolderInTerminal))
+        sub.addItem(menuItem(Localization.string(.fileOpenContainingFolderAsWorkspace, default: "Open as Folder Workspace"), action: .openContainingFolder))
         parent.submenu = sub
         return parent
     }

@@ -989,3 +989,548 @@ private func upstreamFunctionListURL(_ fileName: String) -> URL {
     #expect(names.contains("add_component"))
     #expect(names.contains("setup_target"))
 }
+
+@Test func extractsGroovySymbols() {
+    let code = """
+    class DataService {
+        private String name
+
+        public String getName() {
+            return name
+        }
+
+        def processItems(List items) {
+            items.each { println it }
+        }
+
+        static void main(String[] args) {
+            println "Hello"
+        }
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "groovy", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("DataService"))
+    #expect(names.contains("getName"))
+    #expect(names.contains("processItems"))
+    #expect(names.contains("main"))
+}
+
+@Test func extractsTCLSymbols() {
+    let code = """
+    proc greet {name} {
+        puts "Hello, $name"
+    }
+
+    namespace eval utils {
+        proc helper {x y} {
+            expr {$x + $y}
+        }
+    }
+
+    proc calculate {a b op} {
+        switch $op {
+            + { return [expr {$a + $b}] }
+        }
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "tcl", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("greet"))
+    #expect(names.contains("calculate"))
+    #expect(names.contains("utils"))
+}
+
+@Test func extractsMATLABSymbols() {
+    let code = """
+    function result = computeSum(a, b)
+        result = a + b;
+    end
+
+    function out = transform(data)
+        out = data * 2;
+    end
+
+    classdef Vehicle
+        properties
+            Speed
+        end
+        methods
+            function obj = Vehicle(s)
+                obj.Speed = s;
+            end
+        end
+    end
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "matlab", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("computeSum"))
+    #expect(names.contains("transform"))
+    #expect(names.contains("Vehicle"))
+}
+
+@Test func extractsVerilogSymbols() {
+    let code = """
+    module counter #(parameter WIDTH = 8) (
+        input clk, reset,
+        output reg [WIDTH-1:0] count
+    );
+        always @(posedge clk)
+            if (reset) count <= 0;
+            else count <= count + 1;
+    endmodule
+
+    interface bus_if (input logic clk);
+        logic [31:0] data;
+    endinterface
+
+    module top ();
+        task automatic send_packet(input [7:0] pkt);
+            @(posedge clk);
+        endtask
+    endmodule
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "verilog", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("counter"))
+    #expect(names.contains("bus_if"))
+    #expect(names.contains("top"))
+    #expect(names.contains("send_packet"))
+}
+
+@Test func extractsLispSymbols() {
+    let code = """
+    (defun factorial (n)
+      (if (<= n 1)
+          1
+          (* n (factorial (- n 1)))))
+
+    (defmacro when-positive (x &body body)
+      `(when (> ,x 0) ,@body))
+
+    (defclass animal ()
+      ((name :accessor animal-name)
+       (sound :accessor animal-sound)))
+
+    (defun greet (name)
+      (format t "Hello, ~a!~%" name))
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "lisp", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("factorial"))
+    #expect(names.contains("greet"))
+    #expect(names.contains("when-positive"))
+    #expect(names.contains("animal"))
+}
+
+@Test func extractsClojureSymbols() {
+    let code = """
+    (ns myapp.core)
+
+    (defn greet [name]
+      (str "Hello, " name "!"))
+
+    (defn- helper-fn [x]
+      (* x 2))
+
+    (defmacro unless [condition & body]
+      `(when (not ~condition) ~@body))
+
+    (defrecord Point [x y])
+
+    (defprotocol Shape
+      (area [this])
+      (perimeter [this]))
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "clojure", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("greet"))
+    #expect(names.contains("helper-fn"))
+    #expect(names.contains("unless"))
+    #expect(names.contains("Point"))
+    #expect(names.contains("Shape"))
+}
+
+@Test func extractsYAMLSymbols() {
+    let code = """
+    name: My Application
+    version: 1.0.0
+
+    database:
+      host: localhost
+      port: 5432
+
+    servers:
+      - name: web
+        port: 80
+
+    defaults: &defaults
+      timeout: 30
+      retries: 3
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "yaml", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("name"))
+    #expect(names.contains("version"))
+    #expect(names.contains("database"))
+    #expect(names.contains("servers"))
+    #expect(names.contains("defaults"))
+    #expect(names.contains("defaults"))
+}
+
+@Test func extractsJSONSymbols() {
+    let code = """
+    {
+      "name": "my-package",
+      "version": "1.0.0",
+      "description": "A sample package",
+      "scripts": {
+        "build": "tsc",
+        "test": "jest"
+      },
+      "dependencies": {}
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "json", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("name"))
+    #expect(names.contains("version"))
+    #expect(names.contains("description"))
+    #expect(names.contains("scripts"))
+    #expect(names.contains("dependencies"))
+}
+
+@Test func extractsCoffeeScriptSymbols() {
+    let code = """
+    class Animal
+      constructor: (@name) ->
+      speak: -> console.log "#{@name} makes a sound"
+
+    class Dog extends Animal
+      speak: -> console.log "Woof!"
+
+    greet = (name) -> console.log "Hello, #{name}!"
+
+    calculate = (x, y) =>
+      x + y
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "coffeescript", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Animal"))
+    #expect(names.contains("Dog"))
+    #expect(names.contains("greet"))
+    #expect(names.contains("calculate"))
+}
+
+@Test func extractsGraphQLSymbols() {
+    let code = """
+    type User {
+      id: ID!
+      name: String!
+      email: String
+    }
+
+    interface Node {
+      id: ID!
+    }
+
+    input CreateUserInput {
+      name: String!
+      email: String!
+    }
+
+    query GetUser($id: ID!) {
+      user(id: $id) {
+        name
+      }
+    }
+
+    mutation CreateUser($input: CreateUserInput!) {
+      createUser(input: $input) { id }
+    }
+
+    fragment UserFields on User {
+      id
+      name
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "graphql", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("User"))
+    #expect(names.contains("Node"))
+    #expect(names.contains("CreateUserInput"))
+    #expect(names.contains("GetUser"))
+    #expect(names.contains("CreateUser"))
+    #expect(names.contains("UserFields"))
+}
+
+@Test func extractsProtobufSymbols() {
+    let code = """
+    syntax = "proto3";
+    package users;
+
+    message User {
+      string id = 1;
+      string name = 2;
+      string email = 3;
+    }
+
+    message CreateUserRequest {
+      string name = 1;
+    }
+
+    enum Status {
+      UNKNOWN = 0;
+      ACTIVE = 1;
+      INACTIVE = 2;
+    }
+
+    service UserService {
+      rpc GetUser(GetUserRequest) returns (User);
+      rpc CreateUser(CreateUserRequest) returns (User);
+      rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "proto", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("User"))
+    #expect(names.contains("CreateUserRequest"))
+    #expect(names.contains("Status"))
+    #expect(names.contains("UserService"))
+    #expect(names.contains("GetUser"))
+    #expect(names.contains("CreateUser"))
+}
+
+@Test func extractsZigSymbols() {
+    let code = """
+    const std = @import("std");
+
+    const Point = struct {
+        x: f64,
+        y: f64,
+    };
+
+    const Shape = union(enum) {
+        circle: Circle,
+        rectangle: Rectangle,
+    };
+
+    pub fn distance(a: Point, b: Point) f64 {
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        return std.math.sqrt(dx * dx + dy * dy);
+    }
+
+    pub fn main() void {
+        const p1 = Point{ .x = 0, .y = 0 };
+        const p2 = Point{ .x = 3, .y = 4 };
+        std.debug.print("{d}\\n", .{distance(p1, p2)});
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "zig", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("Point"))
+    #expect(names.contains("Shape"))
+    #expect(names.contains("distance"))
+    #expect(names.contains("main"))
+}
+
+@Test func extractsNixSymbols() {
+    let code = """
+    { pkgs, lib, ... }:
+    {
+      myPackage = pkgs.stdenv.mkDerivation {
+        name = "my-package";
+      };
+
+      development = pkgs.mkShell {
+        buildInputs = [ pkgs.nodejs pkgs.yarn ];
+      };
+
+      pythonEnv = builtins.derivation {
+        name = "python-env";
+      };
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "nix", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("myPackage"))
+    #expect(names.contains("development"))
+}
+
+@Test func extractsHCLSymbols() {
+    let code = """
+    resource "aws_instance" "web_server" {
+      ami           = "ami-0c55b159cbfafe1f0"
+      instance_type = "t2.micro"
+    }
+
+    resource "aws_s3_bucket" "storage" {
+      bucket = "my-storage-bucket"
+    }
+
+    variable "region" {
+      description = "AWS region"
+      default     = "us-east-1"
+    }
+
+    output "instance_ip" {
+      value = aws_instance.web_server.public_ip
+    }
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "tf", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("web_server"))
+    #expect(names.contains("storage"))
+    #expect(names.contains("region"))
+    #expect(names.contains("instance_ip"))
+}
+
+@Test func extractsSvelteSymbols() {
+    let code = """
+    <script>
+      export let name;
+      let count = 0;
+
+      function increment() {
+        count += 1;
+      }
+
+      async function fetchData(url) {
+        const res = await fetch(url);
+        return res.json();
+      }
+
+      const handleClick = () => {
+        console.log('clicked');
+      };
+
+      const onSubmit = async (event) => {
+        event.preventDefault();
+      };
+    </script>
+
+    <button on:click={increment}>Click me</button>
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "svelte", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("increment"))
+    #expect(names.contains("fetchData"))
+    #expect(names.contains("handleClick"))
+    #expect(names.contains("onSubmit"))
+}
+
+@Test func extractsVueSymbols() {
+    let code = """
+    <script>
+    export default {
+      name: 'UserProfile',
+      data() {
+        return { user: null }
+      },
+      methods: {
+        fetchUser(id) {
+          return api.getUser(id)
+        },
+        updateUser(data) {
+          this.user = data
+        },
+      },
+      computed: {
+        fullName: () => this.user?.name,
+      }
+    }
+    </script>
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "vue", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("UserProfile"))
+    #expect(names.contains("fetchUser"))
+    #expect(names.contains("updateUser"))
+}
+
+@Test func extractsSmalltalkSymbols() {
+    let code = """
+    Object subclass: #MyClass
+      instanceVariableNames: 'name age'
+      classVariableNames: ''
+
+    MyClass>>initialize
+      name := ''.
+
+    MyClass>>setName: aName
+      name := aName.
+
+    MyClass>>printOn: aStream
+      aStream nextPutAll: name.
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "smalltalk", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("initialize"))
+    #expect(names.contains("setName:"))
+    #expect(names.contains("printOn:"))
+}
+
+@Test func extractsForthSymbols() {
+    let code = """
+    : HELLO  ." Hello, world!" CR ;
+    : FACTORIAL ( n -- n! )
+      DUP 0> IF
+        DUP 1- RECURSE *
+      ELSE
+        DROP 1
+      THEN ;
+    :NONAME DUP + ;
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "forth", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("HELLO"))
+    #expect(names.contains("FACTORIAL"))
+}
+
+@Test func extractsREXXSymbols() {
+    let code = """
+    /* REXX program */
+    main:
+      SAY 'Hello'
+      CALL subroutine1
+      RETURN
+
+    subroutine1: PROCEDURE
+      SAY 'In subroutine'
+      RETURN
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "rexx", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("main"))
+    #expect(names.contains("subroutine1"))
+}
+
+@Test func extractsABAPSymbols() {
+    let code = """
+    CLASS zcl_example DEFINITION PUBLIC.
+      METHODS: initialize, process_data, get_result.
+    ENDCLASS.
+
+    CLASS zcl_example IMPLEMENTATION.
+      METHOD initialize.
+      ENDMETHOD.
+      METHOD process_data.
+      ENDMETHOD.
+    ENDCLASS.
+
+    FORM display_output.
+      WRITE: / 'Output'.
+    ENDFORM.
+
+    FUNCTION z_fm_calc.
+    ENDFUNCTION.
+    """
+    let symbols = FunctionListExtractor.extract(from: code, languageName: "abap", definition: nil)
+    let names = symbols.map(\.name)
+    #expect(names.contains("zcl_example"))
+    #expect(names.contains("initialize"))
+    #expect(names.contains("process_data"))
+    #expect(names.contains("display_output"))
+    #expect(names.contains("z_fm_calc"))
+}

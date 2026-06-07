@@ -12,6 +12,7 @@ public enum TabContextMenuAction: String, Sendable {
     case close                  = "Close"
     case closeOthers            = "Close All but Active Document"
     case closeAllButThis        = "Close All BUT Active Document"
+    case closeAllButPinned      = "Close All but Pinned"
     case closeToLeft            = "Close All to the Left"
     case closeToRight           = "Close All to the Right"
     case closeUnchanged         = "Close All Unchanged"

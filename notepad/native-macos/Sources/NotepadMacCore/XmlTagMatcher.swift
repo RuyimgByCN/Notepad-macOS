@@ -5,6 +5,9 @@ public struct XmlTagMatcher {
     public struct TagMatch {
         public let openTagRange: NSRange
         public let closeTagRange: NSRange
+        /// The range of attributes within the open tag (from after the tag name to before '>').
+        /// Nil if the tag has no attributes.
+        public let attributeRange: NSRange?
     }
 
     private struct TagInfo {
@@ -25,15 +28,42 @@ public struct XmlTagMatcher {
 
         if tagInfo.isClose {
             if let openRange = findMatchingOpenTag(nsText, tagName: tagInfo.name, before: tagInfo.range.location) {
-                return TagMatch(openTagRange: openRange, closeTagRange: tagInfo.range)
+                let attrRange = computeAttributeRange(nsText, in: openRange, tagName: tagInfo.name)
+                return TagMatch(openTagRange: openRange, closeTagRange: tagInfo.range, attributeRange: attrRange)
             }
         } else {
             let searchFrom = NSMaxRange(tagInfo.range)
             if let closeRange = findMatchingCloseTag(nsText, tagName: tagInfo.name, from: searchFrom) {
-                return TagMatch(openTagRange: tagInfo.range, closeTagRange: closeRange)
+                let attrRange = computeAttributeRange(nsText, in: tagInfo.range, tagName: tagInfo.name)
+                return TagMatch(openTagRange: tagInfo.range, closeTagRange: closeRange, attributeRange: attrRange)
             }
         }
         return nil
+    }
+
+    /// Compute the attribute range within an open tag: from after the tag name to before '>' or '/>'.
+    private static func computeAttributeRange(_ text: NSString, in tagRange: NSRange, tagName: String) -> NSRange? {
+        let tagNameLen = tagName.utf16.count
+        let attrStart = tagRange.location + 1 + tagNameLen // skip '<' and tag name
+        let tagEnd = NSMaxRange(tagRange) - 1 // skip '>' at end
+
+        // Check for self-closing '/>' at end — adjust tagEnd
+        var effectiveEnd = tagEnd
+        if effectiveEnd > attrStart && text.character(at: effectiveEnd - 1) == ascii("/") {
+            effectiveEnd -= 1
+        }
+
+        // Skip whitespace after tag name
+        var pos = attrStart
+        while pos < effectiveEnd {
+            let ch = text.character(at: pos)
+            if ch == ascii(" ") || ch == ascii("\t") || ch == ascii("\n") || ch == ascii("\r") { pos += 1 }
+            else { break }
+        }
+
+        if pos >= effectiveEnd { return nil } // no attributes
+
+        return NSRange(location: pos, length: effectiveEnd - pos)
     }
 
     // MARK: - Cursor tag detection
