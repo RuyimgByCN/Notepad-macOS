@@ -205,7 +205,6 @@ protocol EditorSurface: AnyObject {
 @MainActor
 enum EditorSurfaceFactory {
     static func make() -> EditorSurface {
-        // Pre-load Lexilla before Scintilla so RTLD_GLOBAL symbols are available
         _ = LexillaDynamicLibrary.shared
         return ScintillaEditorSurface.load() ?? TextViewEditorSurface()
     }
@@ -684,14 +683,6 @@ final class ScintillaEditorSurface: EditorSurface {
         self.scintillaView.translatesAutoresizingMaskIntoConstraints = false
         self.scintillaView.autoresizingMask = [.width, .height]
         configureMargins()
-        // Set up ObjC notification delegate eagerly so that the ObjC runtime realizes
-        // ScintillaEditorSurface (and any UIFoundation classes it transitively references)
-        // at init time rather than during the first paint cycle.
-        // Note: setDelegate stores an unretained reference; deinit clears it to prevent
-        // ScintillaView from sending notification: to a deallocated delegate during
-        // any pending CA display passes after this surface is gone.
-        // Realizing classes during drawRect triggers KERN_PROTECTION_FAILURE on macOS 26+
-        // because UIFoundation's class metadata lives in hardware-protected __AUTH_CONST.
         configureNotificationDelegateIfAvailable()
     }
 
@@ -1037,9 +1028,6 @@ final class ScintillaEditorSurface: EditorSurface {
         stylePreferences: StylePreferences,
         highlighter: SyntaxHighlighter
     ) {
-        // Ensure the view is laid out so Scintilla's internal state is properly initialized
-        scintillaView.layoutSubtreeIfNeeded()
-
         bridge.setFont(name: "Menlo", size: 13, bold: false, italic: false)
         bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
 
