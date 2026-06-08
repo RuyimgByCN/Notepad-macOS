@@ -45,11 +45,12 @@ Window 主菜单、列编辑、宏、Run/Tools 哈希、Plugin Admin、Scintilla
 最大缺口仍集中在：Found Results 完整结果工作台、Find in Projects/Finder、
 Preference 20+ 子页字段级 parity、插件 `NPPM_*`/`NPPN_*` host API、Windows DLL
 插件桥接、Docking 布局与插件 dock 通知、toolbar/statusbar 资源配置 XML、
-uchardet 自动编码检测、完整 codepage/OEM 菜单、多实例/单实例启动转发、
-打开/保存对话框深层语义、Project Panel 1-3 与 File Browser watcher、实时矩形/
-多光标 UI、Dark Mode 插件 API、XML schema 打包验收、更新器/安装器事务、
-Windows shell/托盘 macOS 等价方案，以及 universal bundle 有证据声明。这些缺口
-全部是迁移目标，不再视为范围外能力。
+uchardet 自动编码检测、完整 codepage/OEM 菜单、完整语言识别/lexer/关键词高亮
+parity（含 XML/SQL 等语言的上游关键词、属性、折叠和 lexer property 特例）、
+多实例/单实例启动转发、打开/保存对话框深层语义、Project Panel 1-3 与
+File Browser watcher、实时矩形/多光标 UI、Dark Mode 插件 API、XML schema
+打包验收、更新器/安装器事务、Windows shell/托盘 macOS 等价方案，以及
+universal bundle 有证据声明。这些缺口全部是迁移目标，不再视为范围外能力。
 
 ## 状态口径
 
@@ -65,13 +66,13 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 | 维度 | 数量/说明 |
 | --- | --- |
 | 功能迁移矩阵项 | 60 项（见下表） |
-| 已迁移 | 9 项（应用外壳、基础文件、编辑器引擎、语言高亮、列编辑、书签、文档统计等） |
-| 部分迁移 | 50 项（绝大多数模块已有可用子集） |
-| 待迁移 | 2 项（多实例启动转发、插件 host 通信 API） |
+| 已迁移 | 7 项（应用外壳、基础文件、编辑器引擎、列编辑、书签、文档统计等） |
+| 部分迁移 | 50 项（绝大多数模块已有可用子集；语言高亮仅完成基础资源接入） |
+| 待迁移 | 3 项（多实例启动转发、插件 host 通信 API、Windows shell/注册表/系统托盘相关能力） |
 | Swift 源码（mac 端） | `Sources/NotepadMac` 41 文件 + `Sources/NotepadMacCore` 37 文件 |
 | 自动化测试 | 27 个测试文件，365 个测试用例（2026-06-08）+ 265 XCTest |
 | 支持编码（Convert to / Encode in） | **28 种**（`TextEncodingOption`，含 CJK、Windows-125x、ISO-8859-2/15、KOI8-R、OEM CP437/CP850/CP866） |
-| 打包资源复用 | langs/stylers.model.xml、22 themes、34 APIs、48 functionList、94 nativeLang |
+| 打包资源复用 | langs/stylers.model.xml、22 themes、34 APIs、48 functionList、94 nativeLang；资源接入不等同于完整语言/lexer 高亮 parity |
 | 命令行已解析 flag | `-nosession`、`-noPlugin`、`-alwaysOnTop`、`-ro`/`-fullReadOnly`、`-monitor`、`-multiInst`（接受）、`-openFoldersAsWorkspace`、`-l`/`-udl`、`-n`/`-c`/`-p`、`-x`/`-y` |
 
 > **口径说明**：矩阵按「模块/能力域」统计，不是按 Notepad++ 单条菜单命令计数。
@@ -88,7 +89,7 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 | **Search** | 部分迁移 | Find/Replace/Incremental/Find in Files/Mark/Style 1-5/书签/Change History 导航/Found Results 工作台/Find in Projects·Finder/Found Results next·prev/In-Selection 可配置阈值/Keep Find Dialog Open/**Find dialog 透明度**/**Bookmark All Matches 菜单入口** | — (P1 search 全部完成) |
 | **View** | 部分迁移 | 折叠/换行/Function List/Document Map/Doc List/File Browser/全屏/置顶/Post-It/智能高亮/XML tag/空白符显示/**Show Toolbar 开关（持久化）**/**Show Bookmark Margin 开关** | 克隆/多视图/sync scroll/browser preview/Project Panel 1-3/NPC 细分 |
 | **Encoding** | 部分迁移 | Convert to + Encode in（**28 编码**，含 OEM CP437/CP850/CP866）、EOL 转换、UTF-8 BOM 开关、**Auto-Detect**、**Reload as Encoding** 子菜单 | uchardet 自动检测、ANSI 专用菜单布局、剩余 OEM codepage |
-| **Language** | 部分迁移 | 动态语言菜单、UDL 管理面板、Style Configurator、Theme 菜单 | 完整 UDL 字段、external lexer、语言菜单 compact 偏好 |
+| **Language** | 部分迁移 | 动态语言菜单、基础 langs/stylers 解析、UDL 管理面板、Style Configurator、Theme 菜单 | 全量 lexer availability、每种语言 keywords/style/folding property parity、XML/SQL 关键词与属性/折叠特例、完整 UDL 字段、external lexer、语言菜单 compact 偏好 |
 | **Settings** | 部分迁移 | Preferences 面板（字体/缩进/查找/备份/大文件/新文档/本地化/auto-complete mode·chooseSingle·TABFillup/in-selection threshold/tabbar/keepFindDialogOpen/**findDialogTransparency**/**Print header·footer·colorMode·fontSize**/**delimiter**/**statusBarVisible/shortTitle/saveAllConfirm/autoCompleteIgnoreNumbers** 等）、Shortcut Mapper（可编辑）、Import Theme、Window Tab、Print sub-section | shortcuts.xml 导入导出、contextMenu.xml、Macros/Run/Plugin/Scintilla Shortcut Mapper tabs |
 | **Tools** | 部分迁移 | MD5/SHA-1/SHA-256/SHA-512（文本/文件/选区） | — |
 | **Macro** | 部分迁移 | 录制/回放/保存/多次运行 | Shortcut Mapper macro tab 集成 |
@@ -155,7 +156,7 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 | 编码与 EOL | 部分迁移 | Encoding 菜单支持 **25** 种目标编码（UTF-8/16 变体、ASCII、ISO Latin-1/2/9、Mac Roman、Windows CP1250–1258、GBK、Big5、Shift-JIS、EUC-KR/JP、KOI8-R）的 Convert to 与 Encode in，以及 LF/CRLF/CR 转换与 UTF-8 BOM 开关；仍缺 uchardet 自动检测、ANSI 专用菜单布局、OEM/DOS codepage 全集（437/850/866 等）。 | `notepad/native-macos/Sources/NotepadMac/AppMenu.swift:407`, `notepad/native-macos/Sources/NotepadMacCore/TextFileCodec.swift:53`, `notepad/native-macos/Tests/NotepadMacCoreTests/CoreBehaviorTests.swift:384` |
 | 编辑器引擎 | 已迁移 | 打包时使用 Scintilla Cocoa，Lexilla 通过 C ABI 设置 lexer；开发环境无框架时回退 NSTextView。 | `notepad/native-macos/README.md:111`, `notepad/native-macos/Sources/NotepadMac/EditorSurface.swift:42`, `notepad/native-macos/Sources/NotepadMacCore/ScintillaLexilla.swift:1` |
 | Scintilla adapter 与插件 Scintilla handle | 部分迁移 | mac 端已有 Scintilla Cocoa bridge、通知、fold/hidden lines、indicator/marker 基础接口和 `SCI_*` 消息映射；上游 `ScintillaEditView`/`ScintillaCtrls` 仍包含 plugin-created Scintilla handle（`NPPM_CREATESCINTILLAHANDLE`/lookup/destroy/no-op 兼容语义）、custom word chars、lexer properties（如 `sql.backslash.escapes`/`fold.*`）、margin/marker/indicator parity、hide-line marker notifications、RTL key remap、multi-selection paste/statistics、current-line/caret 内部更新消息和 plugin-facing editor view 获取能力。mac 端需要显式 capability map 与 fallback 诊断，不能只按可用 `SCI_*` 透传。 | `notepad/native-macos/Sources/NotepadMac/EditorSurface.swift:235`, `notepad/native-macos/Sources/NotepadMac/EditorSurface.swift:643`, `notepad/native-macos/Sources/NotepadMac/EditorSurface.swift:834`, `notepad/native-macos/Sources/NotepadMac/EditorSurface.swift:1438`, `notepad/notepad-plus-plus/PowerEditor/src/ScintillaComponent/ScintillaCtrls.h:32`, `notepad/notepad-plus-plus/PowerEditor/src/ScintillaComponent/ScintillaCtrls.cpp:21`, `notepad/notepad-plus-plus/PowerEditor/src/NppBigSwitch.cpp:1596`, `notepad/notepad-plus-plus/PowerEditor/src/NppBigSwitch.cpp:1601`, `notepad/notepad-plus-plus/PowerEditor/src/ScintillaComponent/ScintillaEditView.h:383`, `notepad/notepad-plus-plus/PowerEditor/src/ScintillaComponent/ScintillaEditView.h:632`, `notepad/notepad-plus-plus/PowerEditor/src/ScintillaComponent/ScintillaEditView.h:667`, `notepad/notepad-plus-plus/PowerEditor/src/ScintillaComponent/ScintillaEditView.h:775` |
-| 语言检测与高亮 | 已迁移 | 复用 `langs.model.xml`、`stylers.model.xml`，语言菜单动态生成，样式应用到 Scintilla。 | `notepad/native-macos/README.md:90`, `notepad/native-macos/Sources/NotepadMac/AppMenu.swift:410`, `notepad/native-macos/Tests/NotepadMacCoreTests/CoreBehaviorTests.swift:29` |
+| 语言检测与高亮 | 部分迁移 | mac 端已能读取 `langs.model.xml`/`stylers.model.xml`、动态生成语言菜单并把基础样式应用到 Scintilla；但完整上游 parity 必须逐语言复刻 Notepad++/Lexilla 的 lexer availability、文件扩展/用户扩展识别、关键字组、style id 映射、fold/comment/string/operator/number 属性、API auto-completion 关联、functionList parser 关联、XML/HTML tag 与属性高亮、SQL `sql.backslash.escapes` 等 lexer property、UDL/external lexer 和大文件禁用策略。XML、SQL 或任一语言只要存在上游会高亮而 macOS 未高亮的关键词/属性/区域，都归入此项未完成。 | `notepad/native-macos/README.md:90`, `notepad/native-macos/Sources/NotepadMac/AppMenu.swift:410`, `notepad/native-macos/Sources/NotepadMacCore/ScintillaLexilla.swift:1`, `notepad/notepad-plus-plus/PowerEditor/src/langs.model.xml:1`, `notepad/notepad-plus-plus/PowerEditor/src/stylers.model.xml:1`, `notepad/notepad-plus-plus/lexilla/lexers:1`, `notepad/notepad-plus-plus/PowerEditor/installer/APIs:1`, `notepad/notepad-plus-plus/PowerEditor/installer/functionList:1` |
 | 主题与样式配置 | 部分迁移 | 复用 Notepad++ themes，Theme 菜单、Style Configurator、持久化 override；**Plugins > Import Style Theme...** 可将 XML 复制到用户 themes 目录并重载。上游 WordStyleDlg 仍有 theme dirty/cancel restore、global override、tab/find/document-map color selectors 等细节未完整迁移。 | `notepad/native-macos/Sources/NotepadMac/AppMenu.swift:835`, `notepad/native-macos/Sources/NotepadMac/AppDelegate.swift:1606`, `notepad/native-macos/Sources/NotepadMacCore/ThemeCatalog.swift:1` |
 | Dark Mode 与外观系统 | 部分迁移 | macOS 有系统外观和 AppKit 原生控件，但上游 Notepad++ Dark Mode 还包括 enable/enable-for-plugin、Windows theme sync/high-contrast、custom color tone、toolbar/tab icon set、titlebar/scrollbar/list/tree/tab/toolbar/rich-edit theming、child-control auto subclass、plugin dock window auto subclass、dark auto-completion、dark-mode color API 与 `NPPN_DARKMODECHANGED` 通知；这些兼容语义尚未在 mac 端建模。 | `notepad/notepad-plus-plus/PowerEditor/src/NppDarkMode.h:25`, `notepad/notepad-plus-plus/PowerEditor/src/DarkMode/DarkMode.h:6`, `notepad/notepad-plus-plus/PowerEditor/src/DarkMode/DarkMode.cpp:75`, `notepad/notepad-plus-plus/PowerEditor/src/MISC/PluginsManager/Notepad_plus_msgs.h:853` |
 | 搜索与替换 | 部分迁移 | Find/Replace/Incremental/Find in Files/**Find in Projects**/**Find in Search Results（Finder 等价）**/Mark/Style 1-5/书签/Change History 导航已有；**Found Results 独立工作台**（按文件分组 outline、Open All/Copy Pathnames/Copy All/Delete/Clear、Purge before search、Search 菜单 Go to Next/Prev Found 跨结果导航、View 菜单入口、上下文 Find in Search Results）已迁移；**Find Characters in Range**（ASCII/Non-ASCII/自定义 0–255、方向、Wrap、UTF-8 字节语义）已迁移；仍缺 Find dialog 透明度、regex backward、in-selection 阈值警告。 | `notepad/native-macos/Sources/NotepadMacCore/CharRangeFinder.swift:1`, `notepad/native-macos/Sources/NotepadMacCore/FindInFilesSearch.swift:1`, `notepad/native-macos/Sources/NotepadMac/FindCharRangePanelController.swift:1`, `notepad/native-macos/Sources/NotepadMac/AppDelegate.swift:362`, `notepad/native-macos/Tests/NotepadMacCoreTests/MigrationBatchTests.swift:1` |
@@ -249,7 +250,7 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 | `MISC/PluginsManager` + `PluginInterface.h` + `Notepad_plus_msgs.h` | Windows DLL 插件 ABI、`NppData`/`FuncItem`/`ShortcutKey`、`setInfo`/`getFuncsArray`/`beNotified`/`messageProc`/`isUnicode`、`NPPM_*` buffer/lang/encoding/session/menu/statusbar/docking/toolbar/indicator/lexer/shortcut API、`NPPN_*` file/buffer/language/readonly/dark-mode/pluginMessage 通知、plugin config 目录、install/update/remove 事务、签名/校验语义。 | 当前 native manifest ABI 继续保留，但不能替代 full plugin parity；需单独评估桥接、兼容层或 mac-only ABI parity，并为 host API 写兼容测试。 |
 | `WinControls/PluginsAdmin` + GUP/updater/security | available/update/installed/incompatible plugin list、plugin list JSON、GUP presence、updater/plugin-list signature check、install/update/remove exit transaction、wingup path/params/dir、UAC、updater proxy、auto-update startup/exit、`disableNppAutoUpdate.xml`。 | macOS 侧要把 Plugin Admin 操作和 app updater/installer 事务拆清楚；下载、签名校验、退出后安装、失败回滚和重启提示都要有可测状态机。 |
 | `ScintillaComponent/Buffer/DocTabView/Printer/AutoCompletion` | buffer recent tag、reload/backup/unsync/autodetect 状态、doc tab 颜色和 recent 排序、printing settings、current-file/path/function autocomplete、matched-pair auto insert、XML tag matching、smart highlighting、status notifications。 | 不只迁移菜单命令；还要迁移编辑器后台状态模型、通知时机、tab 视觉状态、打印参数和自动完成配置，否则插件、session、Preferences 会继续缺上下文。 |
-| `ScintillaComponent/ScintillaEditView` + `ScintillaCtrls` | plugin-created Scintilla handles、`NPPM_CREATESCINTILLAHANDLE`/get/destroy、`SCI_*` adapter coverage、margin/marker/indicator/hide-line notifications、custom word chars、lexer property injection、RTL key remap、multi-selection paste/statistics、plugin-facing editor view lookup。 | macOS Scintilla bridge 需要公开能力矩阵、插件安全生命周期和 unsupported API diagnostics；不能让插件或菜单代码猜测哪些 `SCI_*`/`NPPM_*` 在 Cocoa 路径可用。 |
+| `ScintillaComponent/ScintillaEditView` + `ScintillaCtrls` | plugin-created Scintilla handles、`NPPM_CREATESCINTILLAHANDLE`/get/destroy、`SCI_*` adapter coverage、margin/marker/indicator/hide-line notifications、custom word chars、lexer property injection、RTL key remap、multi-selection paste/statistics、plugin-facing editor view lookup。 | macOS Scintilla bridge 需要公开能力矩阵、插件安全生命周期和 unsupported API diagnostics；不能让插件或菜单代码猜测哪些 `SCI_*`/`NPPM_*` 在 Cocoa 路径可用。lexer property injection 必须覆盖上游语言高亮行为，包含 SQL、XML、HTML、CSS、JS、PHP、shell、Makefile、Markdown、YAML、JSON 等所有内置语言的关键词/样式/折叠差异。 |
 | `WinControls/DocumentMap` + `documentSnapshot` | Scintilla map view、syntax highlighting、fold/wrap sync、view zone overlay、scroll with map position、move by map click、temporary buffer preview、Document Peeker snapshot save/sync/scroll、RTL/theme colors。 | 当前 line-preview table 只是轻量导航；完整 Document Map 需要和 Scintilla adapter、theme、fold/wrap、peek/snapshot 状态联动。 |
 | `ScintillaComponent/UserDefineDialog` + `WordStyleDlg` | UDL comments/numbers/operators/folders/keywords/delimiters/nesting 全字段、dock/undock 状态、userDefineLang 多文件、external lexer XML、Style Configurator global override、theme dirty/restore、tab/find/document-map color selectors。 | 已有 XML 读写只是子集；UDL/style 需要按上游 schema 做字段级迁移和保存路径策略。 |
 | `ProjectPanel` + `FileBrowser` + `ReadDirectoryChanges` | Project Panel 1-3 workspace 编辑、Find in Projects、File Browser add/remove root、copy path/name、open/system execute、Finder/Terminal 等价、目录 watcher add/remove/rename 批处理。 | macOS 侧需要把 Project Panel、Folder as Workspace、File Browser 和 Find in Files 的范围模型统一，并用 FSEvents/DispatchSource 替代 `ReadDirectoryChangesW`。 |
@@ -260,7 +261,7 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 | `WinControls/AboutDlg` + `URLCtrl` + `MISC/Exception` | About GPL/build/link 控件、Debug Info version/compiler/dependency/updater/file-detection/rendering/command-line/environment 字段、Debug Info refresh/copy、URL ShellExecute、`Win32Exception` handler、`MiniDumper` dump 写入、主循环异常捕获、异常路径下的 updater/restart 处理。 | macOS 侧需要把 Help 文本、URL 行为、copy debug info、diagnostic bundle、符号/版本/包体信息和 release 支持流程作为一条诊断链迁移。 |
 | `Test/xmlValidator` + installer resources | `functionList.xsd`、`nativeLang.xsd`、`tabContext.xsd`、`toolbarButtons.xsd`、functionList parser XML/overrideMap、API XML、nativeLang 全量 XML、preinstalled UDL、`tabContextMenu_example.xml`、filesForTesting。 | 把 schema validation、resource count、parser override、API/nativeLang/theme/UDL 打包完整性纳入 macOS verify/package，不只确认 app 能启动。 |
 | `PowerEditor/installer` | NSIS/MSI 安装选项、Explorer context menu、Windows 11 MSIX context menu、Auto Updater/Plugins Admin/updater proxy、`disableNppAutoUpdate.xml`、portable/local-conf XML、APIs/functionList/nativeLang/themes/images 打包完整性。 | mac 端需落到 DMG/pkg、LaunchServices/Finder Services、Sparkle 或自研更新检查、资源校验与 notarization 计划。 |
-| Scintilla/Lexilla 资源 | Change history margin、find mark styles、incremental highlight style、非打印字符显示样式、全 lexer/API/functionList 对应关系。 | 资源已能部分读取，但样式/indicator/marker 与 editor adapter 的行为映射要逐项验收。 |
+| Scintilla/Lexilla 资源 | Change history margin、find mark styles、incremental highlight style、非打印字符显示样式、全 lexer/API/functionList 对应关系、`lexilla/lexers` 全量 lexer、`langs.model.xml`/`stylers.model.xml` 全量 keyword/style 配置、installer `APIs` 与 `functionList` 语言关联。 | 资源已能部分读取，但样式/indicator/marker 与 editor adapter 的行为映射要逐项验收。所有上游内置语言的语言识别、关键词高亮、style id、fold property、lexer property、API completion 和 functionList parser 都必须有 macOS 对照测试；不能用“Scintilla 已接入”代表完成。 |
 
 ## 优先级路线图
 
@@ -386,15 +387,16 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 6. 迁移 Edit Popup ContextMenu、tab context menu、toolbar button config、custom toolbar icon set、Import style theme(s)、`shortcuts.xml` HMAC/key remap、tamper review/Validate shortcuts.xml、macro/user command、cloud settings path 等配置资源。
 7. 设计插件 host API：`NPPM_*` 消息路由、`NPPN_*` 通知发布、docking/statusbar/menu/toolbar/shortcut/indicator/lexer、plugin-created Scintilla handle create/get/destroy 兼容边界，以及 mac-only ABI 与 Windows DLL bridge 的取舍。
 8. 深化 UDL 与 Style Configurator：完整 UDL keyword/style/nesting schema、external lexer XML、theme dirty/restore、global override、tab/find/document-map color selectors、theme save-path fallback。
-9. 建立 Dark Mode parity 模型：appearance source、custom tone/color、toolbar/tab icon set、plugin dark-mode opt-in、dark-mode notifications、auto-completion/list/tree/status/toolbar color propagation。
-10. 建立 Plugin Admin/updater 事务模型：catalog/plugin list 签名校验、install/update/remove 退出事务、失败回滚、重启提示、updater proxy、auto-update startup/exit 和 `disableNppAutoUpdate.xml` 等 sentinel。
-11. 补 Cloud & Link 和上下文菜单配置：settings-on-cloud 首次写入/迁移、clickable URL indicator、URI schemes、Copy Link 动态菜单、`contextMenu.xml`/`tabContextMenu.xml` reload/校验/本地化和插件菜单插入。
-12. 拆 Preferences 的编辑显示与边距类字段模型，覆盖 Editing、Editing2、Margins/Border/Edge 的 ScintillaPrimaryView、Caret、CRLF/NPC display、selection/drag/drop、fold margin 和 vertical edge 语义。
-13. 拆 Preferences 的文件工作流字段模型，覆盖 New Document、Default Directory、Recent Files History，并与 File/Open/Save、session、workspace、recent menu 和启动流程共享同一配置源。
-14. 拆 Preferences 的搜索与杂项字段模型，覆盖 Searching、Delimiter、Misc 中的 Find dialog 行为、Find in Files 未保存文件策略、delimiter 选择、file auto detection、Ctrl+Tab MRU、Document Peeker、Scintilla rendering、Save All confirm 和 session/workspace extension。
-15. 拆 Preferences 的窗口 chrome 字段模型，覆盖 General、Toolbar、Tabbar 的菜单/状态栏隐藏、toolbar 图标策略、tabbar vertical/multiline/drag-lock/close/pin/compact-label 与 AppKit 状态同步。
-16. 拆 Preferences 的语言、缩进和高亮字段模型，覆盖 Language menu organization、per-language tab settings、backspace unindent、auto-indent、mark-all、tag matching 和 smart-highlighting 策略。
-17. 拆 Preferences 的 Auto-Completion 与 matched-pair 字段模型，覆盖 trigger type、brief/from-Nth-character、TAB/ENTER commit、ignore numbers、auto-insert pairs、HTML/XML close tag 和自定义 matched pairs。
+9. 建立语言/lexer parity 清单：逐项扫描上游 `langs.model.xml`、`stylers.model.xml`、`lexilla/lexers`、installer `APIs` 和 `functionList`，为所有内置语言记录 macOS 的 lexer id、关键字组、style id 映射、fold/comment/string/operator/number 属性、API/functionList 关联和缺口；XML、SQL 等语言的上游关键词/属性/折叠特例必须有样本文档和可重复测试。
+10. 建立 Dark Mode parity 模型：appearance source、custom tone/color、toolbar/tab icon set、plugin dark-mode opt-in、dark-mode notifications、auto-completion/list/tree/status/toolbar color propagation。
+11. 建立 Plugin Admin/updater 事务模型：catalog/plugin list 签名校验、install/update/remove 退出事务、失败回滚、重启提示、updater proxy、auto-update startup/exit 和 `disableNppAutoUpdate.xml` 等 sentinel。
+12. 补 Cloud & Link 和上下文菜单配置：settings-on-cloud 首次写入/迁移、clickable URL indicator、URI schemes、Copy Link 动态菜单、`contextMenu.xml`/`tabContextMenu.xml` reload/校验/本地化和插件菜单插入。
+13. 拆 Preferences 的编辑显示与边距类字段模型，覆盖 Editing、Editing2、Margins/Border/Edge 的 ScintillaPrimaryView、Caret、CRLF/NPC display、selection/drag/drop、fold margin 和 vertical edge 语义。
+14. 拆 Preferences 的文件工作流字段模型，覆盖 New Document、Default Directory、Recent Files History，并与 File/Open/Save、session、workspace、recent menu 和启动流程共享同一配置源。
+15. 拆 Preferences 的搜索与杂项字段模型，覆盖 Searching、Delimiter、Misc 中的 Find dialog 行为、Find in Files 未保存文件策略、delimiter 选择、file auto detection、Ctrl+Tab MRU、Document Peeker、Scintilla rendering、Save All confirm 和 session/workspace extension。
+16. 拆 Preferences 的窗口 chrome 字段模型，覆盖 General、Toolbar、Tabbar 的菜单/状态栏隐藏、toolbar 图标策略、tabbar vertical/multiline/drag-lock/close/pin/compact-label 与 AppKit 状态同步。
+17. 拆 Preferences 的语言、缩进和高亮字段模型，覆盖 Language menu organization、per-language tab settings、backspace unindent、auto-indent、mark-all、tag matching、smart-highlighting 策略，以及语言高亮 parity 中的 keyword/style/fold/lexer property 偏好入口。
+18. 拆 Preferences 的 Auto-Completion 与 matched-pair 字段模型，覆盖 trigger type、brief/from-Nth-character、TAB/ENTER commit、ignore numbers、auto-insert pairs、HTML/XML close tag 和自定义 matched pairs。
 
 验收标准：
 
@@ -453,7 +455,8 @@ macOS 原生等价方案、兼容层方案或明确的产品级替代实现。
 7. 落地命令行 parity：启动参数解析、open-file/open-url 桥接、session/workspace/monitor/print/readonly/localization/pluginMessage 路由，以及 unsupported flag 诊断。
 8. 落地 macOS 文件系统 watcher 策略：FSEvents/DispatchSource 用于 Folder as Workspace、monitoring、external file modification 和 backup/snapshot 触发，避免只做一次性目录扫描。
 9. 将 XML schema/resource validation 纳入 release：functionList/nativeLang/tabContext/toolbarButtons XSD 校验、API/functionList/nativeLang/theme/UDL 资源计数、overrideMap 与 parser 关联检查、`disableNppAutoUpdate.xml`/portable-local-conf 等 sentinel 表达。
-10. 建立崩溃处理与诊断报告流程：捕获 fatal path、生成可提交 diagnostic bundle、复制 Debug Info、记录 app/framework/resource 版本和把异常路径纳入 release smoke。
+10. 将语言高亮 parity 纳入 release smoke：至少用上游样本文档或新增 fixture 覆盖 XML、SQL、HTML、CSS、JavaScript、PHP、Python、Shell、Makefile、Markdown、JSON、YAML 等代表性语言，验证 lexer 选择、关键字高亮、属性/字符串/注释/数字/operator 样式、折叠点和大文件禁用策略与上游配置一致。
+11. 建立崩溃处理与诊断报告流程：捕获 fatal path、生成可提交 diagnostic bundle、复制 Debug Info、记录 app/framework/resource 版本和把异常路径纳入 release smoke。
 
 验收标准：
 
