@@ -149,6 +149,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var rightClickKeepSelection = true
     private var edgeMode = 1
     private var foldFlags = 0
+    private var foldCompact = false
     private var htmlXmlCloseTagEnabled = true
     private var enablesAutoPair = true
     private var autoPairParentheses = true
@@ -440,6 +441,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.rightClickKeepSelection = preferences.rightClickKeepSelection
         self.edgeMode = preferences.edgeMode
         self.foldFlags = preferences.foldFlags
+        self.foldCompact = preferences.foldCompact
         self.htmlXmlCloseTagEnabled = preferences.htmlXmlCloseTagEnabled
         self.enablesClickableLinks = preferences.enableClickableLinks
         self.showsLineNumberMargin = preferences.showLineNumberMargin
@@ -3814,6 +3816,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyDisableAdvancedScrolling(disableAdvancedScrolling)
         editorSurface.applyEdgeMode(edgeMode)
         editorSurface.applyFoldFlags(foldFlags)
+        editorSurface.applyFoldCompact(foldCompact)
         editorSurface.applyScintillaKeyRemaps(scintillaKeyMapStore.load())
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.lockDragDrop = preferences.tabbarLockDragDrop
@@ -4963,6 +4966,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             .withDisableAdvancedScrolling(disableAdvancedScrolling)
             .withEdgeMode(edgeMode)
             .withFoldFlags(foldFlags)
+            .withFoldCompact(foldCompact)
             .withRightClickKeepSelection(rightClickKeepSelection)
         preferencesStore.save(preferences)
     }
@@ -5299,6 +5303,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyCurrentLineFrameWidth(currentLineFrameWidth)
         editorSurface.applyFoldMarginStyle(foldMarginStyle)
         editorSurface.applyCodeFolding(enableCodeFolding)
+        editorSurface.applyFoldCompact(foldCompact)
         editorSurface.applyVirtualSpace(enableVirtualSpace)
         editorSurface.applyBackspaceUnindents(backspaceUnindents)
         editorSurface.applyAutoIndent(autoIndent)

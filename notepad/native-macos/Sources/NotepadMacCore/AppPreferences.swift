@@ -332,6 +332,12 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let edgeMode: Int
     /// Fold flags bitmask: SC_FOLDFLAG_LINEBEFORE_EXPANDED=2, LINEBEFORE_CONTRACTED=4, LINEAFTER_EXPANDED=8, LINEAFTER_CONTRACTED=16
     public let foldFlags: Int
+    /// When true, use compact fold display (no extra lines around folded regions)
+    public let foldCompact: Bool
+    /// When true, Ctrl+Tab shows the document switcher overlay; when false, switches directly
+    public let showDocSwitcher: Bool
+    /// When true, Find in Files shows only one result per line (deduplicates)
+    public let perLineResultInFind: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -496,7 +502,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         disableAdvancedScrolling: Bool = false,
         rightClickKeepSelection: Bool = true,
         edgeMode: Int = 1,
-        foldFlags: Int = 0
+        foldFlags: Int = 0,
+        foldCompact: Bool = false,
+        showDocSwitcher: Bool = true,
+        perLineResultInFind: Bool = false
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -661,6 +670,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.rightClickKeepSelection = rightClickKeepSelection
         self.edgeMode = max(0, min(2, edgeMode))
         self.foldFlags = max(0, min(30, foldFlags))
+        self.foldCompact = foldCompact
+        self.showDocSwitcher = showDocSwitcher
+        self.perLineResultInFind = perLineResultInFind
     }
 
     /// Parse languageTabOverrides string into a dictionary.
@@ -783,7 +795,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         disableAdvancedScrolling: Bool? = nil,
         rightClickKeepSelection: Bool? = nil,
         edgeMode: Int? = nil,
-        foldFlags: Int? = nil
+        foldFlags: Int? = nil,
+        foldCompact: Bool? = nil,
+        showDocSwitcher: Bool? = nil,
+        perLineResultInFind: Bool? = nil
     ) -> AppPreferences {
         AppPreferences(
             editorFontSize: editorFontSize ?? self.editorFontSize,
@@ -942,7 +957,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             disableAdvancedScrolling: disableAdvancedScrolling ?? self.disableAdvancedScrolling,
             rightClickKeepSelection: rightClickKeepSelection ?? self.rightClickKeepSelection,
             edgeMode: edgeMode ?? self.edgeMode,
-            foldFlags: foldFlags ?? self.foldFlags
+            foldFlags: foldFlags ?? self.foldFlags,
+            foldCompact: foldCompact ?? self.foldCompact,
+            showDocSwitcher: showDocSwitcher ?? self.showDocSwitcher,
+            perLineResultInFind: perLineResultInFind ?? self.perLineResultInFind
         )
     }
 
@@ -1114,8 +1132,23 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             disableAdvancedScrolling: disableAdvancedScrolling,
             rightClickKeepSelection: rightClickKeepSelection,
             edgeMode: edgeMode,
-            foldFlags: foldFlags
+            foldFlags: foldFlags,
+            foldCompact: foldCompact,
+            showDocSwitcher: showDocSwitcher,
+            perLineResultInFind: perLineResultInFind
         )
+    }
+
+    public func withFoldCompact(_ compact: Bool) -> AppPreferences {
+        copy(foldCompact: compact)
+    }
+
+    public func withShowDocSwitcher(_ show: Bool) -> AppPreferences {
+        copy(showDocSwitcher: show)
+    }
+
+    public func withPerLineResultInFind(_ perLine: Bool) -> AppPreferences {
+        copy(perLineResultInFind: perLine)
     }
 
     public func withBookmarkMarginVisible(_ visible: Bool) -> AppPreferences {
@@ -1503,6 +1536,9 @@ public final class PreferencesStore {
         static let rightClickKeepSelection = "notepadMac.rightClickKeepSelection"
         static let edgeMode = "notepadMac.edgeMode"
         static let foldFlags = "notepadMac.foldFlags"
+        static let foldCompact = "notepadMac.foldCompact"
+        static let showDocSwitcher = "notepadMac.showDocSwitcher"
+        static let perLineResultInFind = "notepadMac.perLineResultInFind"
     }
 
     private let defaults: UserDefaults
@@ -1671,7 +1707,10 @@ public final class PreferencesStore {
             disableAdvancedScrolling: defaults.object(forKey: Key.disableAdvancedScrolling) as? Bool ?? false,
             rightClickKeepSelection: defaults.object(forKey: Key.rightClickKeepSelection) as? Bool ?? true,
             edgeMode: defaults.object(forKey: Key.edgeMode) as? Int ?? 1,
-            foldFlags: defaults.object(forKey: Key.foldFlags) as? Int ?? 0
+            foldFlags: defaults.object(forKey: Key.foldFlags) as? Int ?? 0,
+            foldCompact: defaults.object(forKey: Key.foldCompact) as? Bool ?? false,
+            showDocSwitcher: defaults.object(forKey: Key.showDocSwitcher) as? Bool ?? true,
+            perLineResultInFind: defaults.object(forKey: Key.perLineResultInFind) as? Bool ?? false
         )
     }
 
@@ -1846,6 +1885,9 @@ public final class PreferencesStore {
         defaults.set(preferences.rightClickKeepSelection, forKey: Key.rightClickKeepSelection)
         defaults.set(preferences.edgeMode, forKey: Key.edgeMode)
         defaults.set(preferences.foldFlags, forKey: Key.foldFlags)
+        defaults.set(preferences.foldCompact, forKey: Key.foldCompact)
+        defaults.set(preferences.showDocSwitcher, forKey: Key.showDocSwitcher)
+        defaults.set(preferences.perLineResultInFind, forKey: Key.perLineResultInFind)
         defaults.synchronize()
     }
 

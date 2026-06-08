@@ -940,4 +940,43 @@ final class PreferencesEnhancementTests: XCTestCase {
         store.save(AppPreferences(foldFlags: 10))
         XCTAssertEqual(store.load().foldFlags, 10)
     }
+
+    // MARK: - foldCompact
+
+    func testFoldCompactDefault() {
+        XCTAssertFalse(AppPreferences().foldCompact)
+    }
+
+    func testFoldCompactRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.foldCompact.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(foldCompact: true))
+        XCTAssertTrue(store.load().foldCompact)
+    }
+
+    // MARK: - showDocSwitcher
+
+    func testShowDocSwitcherDefault() {
+        XCTAssertTrue(AppPreferences().showDocSwitcher)
+    }
+
+    func testShowDocSwitcherRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.showDocSwitcher.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(showDocSwitcher: false))
+        XCTAssertFalse(store.load().showDocSwitcher)
+    }
+
+    // MARK: - perLineResultInFind
+
+    func testPerLineResultInFindDefault() {
+        XCTAssertFalse(AppPreferences().perLineResultInFind)
+    }
+
+    func testPerLineResultInFindRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.perLineResult.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(perLineResultInFind: true))
+        XCTAssertTrue(store.load().perLineResultInFind)
+    }
 }

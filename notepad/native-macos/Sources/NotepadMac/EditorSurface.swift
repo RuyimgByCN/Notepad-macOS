@@ -71,6 +71,7 @@ protocol EditorSurface: AnyObject {
     func applyTabSize(_ size: Int, insertSpaces: Bool)
     func applyLineNumberMargin(_ visible: Bool)
     func applyEdgeLine(_ visible: Bool, column: Int)
+    func applyFoldCompact(_ compact: Bool)
     var isReadOnly: Bool { get set }
     func applyHighlight(
         language: LanguageDefinition,
@@ -341,6 +342,7 @@ final class TextViewEditorSurface: EditorSurface {
     func applyLineNumberMargin(_ visible: Bool) {}
 
     func applyEdgeLine(_ visible: Bool, column: Int) {}
+    func applyFoldCompact(_ compact: Bool) {}
 
     var isReadOnly: Bool {
         get { textView.isEditable == false }
@@ -999,6 +1001,10 @@ final class ScintillaEditorSurface: EditorSurface {
             parameter: ScintillaMargin.lineNumber,
             value: visible ? CLong(width) : 0
         )
+    }
+
+    func applyFoldCompact(_ compact: Bool) {
+        foldCompactMode = compact
     }
 
     func applyEdgeLine(_ visible: Bool, column: Int) {
@@ -2317,9 +2323,11 @@ final class ScintillaEditorSurface: EditorSurface {
         configureFolderMarkers()
     }
 
+    private var foldCompactMode: Bool = false
+
     private func configureFoldingProperties() {
         bridge.setLexerProperty(name: "fold", value: "1")
-        bridge.setLexerProperty(name: "fold.compact", value: "0")
+        bridge.setLexerProperty(name: "fold.compact", value: foldCompactMode ? "1" : "0")
         bridge.setLexerProperty(name: "fold.comment", value: "1")
         bridge.setLexerProperty(name: "fold.preprocessor", value: "1")
     }
