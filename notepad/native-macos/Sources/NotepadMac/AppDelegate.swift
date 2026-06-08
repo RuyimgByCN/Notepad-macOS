@@ -148,6 +148,12 @@ private var appearanceObservation: NSKeyValueObservation?
         reloadLanguageCatalog()
         // Load style catalog synchronously before files are opened, so highlighting works
         styleCatalog = StyleCatalog.loadDefault()
+        // Open files that were deferred from openFile: before didFinishLaunching
+        if !deferredOpenURLs.isEmpty {
+            let urls = deferredOpenURLs
+            deferredOpenURLs = []
+            urls.forEach { openFile($0) }
+        }
         Task { [weak self, selectedThemeName = self.selectedThemeName] in
             // Async theme loading runs in parallel without blocking file opening
             let result = await Task.detached(priority: .userInitiated) {
@@ -300,13 +306,27 @@ private var appearanceObservation: NSKeyValueObservation?
         }
     }
 
+    /// File URLs queued from openFile: before didFinishLaunching completes.
+    /// Deferred so the style catalog is loaded before files are highlighted.
+    private var deferredOpenURLs: [URL] = []
+
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        openFile(URL(fileURLWithPath: filename))
+        let url = URL(fileURLWithPath: filename)
+        if didCompleteLaunch {
+            openFile(url)
+        } else {
+            deferredOpenURLs.append(url)
+        }
         return true
     }
 
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
-        filenames.forEach { openFile(URL(fileURLWithPath: $0)) }
+        let urls = filenames.map { URL(fileURLWithPath: $0) }
+        if didCompleteLaunch {
+            urls.forEach { openFile($0) }
+        } else {
+            deferredOpenURLs.append(contentsOf: urls)
+        }
         sender.reply(toOpenOrPrint: .success)
     }
 

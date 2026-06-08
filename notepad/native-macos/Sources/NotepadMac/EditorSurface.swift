@@ -1038,8 +1038,9 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setFont(name: "Menlo", size: 13, bold: false, italic: false)
         bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
 
-        if let lexerName = language.lexillaLexerName,
-           let lexer = LexillaDynamicLibrary.shared.createLexer(named: lexerName) {
+        let lexerName = language.lexillaLexerName
+        if let name = lexerName,
+           let lexer = LexillaDynamicLibrary.shared.createLexer(named: name) {
             bridge.setReferenceProperty(
                 ScintillaMessage.setILexer,
                 parameter: 0,
