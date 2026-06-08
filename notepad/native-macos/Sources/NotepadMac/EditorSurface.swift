@@ -1041,13 +1041,19 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
 
         let lexerName = language.lexillaLexerName
-        if let name = lexerName,
-           let lexer = LexillaDynamicLibrary.shared.createLexer(named: name) {
-            bridge.setReferenceProperty(
-                ScintillaMessage.setILexer,
-                parameter: 0,
-                value: UnsafeRawPointer(lexer)
-            )
+        if let name = lexerName {
+            // Set lexer language by name first (SCI_SETLEXERLANGUAGE via setStringProperty)
+            // This tells Scintilla which built-in lexer to use
+            bridge.setStringProperty(ScintillaMessage.setLexerLanguage, parameter: 0, value: name)
+
+            // Also set ILexer for extended features
+            if let lexer = LexillaDynamicLibrary.shared.createLexer(named: name) {
+                bridge.setReferenceProperty(
+                    ScintillaMessage.setILexer,
+                    parameter: 0,
+                    value: UnsafeRawPointer(lexer)
+                )
+            }
             configureFoldingProperties()
         } else {
             bridge.setReferenceProperty(ScintillaMessage.setILexer, parameter: 0, value: nil)
@@ -2754,6 +2760,7 @@ private enum ScintillaMessage {
     static let braceMatch: Int32 = 2353
     static let setKeywords: Int32 = 4005
     static let setILexer: Int32 = 4033
+    static let setLexerLanguage: Int32 = 4005
     static let markerDefine: Int32 = 2040
     static let markerSetFore: Int32 = 2041
     static let markerSetBack: Int32 = 2042
