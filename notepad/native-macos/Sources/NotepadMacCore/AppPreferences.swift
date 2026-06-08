@@ -328,6 +328,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let disableAdvancedScrolling: Bool
     /// When true, right-click keeps the current selection instead of moving caret (upstream Editing2)
     public let rightClickKeepSelection: Bool
+    /// Edge line visual style: 0=none, 1=line, 2=background highlight (SCI_SETEDGEMODE)
+    public let edgeMode: Int
+    /// Fold flags bitmask: SC_FOLDFLAG_LINEBEFORE_EXPANDED=2, LINEBEFORE_CONTRACTED=4, LINEAFTER_EXPANDED=8, LINEAFTER_CONTRACTED=16
+    public let foldFlags: Int
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -490,7 +494,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         toolbarIconSizeStyle: Int = 0,
         scintillaRenderingTechnology: Int = 0,
         disableAdvancedScrolling: Bool = false,
-        rightClickKeepSelection: Bool = true
+        rightClickKeepSelection: Bool = true,
+        edgeMode: Int = 1,
+        foldFlags: Int = 0
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -653,6 +659,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.scintillaRenderingTechnology = max(0, min(1, scintillaRenderingTechnology))
         self.disableAdvancedScrolling = disableAdvancedScrolling
         self.rightClickKeepSelection = rightClickKeepSelection
+        self.edgeMode = max(0, min(2, edgeMode))
+        self.foldFlags = max(0, min(30, foldFlags))
     }
 
     /// Parse languageTabOverrides string into a dictionary.
@@ -773,7 +781,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         toolbarIconSizeStyle: Int? = nil,
         scintillaRenderingTechnology: Int? = nil,
         disableAdvancedScrolling: Bool? = nil,
-        rightClickKeepSelection: Bool? = nil
+        rightClickKeepSelection: Bool? = nil,
+        edgeMode: Int? = nil,
+        foldFlags: Int? = nil
     ) -> AppPreferences {
         AppPreferences(
             editorFontSize: editorFontSize ?? self.editorFontSize,
@@ -930,7 +940,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             toolbarIconSizeStyle: toolbarIconSizeStyle ?? self.toolbarIconSizeStyle,
             scintillaRenderingTechnology: scintillaRenderingTechnology ?? self.scintillaRenderingTechnology,
             disableAdvancedScrolling: disableAdvancedScrolling ?? self.disableAdvancedScrolling,
-            rightClickKeepSelection: rightClickKeepSelection ?? self.rightClickKeepSelection
+            rightClickKeepSelection: rightClickKeepSelection ?? self.rightClickKeepSelection,
+            edgeMode: edgeMode ?? self.edgeMode,
+            foldFlags: foldFlags ?? self.foldFlags
         )
     }
 
@@ -1100,7 +1112,9 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             toolbarIconSizeStyle: toolbarIconSizeStyle,
             scintillaRenderingTechnology: scintillaRenderingTechnology,
             disableAdvancedScrolling: disableAdvancedScrolling,
-            rightClickKeepSelection: rightClickKeepSelection
+            rightClickKeepSelection: rightClickKeepSelection,
+            edgeMode: edgeMode,
+            foldFlags: foldFlags
         )
     }
 
@@ -1300,6 +1314,14 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         copy(rightClickKeepSelection: on)
     }
 
+    public func withEdgeMode(_ mode: Int) -> AppPreferences {
+        copy(edgeMode: max(0, min(2, mode)))
+    }
+
+    public func withFoldFlags(_ flags: Int) -> AppPreferences {
+        copy(foldFlags: max(0, min(30, flags)))
+    }
+
     public func withAutoIndentMode(_ mode: Int) -> AppPreferences {
         copy(autoIndentMode: max(0, min(2, mode)))
     }
@@ -1479,6 +1501,8 @@ public final class PreferencesStore {
         static let scintillaRenderingTechnology = "notepadMac.scintillaRenderingTechnology"
         static let disableAdvancedScrolling = "notepadMac.disableAdvancedScrolling"
         static let rightClickKeepSelection = "notepadMac.rightClickKeepSelection"
+        static let edgeMode = "notepadMac.edgeMode"
+        static let foldFlags = "notepadMac.foldFlags"
     }
 
     private let defaults: UserDefaults
@@ -1645,7 +1669,9 @@ public final class PreferencesStore {
             toolbarIconSizeStyle: defaults.object(forKey: Key.toolbarIconSizeStyle) as? Int ?? 0,
             scintillaRenderingTechnology: defaults.object(forKey: Key.scintillaRenderingTechnology) as? Int ?? 0,
             disableAdvancedScrolling: defaults.object(forKey: Key.disableAdvancedScrolling) as? Bool ?? false,
-            rightClickKeepSelection: defaults.object(forKey: Key.rightClickKeepSelection) as? Bool ?? true
+            rightClickKeepSelection: defaults.object(forKey: Key.rightClickKeepSelection) as? Bool ?? true,
+            edgeMode: defaults.object(forKey: Key.edgeMode) as? Int ?? 1,
+            foldFlags: defaults.object(forKey: Key.foldFlags) as? Int ?? 0
         )
     }
 
@@ -1818,6 +1844,8 @@ public final class PreferencesStore {
         defaults.set(preferences.scintillaRenderingTechnology, forKey: Key.scintillaRenderingTechnology)
         defaults.set(preferences.disableAdvancedScrolling, forKey: Key.disableAdvancedScrolling)
         defaults.set(preferences.rightClickKeepSelection, forKey: Key.rightClickKeepSelection)
+        defaults.set(preferences.edgeMode, forKey: Key.edgeMode)
+        defaults.set(preferences.foldFlags, forKey: Key.foldFlags)
         defaults.synchronize()
     }
 
