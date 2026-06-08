@@ -1029,7 +1029,6 @@ final class ScintillaEditorSurface: EditorSurface {
         highlighter: SyntaxHighlighter
     ) {
         bridge.setFont(name: "Menlo", size: 13, bold: false, italic: false)
-        bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
 
         let lexerName = language.lexillaLexerName
         if let name = lexerName,
@@ -2326,6 +2325,8 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setLexerProperty(name: "fold.compact", value: foldCompactMode ? "1" : "0")
         bridge.setLexerProperty(name: "fold.comment", value: "1")
         bridge.setLexerProperty(name: "fold.preprocessor", value: "1")
+        // HTML/XML-specific folding (matching NotepadNext xml.lua)
+        bridge.setLexerProperty(name: "fold.html", value: "1")
     }
 
     private func configureFolderMarkers() {
