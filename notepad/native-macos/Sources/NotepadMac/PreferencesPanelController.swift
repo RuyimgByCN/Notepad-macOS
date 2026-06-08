@@ -272,6 +272,12 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let tabbarShowCloseButtonButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabbarCompactButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabbarShowIndexNumbersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let toolbarIconSizeLabel = NSTextField(labelWithString: "")
+    private let toolbarIconSizeSegmented = NSSegmentedControl()
+    private let scintillaRenderingLabel = NSTextField(labelWithString: "")
+    private let scintillaRenderingPopup = NSPopUpButton()
+    private let disableAdvancedScrollingButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let rightClickKeepSelectionButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabbarMaxLabelLengthLabel = NSTextField(labelWithString: "")
     private let tabbarMaxLabelLengthField = NSTextField(string: "0")
     private let tabbarMaxLabelLengthStepper = NSStepper()
@@ -555,6 +561,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         tabbarShowCloseButtonButton.title = "Show close button on tabs"
         tabbarCompactButton.title = "Compact (reduced) tab bar"
         tabbarShowIndexNumbersButton.title = "Show tab index numbers (1-9)"
+        toolbarIconSizeLabel.stringValue = "Toolbar icon size:"
+        scintillaRenderingLabel.stringValue = "Scintilla rendering:"
+        disableAdvancedScrollingButton.title = "Disable advanced scrolling"
+        rightClickKeepSelectionButton.title = "Keep selection on right-click"
         tabbarExitOnLastTabButton.title = "Exit app when last tab is closed"
         tabbarMaxLabelLengthLabel.stringValue = "Max tab label length (0 = unlimited):"
         printSectionLabel.stringValue = "Print"
@@ -682,7 +692,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          whitespaceDisplayModePopup, bidiModePopup, caretStickyModePopup, trimTrailingSpacesOnSaveButton, pasteConvertEndingsButton, smoothFontButton, multiEditEnabledButton, multiPasteModePopup, indentGuideModePopup, wordWrapModePopup, additionalSelAlphaField, additionalSelAlphaStepper, additionalCaretsBlinkButton, additionalCaretsVisibleButton, caretLineVisibleAlwaysButton, whitespaceSizeField, whitespaceSizeStepper, selectionAlphaField, selectionAlphaStepper, controlCharDisplayPopup, autoIndentModePopup, fileAutoDetectionPopup, updateSilentlyButton, zoomSyncToAllTabsButton, hideMenuShortcutsButton, scrollToLastLineOnMonitorReloadButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper,
          printMarginTopField, printMarginBottomField, printMarginLeftField, printMarginRightField,
          delimiterLeftField, delimiterRightField,
-         openAnsiAsUtf8Button, xmlTagAttributeHighlightButton, highlightNonHtmlZoneButton, defaultSaveDirField].forEach {
+         openAnsiAsUtf8Button, xmlTagAttributeHighlightButton, highlightNonHtmlZoneButton, defaultSaveDirField,
+         toolbarIconSizeSegmented, scintillaRenderingPopup, disableAdvancedScrollingButton, rightClickKeepSelectionButton].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -774,6 +785,14 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
 
         appearanceModeSegmented.segmentCount = 3
         appearanceModeSegmented.trackingMode = .selectOne
+
+        toolbarIconSizeSegmented.segmentCount = 2
+        toolbarIconSizeSegmented.setLabel("Regular", forSegment: 0)
+        toolbarIconSizeSegmented.setLabel("Small", forSegment: 1)
+        toolbarIconSizeSegmented.trackingMode = .selectOne
+
+        scintillaRenderingPopup.removeAllItems()
+        scintillaRenderingPopup.addItems(withTitles: ["Default", "Direct (better quality)"])
 
         recentFilesMaxField.formatter = integerFormatter
         recentFilesMaxStepper.minValue = 1
@@ -909,6 +928,9 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          delimiterRightLabel, delimiterRightField,
          generalSectionLabel, statusBarVisibleButton, shortTitleButton,
          saveAllConfirmButton, autoCompleteIgnoreNumbersButton, reloadScrollToLastCaretButton,
+         toolbarIconSizeLabel, toolbarIconSizeSegmented,
+         scintillaRenderingLabel, scintillaRenderingPopup,
+         disableAdvancedScrollingButton, rightClickKeepSelectionButton,
          appearanceSectionLabel, appearanceModeLabel, appearanceModeSegmented,
          postItSectionLabel, postItAlphaLabel, postItAlphaSlider
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; windowCV.addSubview($0) }
@@ -1794,8 +1816,29 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             autoCompleteIgnoreNumbersButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
             autoCompleteIgnoreNumbersButton.topAnchor.constraint(equalTo: saveAllConfirmButton.bottomAnchor, constant: 10),
 
+            toolbarIconSizeLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            toolbarIconSizeLabel.topAnchor.constraint(equalTo: autoCompleteIgnoreNumbersButton.bottomAnchor, constant: 10),
+            toolbarIconSizeLabel.widthAnchor.constraint(equalToConstant: 120),
+
+            toolbarIconSizeSegmented.leadingAnchor.constraint(equalTo: toolbarIconSizeLabel.trailingAnchor, constant: 8),
+            toolbarIconSizeSegmented.centerYAnchor.constraint(equalTo: toolbarIconSizeLabel.centerYAnchor),
+
+            scintillaRenderingLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            scintillaRenderingLabel.topAnchor.constraint(equalTo: toolbarIconSizeLabel.bottomAnchor, constant: 10),
+            scintillaRenderingLabel.widthAnchor.constraint(equalToConstant: 150),
+
+            scintillaRenderingPopup.leadingAnchor.constraint(equalTo: scintillaRenderingLabel.trailingAnchor, constant: 8),
+            scintillaRenderingPopup.centerYAnchor.constraint(equalTo: scintillaRenderingLabel.centerYAnchor),
+            scintillaRenderingPopup.widthAnchor.constraint(equalToConstant: 180),
+
+            disableAdvancedScrollingButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            disableAdvancedScrollingButton.topAnchor.constraint(equalTo: scintillaRenderingLabel.bottomAnchor, constant: 10),
+
+            rightClickKeepSelectionButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            rightClickKeepSelectionButton.topAnchor.constraint(equalTo: disableAdvancedScrollingButton.bottomAnchor, constant: 6),
+
             reloadScrollToLastCaretButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
-            reloadScrollToLastCaretButton.topAnchor.constraint(equalTo: autoCompleteIgnoreNumbersButton.bottomAnchor, constant: 10),
+            reloadScrollToLastCaretButton.topAnchor.constraint(equalTo: rightClickKeepSelectionButton.bottomAnchor, constant: 10),
 
             appearanceSectionLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
             appearanceSectionLabel.topAnchor.constraint(equalTo: reloadScrollToLastCaretButton.bottomAnchor, constant: 18),
@@ -1983,6 +2026,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         shortTitleButton.state = preferences.shortTitle ? .on : .off
         saveAllConfirmButton.state = preferences.saveAllConfirm ? .on : .off
         autoCompleteIgnoreNumbersButton.state = preferences.autoCompleteIgnoreNumbers ? .on : .off
+        toolbarIconSizeSegmented.selectedSegment = preferences.toolbarIconSizeStyle
+        scintillaRenderingPopup.selectItem(at: preferences.scintillaRenderingTechnology)
+        disableAdvancedScrollingButton.state = preferences.disableAdvancedScrolling ? .on : .off
+        rightClickKeepSelectionButton.state = preferences.rightClickKeepSelection ? .on : .off
         reloadScrollToLastCaretButton.state = preferences.reloadScrollToLastCaret ? .on : .off
         appearanceModeSegmented.selectedSegment = max(0, min(2, preferences.appearanceMode))
         postItAlphaSlider.doubleValue = max(0.2, min(1.0, preferences.postItAlpha))
@@ -2262,7 +2309,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             openAnsiAsUtf8: openAnsiAsUtf8Button.state == .on,
             xmlTagAttributeHighlight: xmlTagAttributeHighlightButton.state == .on,
             highlightNonHtmlZone: highlightNonHtmlZoneButton.state == .on,
-            defaultSaveDirectory: defaultSaveDirField.stringValue
+            defaultSaveDirectory: defaultSaveDirField.stringValue,
+            toolbarIconSizeStyle: toolbarIconSizeSegmented.selectedSegment,
+            scintillaRenderingTechnology: scintillaRenderingPopup.indexOfSelectedItem,
+            disableAdvancedScrolling: disableAdvancedScrollingButton.state == .on,
+            rightClickKeepSelection: rightClickKeepSelectionButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()

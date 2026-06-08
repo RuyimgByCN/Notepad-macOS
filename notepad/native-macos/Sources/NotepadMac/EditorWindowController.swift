@@ -138,6 +138,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var enablesXmlTagMatch = true
     private var xmlTagAttributeHighlight = true
     private var highlightNonHtmlZone = false
+    private var toolbarIconSizeStyle = 0
+    private var scintillaRenderingTechnology = 0
+    private var disableAdvancedScrolling = false
+    private var rightClickKeepSelection = true
     private var htmlXmlCloseTagEnabled = true
     private var enablesAutoPair = true
     private var autoPairParentheses = true
@@ -423,6 +427,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.enablesXmlTagMatch = preferences.enableXmlTagMatch
         self.xmlTagAttributeHighlight = preferences.xmlTagAttributeHighlight
         self.highlightNonHtmlZone = preferences.highlightNonHtmlZone
+        self.toolbarIconSizeStyle = preferences.toolbarIconSizeStyle
+        self.scintillaRenderingTechnology = preferences.scintillaRenderingTechnology
+        self.disableAdvancedScrolling = preferences.disableAdvancedScrolling
+        self.rightClickKeepSelection = preferences.rightClickKeepSelection
         self.htmlXmlCloseTagEnabled = preferences.htmlXmlCloseTagEnabled
         self.enablesClickableLinks = preferences.enableClickableLinks
         self.showsLineNumberMargin = preferences.showLineNumberMargin
@@ -3792,6 +3800,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyControlCharDisplay(controlCharDisplay)
         editorSurface.applyBidirectional(currentBidiMode)
         editorSurface.applyCopyLineWithoutSelection(preferences.copyLineWithoutSelection)
+        editorSurface.applyScintillaRenderingTechnology(scintillaRenderingTechnology)
+        editorSurface.applyRightClickKeepSelection(rightClickKeepSelection)
+        editorSurface.applyDisableAdvancedScrolling(disableAdvancedScrolling)
         editorSurface.applyScintillaKeyRemaps(scintillaKeyMapStore.load())
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.lockDragDrop = preferences.tabbarLockDragDrop
@@ -4135,11 +4146,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func configureToolbar() {
-        window?.toolbar = editorToolbar.makeToolbar()
-        window?.toolbarStyle = .unifiedCompact
+        let prefs = preferencesStore.load()
+        window?.toolbar = editorToolbar.makeToolbar(sizeStyle: prefs.toolbarIconSizeStyle)
+        window?.toolbarStyle = prefs.toolbarIconSizeStyle == 1 ? .unifiedCompact : .unified
         // Restore saved toolbar visibility preference
-        let saved = UserDefaults.standard.object(forKey: "notepadMac.toolbarVisible") as? Bool ?? true
-        window?.toolbar?.isVisible = saved
+        window?.toolbar?.isVisible = prefs.toolbarVisible
     }
 
     private func configureContent() {
@@ -4935,6 +4946,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             .withScrollToLastLineOnMonitorReload(scrollToLastLineOnMonitorReload)
             .withXmlTagAttributeHighlight(xmlTagAttributeHighlight)
             .withHighlightNonHtmlZone(highlightNonHtmlZone)
+            .withToolbarIconSizeStyle(toolbarIconSizeStyle)
+            .withScintillaRenderingTechnology(scintillaRenderingTechnology)
+            .withDisableAdvancedScrolling(disableAdvancedScrolling)
+            .withRightClickKeepSelection(rightClickKeepSelection)
         preferencesStore.save(preferences)
     }
 

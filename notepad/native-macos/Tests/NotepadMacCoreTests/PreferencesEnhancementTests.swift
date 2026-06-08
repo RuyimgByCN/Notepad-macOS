@@ -828,4 +828,74 @@ final class PreferencesEnhancementTests: XCTestCase {
         store.save(AppPreferences(defaultSaveDirectory: "/Users/test/Documents"))
         XCTAssertEqual(store.load().defaultSaveDirectory, "/Users/test/Documents")
     }
+
+    // MARK: - Toolbar Icon Size Style
+
+    func testToolbarIconSizeStyleDefault() {
+        let prefs = AppPreferences()
+        XCTAssertEqual(prefs.toolbarIconSizeStyle, 0, "Default toolbar icon size style should be 0 (regular)")
+    }
+
+    func testToolbarIconSizeStyleClamped() {
+        let tooHigh = AppPreferences(toolbarIconSizeStyle: 5)
+        XCTAssertEqual(tooHigh.toolbarIconSizeStyle, 1)
+        let negative = AppPreferences(toolbarIconSizeStyle: -1)
+        XCTAssertEqual(negative.toolbarIconSizeStyle, 0)
+    }
+
+    func testToolbarIconSizeStyleRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.toolbarIconSize.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(toolbarIconSizeStyle: 1))
+        XCTAssertEqual(store.load().toolbarIconSizeStyle, 1)
+    }
+
+    // MARK: - Scintilla Rendering Technology
+
+    func testScintillaRenderingTechnologyDefault() {
+        let prefs = AppPreferences()
+        XCTAssertEqual(prefs.scintillaRenderingTechnology, 0, "Default rendering technology should be 0 (default)")
+    }
+
+    func testScintillaRenderingTechnologyClamped() {
+        let tooHigh = AppPreferences(scintillaRenderingTechnology: 3)
+        XCTAssertEqual(tooHigh.scintillaRenderingTechnology, 1)
+        let negative = AppPreferences(scintillaRenderingTechnology: -1)
+        XCTAssertEqual(negative.scintillaRenderingTechnology, 0)
+    }
+
+    func testScintillaRenderingTechnologyRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.scintillaRendering.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(scintillaRenderingTechnology: 1))
+        XCTAssertEqual(store.load().scintillaRenderingTechnology, 1)
+    }
+
+    // MARK: - Disable Advanced Scrolling
+
+    func testDisableAdvancedScrollingDefault() {
+        let prefs = AppPreferences()
+        XCTAssertFalse(prefs.disableAdvancedScrolling, "Default should be false (advanced scrolling enabled)")
+    }
+
+    func testDisableAdvancedScrollingRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.disableAdvScroll.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(disableAdvancedScrolling: true))
+        XCTAssertTrue(store.load().disableAdvancedScrolling)
+    }
+
+    // MARK: - Right Click Keep Selection
+
+    func testRightClickKeepSelectionDefault() {
+        let prefs = AppPreferences()
+        XCTAssertTrue(prefs.rightClickKeepSelection, "Default should be true (keep selection on right-click)")
+    }
+
+    func testRightClickKeepSelectionRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.rightClickKeepSel.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(rightClickKeepSelection: false))
+        XCTAssertFalse(store.load().rightClickKeepSelection)
+    }
 }

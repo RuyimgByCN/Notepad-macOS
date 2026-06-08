@@ -176,6 +176,9 @@ protocol EditorSurface: AnyObject {
     func applyWhitespaceSize(_ size: Int)  // 1-5 px dot size
     func applySelectionAlpha(_ alpha: Int) // 0-256, 256=opaque
     func applyControlCharDisplay(_ mode: Int) // 0=glyph, 1-6=symbol
+    func applyScintillaRenderingTechnology(_ tech: Int)
+    func applyRightClickKeepSelection(_ keep: Bool)
+    func applyDisableAdvancedScrolling(_ disabled: Bool)
 
     // MARK: - Copy/Cut behavior
     func applyCopyLineWithoutSelection(_ enabled: Bool)
@@ -453,6 +456,9 @@ final class TextViewEditorSurface: EditorSurface {
     func applyWhitespaceSize(_ size: Int) {}
     func applySelectionAlpha(_ alpha: Int) {}
     func applyControlCharDisplay(_ mode: Int) {}
+    func applyScintillaRenderingTechnology(_ tech: Int) {}
+    func applyRightClickKeepSelection(_ keep: Bool) {}
+    func applyDisableAdvancedScrolling(_ disabled: Bool) {}
     func applyCopyLineWithoutSelection(_ enabled: Bool) {}
     func styledSegments(ofSelection range: NSRange) -> [StyledSegment] {
         let nsText = textView.string as NSString
@@ -1969,6 +1975,23 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setControlCharSymbol, parameter: CLong(max(0, min(6, mode))), value: 0)
     }
 
+    func applyScintillaRenderingTechnology(_ tech: Int) {
+        // SCI_SETTECHNOLOGY: 0=SC_TECHNOLOGY_DEFAULT, 1=SC_TECHNOLOGY_DIRECTWRITE
+        bridge.setGeneralProperty(ScintillaMessage.setTechnology, parameter: CLong(max(0, min(1, tech))), value: 0)
+    }
+
+    func applyRightClickKeepSelection(_ keep: Bool) {
+        // SCI_SETMOUSESELECTIONRECTANGULARSWITCH: when true, right-click doesn't move caret
+        // Not directly supported by Scintilla; handled at EditorWindowController level
+    }
+
+    func applyDisableAdvancedScrolling(_ disabled: Bool) {
+        // SCI_SETLAYOUTCACHE: 0=SC_CACHE_NONE (no layout cache, simpler scrolling),
+        // 1=SC_CACHE_DOCUMENT (cache whole document layout, smoother scrolling).
+        // "Disable advanced scrolling" = use SC_CACHE_NONE when true.
+        bridge.setGeneralProperty(ScintillaMessage.setLayoutCache, parameter: disabled ? 0 : 1, value: 0)
+    }
+
     func applyCopyLineWithoutSelection(_ enabled: Bool) {
         bridge.setGeneralProperty(ScintillaMessage.setCopyAllowsLineSelection, parameter: enabled ? 1 : 0, value: 0)
     }
@@ -2746,6 +2769,8 @@ private enum ScintillaMessage {
     static let setAdditionalSelAlpha: Int32 = 2602
     static let setAdditionalCaretsVisible: Int32 = 2608
     static let setAdditionalCaretsBlink: Int32 = 2761
+    static let setTechnology: Int32 = 2630  // SCI_SETTECHNOLOGY: SC_TECHNOLOGY_DEFAULT=0, SC_TECHNOLOGY_DIRECTWRITE=1
+    static let setLayoutCache: Int32 = 2213 // SCI_SETLAYOUTCACHE: SC_CACHE_NONE=0, SC_CACHE_DOCUMENT=1
     static let setWhitespaceSize: Int32 = 2087
     static let setSelAlpha: Int32 = 2473
     static let setControlCharSymbol: Int32 = 2388

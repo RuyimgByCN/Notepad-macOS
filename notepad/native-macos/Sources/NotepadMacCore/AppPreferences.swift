@@ -320,6 +320,14 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let highlightNonHtmlZone: Bool
     /// Custom default directory for Save/Open dialogs (empty = use system default)
     public let defaultSaveDirectory: String
+    /// Toolbar icon size: 0=regular (default), 1=small (compact)
+    public let toolbarIconSizeStyle: Int
+    /// Scintilla rendering technology: 0=default, 1=direct (SCI_SETTECHNOLOGY)
+    public let scintillaRenderingTechnology: Int
+    /// When true, disable advanced scrolling (upstream Performance: disableAdvancedScrolling)
+    public let disableAdvancedScrolling: Bool
+    /// When true, right-click keeps the current selection instead of moving caret (upstream Editing2)
+    public let rightClickKeepSelection: Bool
 
     public var searchOptions: TextSearch.Options {
         TextSearch.Options(matchCase: searchMatchCase, wholeWord: searchWholeWord)
@@ -478,7 +486,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         openAnsiAsUtf8: Bool = false,
         xmlTagAttributeHighlight: Bool = true,
         highlightNonHtmlZone: Bool = false,
-        defaultSaveDirectory: String = ""
+        defaultSaveDirectory: String = "",
+        toolbarIconSizeStyle: Int = 0,
+        scintillaRenderingTechnology: Int = 0,
+        disableAdvancedScrolling: Bool = false,
+        rightClickKeepSelection: Bool = true
     ) {
         self.editorFontSize = min(max(editorFontSize, Self.minimumEditorFontSize), Self.maximumEditorFontSize)
         self.wrapsLines = wrapsLines
@@ -637,6 +649,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.xmlTagAttributeHighlight = xmlTagAttributeHighlight
         self.highlightNonHtmlZone = highlightNonHtmlZone
         self.defaultSaveDirectory = defaultSaveDirectory
+        self.toolbarIconSizeStyle = max(0, min(1, toolbarIconSizeStyle))
+        self.scintillaRenderingTechnology = max(0, min(1, scintillaRenderingTechnology))
+        self.disableAdvancedScrolling = disableAdvancedScrolling
+        self.rightClickKeepSelection = rightClickKeepSelection
     }
 
     /// Parse languageTabOverrides string into a dictionary.
@@ -753,7 +769,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         openAnsiAsUtf8: Bool? = nil,
         xmlTagAttributeHighlight: Bool? = nil,
         highlightNonHtmlZone: Bool? = nil,
-        defaultSaveDirectory: String? = nil
+        defaultSaveDirectory: String? = nil,
+        toolbarIconSizeStyle: Int? = nil,
+        scintillaRenderingTechnology: Int? = nil,
+        disableAdvancedScrolling: Bool? = nil,
+        rightClickKeepSelection: Bool? = nil
     ) -> AppPreferences {
         AppPreferences(
             editorFontSize: editorFontSize ?? self.editorFontSize,
@@ -906,7 +926,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             openAnsiAsUtf8: openAnsiAsUtf8 ?? self.openAnsiAsUtf8,
             xmlTagAttributeHighlight: xmlTagAttributeHighlight ?? self.xmlTagAttributeHighlight,
             highlightNonHtmlZone: highlightNonHtmlZone ?? self.highlightNonHtmlZone,
-            defaultSaveDirectory: defaultSaveDirectory ?? self.defaultSaveDirectory
+            defaultSaveDirectory: defaultSaveDirectory ?? self.defaultSaveDirectory,
+            toolbarIconSizeStyle: toolbarIconSizeStyle ?? self.toolbarIconSizeStyle,
+            scintillaRenderingTechnology: scintillaRenderingTechnology ?? self.scintillaRenderingTechnology,
+            disableAdvancedScrolling: disableAdvancedScrolling ?? self.disableAdvancedScrolling,
+            rightClickKeepSelection: rightClickKeepSelection ?? self.rightClickKeepSelection
         )
     }
 
@@ -1072,7 +1096,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             openAnsiAsUtf8: openAnsiAsUtf8,
             xmlTagAttributeHighlight: xmlTagAttributeHighlight,
             highlightNonHtmlZone: highlightNonHtmlZone,
-            defaultSaveDirectory: defaultSaveDirectory
+            defaultSaveDirectory: defaultSaveDirectory,
+            toolbarIconSizeStyle: toolbarIconSizeStyle,
+            scintillaRenderingTechnology: scintillaRenderingTechnology,
+            disableAdvancedScrolling: disableAdvancedScrolling,
+            rightClickKeepSelection: rightClickKeepSelection
         )
     }
 
@@ -1256,6 +1284,22 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         copy(defaultSaveDirectory: dir)
     }
 
+    public func withToolbarIconSizeStyle(_ style: Int) -> AppPreferences {
+        copy(toolbarIconSizeStyle: max(0, min(1, style)))
+    }
+
+    public func withScintillaRenderingTechnology(_ tech: Int) -> AppPreferences {
+        copy(scintillaRenderingTechnology: max(0, min(1, tech)))
+    }
+
+    public func withDisableAdvancedScrolling(_ on: Bool) -> AppPreferences {
+        copy(disableAdvancedScrolling: on)
+    }
+
+    public func withRightClickKeepSelection(_ on: Bool) -> AppPreferences {
+        copy(rightClickKeepSelection: on)
+    }
+
     public func withAutoIndentMode(_ mode: Int) -> AppPreferences {
         copy(autoIndentMode: max(0, min(2, mode)))
     }
@@ -1431,6 +1475,10 @@ public final class PreferencesStore {
         static let xmlTagAttributeHighlight = "notepadMac.xmlTagAttributeHighlight"
         static let highlightNonHtmlZone = "notepadMac.highlightNonHtmlZone"
         static let defaultSaveDirectory = "notepadMac.defaultSaveDirectory"
+        static let toolbarIconSizeStyle = "notepadMac.toolbarIconSizeStyle"
+        static let scintillaRenderingTechnology = "notepadMac.scintillaRenderingTechnology"
+        static let disableAdvancedScrolling = "notepadMac.disableAdvancedScrolling"
+        static let rightClickKeepSelection = "notepadMac.rightClickKeepSelection"
     }
 
     private let defaults: UserDefaults
@@ -1593,7 +1641,11 @@ public final class PreferencesStore {
             openAnsiAsUtf8: defaults.object(forKey: Key.openAnsiAsUtf8) as? Bool ?? false,
             xmlTagAttributeHighlight: defaults.object(forKey: Key.xmlTagAttributeHighlight) as? Bool ?? true,
             highlightNonHtmlZone: defaults.object(forKey: Key.highlightNonHtmlZone) as? Bool ?? false,
-            defaultSaveDirectory: defaults.string(forKey: Key.defaultSaveDirectory) ?? ""
+            defaultSaveDirectory: defaults.string(forKey: Key.defaultSaveDirectory) ?? "",
+            toolbarIconSizeStyle: defaults.object(forKey: Key.toolbarIconSizeStyle) as? Int ?? 0,
+            scintillaRenderingTechnology: defaults.object(forKey: Key.scintillaRenderingTechnology) as? Int ?? 0,
+            disableAdvancedScrolling: defaults.object(forKey: Key.disableAdvancedScrolling) as? Bool ?? false,
+            rightClickKeepSelection: defaults.object(forKey: Key.rightClickKeepSelection) as? Bool ?? true
         )
     }
 
@@ -1762,6 +1814,10 @@ public final class PreferencesStore {
         defaults.set(preferences.xmlTagAttributeHighlight, forKey: Key.xmlTagAttributeHighlight)
         defaults.set(preferences.highlightNonHtmlZone, forKey: Key.highlightNonHtmlZone)
         defaults.set(preferences.defaultSaveDirectory, forKey: Key.defaultSaveDirectory)
+        defaults.set(preferences.toolbarIconSizeStyle, forKey: Key.toolbarIconSizeStyle)
+        defaults.set(preferences.scintillaRenderingTechnology, forKey: Key.scintillaRenderingTechnology)
+        defaults.set(preferences.disableAdvancedScrolling, forKey: Key.disableAdvancedScrolling)
+        defaults.set(preferences.rightClickKeepSelection, forKey: Key.rightClickKeepSelection)
         defaults.synchronize()
     }
 
