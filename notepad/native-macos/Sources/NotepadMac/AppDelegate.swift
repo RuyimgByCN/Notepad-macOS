@@ -1393,11 +1393,14 @@ private var appearanceObservation: NSKeyValueObservation?
                     // Last tab closed
                     if self.preferencesStore.load().tabbarExitOnLastTab {
                         NSApp.terminate(nil)
-                    } else {
+                    } else if controller.isClosingFromTabBarAction {
+                        // Tab bar close button → create new untitled document (classic Notepad++ behavior)
                         self.newDocument(nil)
                     }
+                    // else: system close (red X) → window closes, app terminates via applicationShouldTerminateAfterLastWindowClosed
                 }
             }
+            controller.isClosingFromTabBarAction = false
         }
         controller.onContentChange = { [weak self] in
             self?.scheduleSnapshotSave()
@@ -1479,6 +1482,7 @@ private var appearanceObservation: NSKeyValueObservation?
 
     private func closeTab(identity: EditorTabIdentity) {
         guard let controller = windows.first(where: { $0.tabIdentity == identity }) else { return }
+        controller.isClosingFromTabBarAction = true
         controller.window?.performClose(nil)
     }
 

@@ -55,6 +55,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private lazy var findCharRangePanel = FindCharRangePanelController(editor: self)
     private lazy var editorToolbar = EditorWindowToolbar(controller: self)
 
+    /// Whether the current window close was initiated from the tab bar close button.
+    /// When true, closing the last tab creates a new untitled document (Notepad++ behavior).
+    /// When false (system close button / red X), closes the window without auto-creating.
+    var isClosingFromTabBarAction = false
+
     private var fileURL: URL?
     private var encoding: String.Encoding = .utf8
     private var savePolicy = TextFileSavePolicy.newFile
@@ -4162,7 +4167,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func configureContent() {
         guard let window else { return }
 
-        let rootView = NSView()
+        let rootView = DragDestinationView()
+        rootView.dragDelegate = self
         rootView.translatesAutoresizingMaskIntoConstraints = false
         window.contentView = rootView
 
@@ -5584,6 +5590,30 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return url.path
         }
         return displayName
+    }
+}
+
+// MARK: - DragDestinationView
+
+/// A custom NSView that forwards NSDraggingDestination calls to a delegate (the window controller).
+/// Plain NSView's default implementations return NSDragOperationNone, which silently rejects drags.
+@MainActor
+private final class DragDestinationView: NSView {
+    weak var dragDelegate: NSDraggingDestination?
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard let d = dragDelegate else { return [] }
+        return d.draggingEntered?(sender) ?? []
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard let d = dragDelegate else { return [] }
+        return d.draggingUpdated?(sender) ?? []
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let d = dragDelegate else { return false }
+        return d.performDragOperation?(sender) ?? false
     }
 }
 

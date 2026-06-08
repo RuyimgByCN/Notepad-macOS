@@ -357,6 +357,27 @@ public struct LanguageCatalog: Sendable {
             keywordGroups: ["instre1": ["break", "case", "class", "const", "else", "for", "if", "namespace", "return", "struct", "switch", "template", "while"]]
         ),
         LanguageDefinition(
+            name: "xml",
+            displayName: "XML",
+            extensions: ["xml", "xaml", "xsl", "xslt", "xsd", "xul", "kml", "svg", "mxml", "wsdl", "xlf", "xliff", "gml", "gpx", "plist", "slnx", "targets", "vcxproj", "csproj"],
+            lineComment: nil,
+            blockCommentStart: "<!--",
+            blockCommentEnd: "-->",
+            keywordGroups: ["instre1": ["ATTLIST", "DOCTYPE", "ELEMENT", "ENTITY", "NOTATION"]]
+        ),
+        LanguageDefinition(
+            name: "html",
+            displayName: "HTML",
+            extensions: ["html", "htm", "shtml", "shtm", "xhtml"],
+            keywordGroups: ["instre1": ["a", "body", "div", "head", "html", "img", "meta", "script", "span", "style", "table", "td", "th", "title", "tr"]]
+        ),
+        LanguageDefinition(
+            name: "json",
+            displayName: "JSON",
+            extensions: ["json", "jsonc", "har"],
+            keywordGroups: ["instre1": ["false", "null", "true"]]
+        ),
+        LanguageDefinition(
             name: "markdown",
             displayName: "Markdown",
             extensions: ["md", "markdown"],
@@ -365,7 +386,7 @@ public struct LanguageCatalog: Sendable {
         LanguageDefinition(
             name: "python",
             displayName: "Python",
-            extensions: ["py", "pyw"],
+            extensions: ["py", "pyw", "pyi"],
             lineComment: "#",
             keywordGroups: ["instre1": ["class", "def", "else", "False", "for", "if", "import", "in", "None", "return", "True", "while"]]
         ),
@@ -386,6 +407,130 @@ public struct LanguageCatalog: Sendable {
             blockCommentStart: "/*",
             blockCommentEnd: "*/",
             keywordGroups: ["instre1": ["actor", "class", "enum", "false", "for", "func", "guard", "if", "import", "let", "nil", "return", "struct", "true", "var"]]
+        ),
+        LanguageDefinition(
+            name: "javascript",
+            displayName: "JavaScript",
+            extensions: ["js", "jsx", "mjs", "cjs"],
+            lineComment: "//",
+            blockCommentStart: "/*",
+            blockCommentEnd: "*/",
+            keywordGroups: ["instre1": ["async", "await", "break", "case", "catch", "class", "const", "continue", "default", "delete", "else", "export", "extends", "false", "for", "function", "if", "import", "in", "let", "new", "null", "of", "return", "switch", "this", "throw", "true", "try", "typeof", "undefined", "var", "while"]]
+        ),
+        LanguageDefinition(
+            name: "css",
+            displayName: "CSS",
+            extensions: ["css", "scss", "less"],
+            blockCommentStart: "/*",
+            blockCommentEnd: "*/"
+        ),
+        LanguageDefinition(
+            name: "bash",
+            displayName: "Bash/Shell",
+            extensions: ["sh", "bash", "zsh", "fish", "ksh"],
+            lineComment: "#"
+        ),
+        LanguageDefinition(
+            name: "makefile",
+            displayName: "Makefile",
+            extensions: ["mak", "mk"],
+            lineComment: "#"
+        ),
+        LanguageDefinition(
+            name: "perl",
+            displayName: "Perl",
+            extensions: ["pl", "pm", "t"],
+            lineComment: "#"
+        ),
+        LanguageDefinition(
+            name: "php",
+            displayName: "PHP",
+            extensions: ["php", "php3", "php4", "php5", "phtml"],
+            lineComment: "//",
+            blockCommentStart: "/*",
+            blockCommentEnd: "*/",
+            keywordGroups: ["instre1": ["class", "echo", "else", "false", "for", "foreach", "function", "if", "null", "private", "protected", "public", "return", "static", "true", "while"]]
+        ),
+        LanguageDefinition(
+            name: "ruby",
+            displayName: "Ruby",
+            extensions: ["rb", "rbw", "rake", "gemspec"],
+            lineComment: "#",
+            keywordGroups: ["instre1": ["begin", "class", "def", "else", "end", "false", "if", "module", "nil", "rescue", "return", "true", "unless", "when"]]
+        ),
+        LanguageDefinition(
+            name: "yaml",
+            displayName: "YAML",
+            extensions: ["yml", "yaml"],
+            lineComment: "#",
+            keywordGroups: ["instre1": ["false", "no", "true", "yes"]]
+        ),
+        LanguageDefinition(
+            name: "toml",
+            displayName: "TOML",
+            extensions: ["toml"],
+            lineComment: "#",
+            keywordGroups: ["instre1": ["false", "true"]]
+        ),
+        LanguageDefinition(
+            name: "sql",
+            displayName: "SQL",
+            extensions: ["sql"],
+            lineComment: "--",
+            blockCommentStart: "/*",
+            blockCommentEnd: "*/",
+            keywordGroups: ["instre1": ["ALTER", "CREATE", "DELETE", "DROP", "FROM", "GROUP", "HAVING", "INSERT", "INTO", "JOIN", "KEY", "LEFT", "LIMIT", "ORDER", "PRIMARY", "RIGHT", "SELECT", "SET", "TABLE", "UPDATE", "VALUES", "WHERE"]]
+        ),
+        LanguageDefinition(
+            name: "lua",
+            displayName: "Lua",
+            extensions: ["lua"],
+            lineComment: "--",
+            blockCommentStart: "--[[",
+            blockCommentEnd: "]]",
+            keywordGroups: ["instre1": ["and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"]]
+        ),
+        LanguageDefinition(
+            name: "cmake",
+            displayName: "CMake",
+            extensions: ["cmake"],
+            lineComment: "#",
+            keywordGroups: ["instre1": ["add_executable", "add_library", "cmake_minimum_required", "find_package", "if", "else", "endif", "include", "message", "project", "set", "target_link_libraries"]]
+        ),
+        LanguageDefinition(
+            name: "dockerfile",
+            displayName: "Dockerfile",
+            extensions: ["dockerfile"],
+            lineComment: "#",
+            keywordGroups: ["instre1": ["ADD", "ARG", "CMD", "COPY", "ENTRYPOINT", "ENV", "EXPOSE", "FROM", "HEALTHCHECK", "LABEL", "MAINTAINER", "ONBUILD", "RUN", "SHELL", "STOPSIGNAL", "USER", "VOLUME", "WORKDIR"]]
+        ),
+        LanguageDefinition(
+            name: "ini",
+            displayName: "INI",
+            extensions: ["ini", "cfg", "conf"]
+        ),
+        LanguageDefinition(
+            name: "groovy",
+            displayName: "Groovy",
+            extensions: ["groovy"],
+            lineComment: "//",
+            blockCommentStart: "/*",
+            blockCommentEnd: "*/",
+            keywordGroups: ["instre1": ["class", "def", "else", "false", "for", "if", "in", "null", "return", "true", "void", "while"]]
+        ),
+        LanguageDefinition(
+            name: "go",
+            displayName: "Go",
+            extensions: ["go", "mod", "sum"],
+            lineComment: "//",
+            blockCommentStart: "/*",
+            blockCommentEnd: "*/",
+            keywordGroups: ["instre1": ["break", "case", "chan", "const", "continue", "default", "defer", "else", "fallthrough", "for", "func", "go", "goto", "if", "import", "interface", "map", "package", "range", "return", "select", "struct", "switch", "type", "var"]]
+        ),
+        LanguageDefinition(
+            name: "diff",
+            displayName: "Diff",
+            extensions: ["diff", "patch"]
         )
     ])
 
