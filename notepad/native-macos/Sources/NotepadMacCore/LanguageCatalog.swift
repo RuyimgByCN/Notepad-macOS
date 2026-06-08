@@ -149,10 +149,150 @@ public struct LanguageCatalog: Sendable {
     }
 
     public func detect(url: URL?) -> LanguageDefinition {
-        guard let ext = url?.pathExtension, !ext.isEmpty else {
-            return defaultLanguage
+        // 1. Try filename-based detection first for special files (Makefile, Dockerfile, CMakeLists.txt, etc.)
+        //    This takes priority over generic extensions like .txt
+        if let filename = url?.lastPathComponent, !filename.isEmpty {
+            if let match = detectByFilename(filename) {
+                return match
+            }
         }
-        return language(for: ext) ?? defaultLanguage
+        // 2. Try extension-based detection
+        if let ext = url?.pathExtension, !ext.isEmpty,
+           let match = language(for: ext) {
+            return match
+        }
+        return defaultLanguage
+    }
+
+    /// Detect language by filename (without extension) for special files like Makefile, Dockerfile, etc.
+    private func detectByFilename(_ filename: String) -> LanguageDefinition? {
+        let lower = filename.lowercased()
+        let filenameMap: [String: String] = [
+            "makefile": "makefile",
+            "gnumakefile": "makefile",
+            "makefile.in": "makefile",
+            "makefile.am": "makefile",
+            "cmakelists.txt": "cmake",
+            "dockerfile": "dockerfile",
+            "dockerfile.dev": "dockerfile",
+            "dockerfile.prod": "dockerfile",
+            "dockerfile.test": "dockerfile",
+            "dockerfile.*": "dockerfile",
+            "gemfile": "ruby",
+            "rakefile": "ruby",
+            "vagrantfile": "ruby",
+            "brewfile": "ruby",
+            "podfile": "ruby",
+            "guardfile": "ruby",
+            "capfile": "ruby",
+            "jenkinsfile": "groovy",
+            ".gitignore": "bash",
+            ".dockerignore": "bash",
+            ".npmignore": "bash",
+            ".editorconfig": "ini",
+            ".env": "bash",
+            ".env.local": "bash",
+            ".env.production": "bash",
+            ".babelrc": "json",
+            ".eslintrc": "json",
+            ".prettierrc": "json",
+            ".tsconfig": "json",
+            "tsconfig.json": "json",
+            "package.json": "json",
+            "composer.json": "json",
+            "cargo.toml": "toml",
+            "pyproject.toml": "toml",
+            "go.mod": "go",
+            "go.sum": "go",
+        ]
+        // Exact match first
+        if let langName = filenameMap[lower], let lang = language(named: langName) {
+            return lang
+        }
+        // Dockerfile.* pattern
+        if lower.hasPrefix("dockerfile."), let lang = language(named: "dockerfile") {
+            return lang
+        }
+        // *.tf / *.tfvars handled by extension
+        return nil
+    }
+
+    /// Detect language from file content (shebang line, XML declaration, etc.)
+    public func detectFromContent(_ text: String) -> LanguageDefinition? {
+        guard let firstLine = text.split(separator: "\n", maxSplits: 1).first, !firstLine.isEmpty else {
+            return nil
+        }
+        let trimmed = firstLine.trimmingCharacters(in: .whitespaces)
+
+        // Shebang detection
+        if trimmed.hasPrefix("#!") {
+            let shebang = trimmed.lowercased()
+            if shebang.contains("/bash") || shebang.contains("/sh") {
+                return language(named: "bash")
+            } else if shebang.contains("/python") {
+                return language(named: "python")
+            } else if shebang.contains("/perl") {
+                return language(named: "perl")
+            } else if shebang.contains("/ruby") || shebang.contains("ruby") {
+                return language(named: "ruby")
+            } else if shebang.contains("/node") || shebang.contains("/deno") || shebang.contains("nodejs") {
+                return language(named: "javascript")
+            } else if shebang.contains("/php") {
+                return language(named: "php")
+            } else if shebang.contains("/lua") {
+                return language(named: "lua")
+            } else if shebang.contains("/tclsh") || shebang.contains("/wish") {
+                return language(named: "tcl")
+            } else if shebang.contains("/awk") || shebang.contains("/gawk") {
+                return language(named: "bash")
+            } else if shebang.contains("/sed") {
+                return language(named: "bash")
+            } else if shebang.contains("env python") || shebang.contains("python3") {
+                return language(named: "python")
+            } else if shebang.contains("env bash") {
+                return language(named: "bash")
+            } else if shebang.contains("env ruby") {
+                return language(named: "ruby")
+            } else if shebang.contains("env perl") {
+                return language(named: "perl")
+            } else if shebang.contains("env node") {
+                return language(named: "javascript")
+            } else if shebang.contains("env php") {
+                return language(named: "php")
+            } else if shebang.contains("env lua") {
+                return language(named: "lua")
+            } else if shebang.contains("env go") {
+                return language(named: "go")
+            } else if shebang.contains("env rust") || shebang.contains("cargo") {
+                return language(named: "rust")
+            } else if shebang.contains("env swift") || shebang.contains("swift") {
+                return language(named: "swift")
+            } else if shebang.contains("env r") || shebang.contains("/rscript") {
+                return language(named: "r")
+            } else if shebang.contains("env scala") {
+                return language(named: "scala")
+            }
+        }
+
+        // XML declaration
+        if trimmed.hasPrefix("<?xml") {
+            return language(named: "xml")
+        }
+
+        // HTML doctype
+        if trimmed.hasPrefix("<!DOCTYPE") || trimmed.hasPrefix("<!doctype") {
+            if trimmed.lowercased().contains("html") {
+                return language(named: "html")
+            }
+            return language(named: "xml")
+        }
+
+        // HTML <html tag
+        if trimmed.hasPrefix("<html") || trimmed.hasPrefix("<HTML") {
+            return language(named: "html")
+        }
+
+        return nil
     }
 
     public func appendingUserDefinedLanguages(_ userDefinedLanguages: [UserDefinedLanguage]) -> LanguageCatalog {
@@ -294,6 +434,20 @@ public struct LanguageCatalog: Sendable {
 public enum LanguageDetector {
     public static func detect(url: URL?, in catalog: LanguageCatalog = .fallback) -> LanguageDefinition {
         catalog.detect(url: url)
+    }
+
+    /// Detect language from URL + content (shebang/XML decl). Falls back to URL-only detection.
+    public static func detect(url: URL?, content: String, in catalog: LanguageCatalog = .fallback) -> LanguageDefinition {
+        // Try extension/filename first
+        let urlBased = catalog.detect(url: url)
+        if urlBased.name != catalog.defaultLanguage.name {
+            return urlBased
+        }
+        // Extension/filename didn't match; try content-based detection
+        if let contentBased = catalog.detectFromContent(content) {
+            return contentBased
+        }
+        return urlBased
     }
 }
 

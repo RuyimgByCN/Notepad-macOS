@@ -93,3 +93,89 @@ import Testing
     ], purgeFirst: true)
     #expect(store.uniqueFilePaths() == ["/a.txt", "/b.txt"])
 }
+
+// MARK: - Language Detection (filename + shebang + content)
+
+/// Test catalog with common languages for detection testing
+private let testCatalog = LanguageCatalog(languages: [
+    .plainText,
+    LanguageDefinition(name: "python", extensions: ["py"]),
+    LanguageDefinition(name: "bash", extensions: ["sh", "bash"]),
+    LanguageDefinition(name: "ruby", extensions: ["rb", "rbw"]),
+    LanguageDefinition(name: "perl", extensions: ["pl", "pm"]),
+    LanguageDefinition(name: "javascript", extensions: ["js", "mjs"]),
+    LanguageDefinition(name: "php", extensions: ["php"]),
+    LanguageDefinition(name: "lua", extensions: ["lua"]),
+    LanguageDefinition(name: "makefile", extensions: ["mak"]),
+    LanguageDefinition(name: "cmake", extensions: ["cmake"]),
+    LanguageDefinition(name: "xml", extensions: ["xml", "xsl"]),
+    LanguageDefinition(name: "html", extensions: ["html", "htm"]),
+    LanguageDefinition(name: "go", extensions: ["go"]),
+    LanguageDefinition(name: "dockerfile", extensions: []),
+])
+
+@Test func languageDetectsByExtension() {
+    let lang = testCatalog.detect(url: URL(fileURLWithPath: "/tmp/test.py"))
+    #expect(lang.name == "python")
+}
+
+@Test func languageDetectsMakefileByFilename() {
+    let lang = testCatalog.detect(url: URL(fileURLWithPath: "/project/Makefile"))
+    #expect(lang.name == "makefile")
+}
+
+@Test func languageDetectsDockerfileByFilename() {
+    let lang = testCatalog.detect(url: URL(fileURLWithPath: "/project/Dockerfile"))
+    #expect(lang.name == "dockerfile")
+}
+
+@Test func languageDetectsCMakeListsByFilename() {
+    let lang = testCatalog.detect(url: URL(fileURLWithPath: "/project/CMakeLists.txt"))
+    #expect(lang.name == "cmake")
+}
+
+@Test func languageDetectsGemfileAsRuby() {
+    let lang = testCatalog.detect(url: URL(fileURLWithPath: "/project/Gemfile"))
+    #expect(lang.name == "ruby")
+}
+
+@Test func languageDetectsGoModAsGo() {
+    let lang = testCatalog.detect(url: URL(fileURLWithPath: "/project/go.mod"))
+    #expect(lang.name == "go")
+}
+
+@Test func languageDetectsShebangBash() {
+    let lang = LanguageDetector.detect(url: nil, content: "#!/bin/bash\necho hello\n", in: testCatalog)
+    #expect(lang.name == "bash")
+}
+
+@Test func languageDetectsShebangPython() {
+    let lang = LanguageDetector.detect(url: nil, content: "#!/usr/bin/env python3\nprint('hi')\n", in: testCatalog)
+    #expect(lang.name == "python")
+}
+
+@Test func languageDetectsShebangRuby() {
+    let lang = LanguageDetector.detect(url: nil, content: "#!/usr/bin/env ruby\nputs 'hi'\n", in: testCatalog)
+    #expect(lang.name == "ruby")
+}
+
+@Test func languageDetectsXMLDeclaration() {
+    let lang = LanguageDetector.detect(url: nil, content: "<?xml version=\"1.0\"?>\n<root/>\n", in: testCatalog)
+    #expect(lang.name == "xml")
+}
+
+@Test func languageDetectsHTMLDoctype() {
+    let lang = LanguageDetector.detect(url: nil, content: "<!DOCTYPE html>\n<html><body></body></html>", in: testCatalog)
+    #expect(lang.name == "html")
+}
+
+@Test func languageContentDetectionFallsBackWhenExtensionMatches() {
+    // .py extension should win even if content has bash shebang
+    let lang = LanguageDetector.detect(url: URL(fileURLWithPath: "/tmp/test.py"), content: "#!/bin/bash\necho", in: testCatalog)
+    #expect(lang.name == "python")
+}
+
+@Test func languageContentDetectionUsedWhenNoExtension() {
+    let lang = LanguageDetector.detect(url: URL(fileURLWithPath: "/tmp/script"), content: "#!/usr/bin/env perl\nprint;\n", in: testCatalog)
+    #expect(lang.name == "perl")
+}

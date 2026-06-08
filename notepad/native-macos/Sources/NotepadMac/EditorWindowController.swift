@@ -3848,7 +3848,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func applyLanguageCatalog(_ catalog: LanguageCatalog) {
         languageCatalog = catalog
         language = catalog.language(named: language.name)
-            ?? LanguageDetector.detect(url: fileURL, in: catalog)
+            ?? LanguageDetector.detect(url: fileURL, content: editorSurface.text, in: catalog)
         highlight()
         updateStatus()
     }
@@ -4601,7 +4601,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         encoding = loaded.encoding
         savePolicy = TextFileSavePolicy.loaded(loaded)
         lineEnding = loaded.lineEnding
-        language = LanguageDetector.detect(url: url, in: languageCatalog)
+        language = LanguageDetector.detect(url: url, content: loaded.text, in: languageCatalog)
         isLargeFile = loaded.text.utf8.count > largeFileSizeThreshold
         if isLargeFile && preferencesStore.load().largeFileSuppressWordWrap {
             editorSurface.applyLineWrapping(false, width: window?.contentView?.bounds.width ?? 0)
@@ -4630,7 +4630,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             .converted(to: snapshot.encoding)
         let text = try snapshotStore.loadText(for: snapshot)
         lineEnding = snapshot.lineEnding
-        language = LanguageDetector.detect(url: snapshot.originalFile, in: languageCatalog)
+        language = LanguageDetector.detect(url: snapshot.originalFile, content: text, in: languageCatalog)
         editorSurface.text = text
         bookmarks = bookmarks.clamped(toLineCount: documentLineCount())
         editorSurface.syncBookmarkMarkers(bookmarks)
@@ -4678,7 +4678,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             savePolicy = nextSavePolicy
             fileURL = url
             snapshotID = nil
-            language = LanguageDetector.detect(url: url, in: languageCatalog)
+            language = LanguageDetector.detect(url: url, content: editorSurface.text, in: languageCatalog)
             isDirty = false
             updateTitle()
             highlight()
@@ -4719,7 +4719,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         do {
             try FileManager.default.moveItem(at: currentFileURL, to: targetURL)
             fileURL = targetURL
-            language = LanguageDetector.detect(url: targetURL, in: languageCatalog)
+            language = LanguageDetector.detect(url: targetURL, content: editorSurface.text, in: languageCatalog)
             snapshotID = nil
             startFileMonitoring(for: targetURL)
             updateTitle()
