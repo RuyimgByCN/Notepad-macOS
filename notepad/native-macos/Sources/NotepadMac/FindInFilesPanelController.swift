@@ -397,6 +397,7 @@ final class FindInFilesPanelController: NSWindowController {
             }
             let skipPaths: Set<String> = ignoreUnsavedButton.state == .on
                 ? (getDirtyFilePaths?() ?? []) : []
+            let perLine = editor?.preferencesStore.load().perLineResultInFind ?? false
             foundResults = FindInFilesSearch.searchInDirectory(
                 dirURL,
                 query: query,
@@ -404,19 +405,22 @@ final class FindInFilesPanelController: NSWindowController {
                 matchCase: matchCase,
                 wholeWord: wholeWord,
                 searchMode: searchMode,
-                skipPaths: skipPaths
+                skipPaths: skipPaths,
+                perLineResult: perLine
             )
         case let .fileList(urls, _):
             guard !urls.isEmpty else {
                 statusField.stringValue = Localization.string(.findInFilesNoResults, default: "No results found")
                 return
             }
+            let perLine = editor?.preferencesStore.load().perLineResultInFind ?? false
             foundResults = FindInFilesSearch.searchInFiles(
                 urls,
                 query: query,
                 matchCase: matchCase,
                 wholeWord: wholeWord,
-                searchMode: searchMode
+                searchMode: searchMode,
+                perLineResult: perLine
             )
         }
 

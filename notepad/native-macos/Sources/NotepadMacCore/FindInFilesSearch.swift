@@ -8,7 +8,8 @@ public enum FindInFilesSearch {
         matchCase: Bool,
         wholeWord: Bool,
         searchMode: TextSearch.SearchMode = .normal,
-        skipPaths: Set<String> = []
+        skipPaths: Set<String> = [],
+        perLineResult: Bool = false
     ) -> [FindInFilesMatch] {
         var allResults: [FindInFilesMatch] = []
         let options = TextSearch.Options(
@@ -38,7 +39,7 @@ public enum FindInFilesSearch {
                 continue
             }
 
-            allResults.append(contentsOf: searchFile(at: fileURL, query: query, options: options))
+            allResults.append(contentsOf: searchFile(at: fileURL, query: query, options: options, perLineResult: perLineResult))
         }
 
         return allResults
@@ -49,7 +50,8 @@ public enum FindInFilesSearch {
         query: String,
         matchCase: Bool,
         wholeWord: Bool,
-        searchMode: TextSearch.SearchMode = .normal
+        searchMode: TextSearch.SearchMode = .normal,
+        perLineResult: Bool = false
     ) -> [FindInFilesMatch] {
         let options = TextSearch.Options(
             matchCase: matchCase,
@@ -61,7 +63,7 @@ public enum FindInFilesSearch {
 
         var allResults: [FindInFilesMatch] = []
         for fileURL in fileURLs {
-            allResults.append(contentsOf: searchFile(at: fileURL, query: query, options: options))
+            allResults.append(contentsOf: searchFile(at: fileURL, query: query, options: options, perLineResult: perLineResult))
         }
         return allResults
     }
@@ -69,7 +71,8 @@ public enum FindInFilesSearch {
     public static func searchFile(
         at fileURL: URL,
         query: String,
-        options: TextSearch.Options
+        options: TextSearch.Options,
+        perLineResult: Bool = false
     ) -> [FindInFilesMatch] {
         let content: String
         if let loaded = try? TextFileCodec.read(fileURL) {
@@ -79,16 +82,18 @@ public enum FindInFilesSearch {
         } else {
             return []
         }
-        return searchInContent(content, query: query, options: options, filePath: fileURL.path)
+        return searchInContent(content, query: query, options: options, filePath: fileURL.path, perLineResult: perLineResult)
     }
 
     public static func searchInContent(
         _ content: String,
         query: String,
         options: TextSearch.Options,
-        filePath: String
+        filePath: String,
+        perLineResult: Bool = false
     ) -> [FindInFilesMatch] {
         var results: [FindInFilesMatch] = []
+        var seenLines: Set<Int> = []
         let nsContent = content as NSString
         var searchFrom = NSRange(location: 0, length: 0)
 
@@ -99,12 +104,15 @@ public enum FindInFilesSearch {
             let lineText = nsContent.substring(with: lineRange).trimmingCharacters(in: .newlines)
             let column = range.location - lineRange.location + 1
 
-            results.append(FindInFilesMatch(
-                filePath: filePath,
-                line: lineNumber,
-                column: column,
-                lineText: lineText
-            ))
+            // Per-line deduplication: only keep first match on each line
+            if !perLineResult || seenLines.insert(lineNumber).inserted {
+                results.append(FindInFilesMatch(
+                    filePath: filePath,
+                    line: lineNumber,
+                    column: column,
+                    lineText: lineText
+                ))
+            }
 
             searchFrom = NSRange(location: range.location + range.length, length: 0)
         }

@@ -28,7 +28,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var styleCatalog: StyleCatalog
     private let displayStrings: EditorDisplayStrings
     private let stylePreferencesStore: StylePreferencesStore
-    private let preferencesStore: PreferencesStore
+    let preferencesStore: PreferencesStore
     private let scintillaKeyMapStore = ScintillaKeyMapStore()
     private var editorContextMenuSpec: EditorContextMenuSpec?
     private let macroStore = MacroStore()

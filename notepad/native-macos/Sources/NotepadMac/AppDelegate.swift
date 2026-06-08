@@ -2168,6 +2168,28 @@ private var appearanceObservation: NSKeyValueObservation?
         let allControllers = windows
         guard allControllers.count > 1 else { return event }
 
+        // When document switcher is disabled, switch directly without overlay UI
+        guard preferencesStore.load().showDocSwitcher else {
+            let mruIds = mruList.map { ObjectIdentifier($0) }
+            let sorted = allControllers.sorted { a, b in
+                let ai = mruIds.firstIndex(of: ObjectIdentifier(a)) ?? Int.max
+                let bi = mruIds.firstIndex(of: ObjectIdentifier(b)) ?? Int.max
+                return ai < bi
+            }
+            // Find current active, then pick next/prev in MRU order
+            if let currentActive = sorted.first {
+                let currentIdx = sorted.firstIndex(of: currentActive) ?? 0
+                let targetIdx: Int
+                if isShift {
+                    targetIdx = currentIdx > 0 ? currentIdx - 1 : sorted.count - 1
+                } else {
+                    targetIdx = currentIdx < sorted.count - 1 ? currentIdx + 1 : 0
+                }
+                activate(sorted[targetIdx])
+            }
+            return nil
+        }
+
         // Build MRU-ordered list
         let mruIds = mruList.map { ObjectIdentifier($0) }
         let sorted = allControllers.sorted { a, b in
