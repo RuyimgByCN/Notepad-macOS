@@ -283,6 +283,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let foldFlagsLabel = NSTextField(labelWithString: "")
     private let foldFlagsPopup = NSPopUpButton()
     private let foldCompactButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let showDocSwitcherButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let perLineResultButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let tabbarMaxLabelLengthLabel = NSTextField(labelWithString: "")
     private let tabbarMaxLabelLengthField = NSTextField(string: "0")
     private let tabbarMaxLabelLengthStepper = NSStepper()
@@ -573,6 +575,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         edgeModeLabel.stringValue = "Edge line style:"
         foldFlagsLabel.stringValue = "Fold indicators:"
         foldCompactButton.title = "Compact fold (no extra lines around folded regions)"
+        showDocSwitcherButton.title = "Show document switcher on Ctrl+Tab"
+        perLineResultButton.title = "Show only one result per line in Find in Files"
         tabbarExitOnLastTabButton.title = "Exit app when last tab is closed"
         tabbarMaxLabelLengthLabel.stringValue = "Max tab label length (0 = unlimited):"
         printSectionLabel.stringValue = "Print"
@@ -702,7 +706,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          delimiterLeftField, delimiterRightField,
          openAnsiAsUtf8Button, xmlTagAttributeHighlightButton, highlightNonHtmlZoneButton, defaultSaveDirField,
          toolbarIconSizeSegmented, scintillaRenderingPopup, disableAdvancedScrollingButton, rightClickKeepSelectionButton,
-         edgeModePopup, foldFlagsPopup, foldCompactButton].forEach {
+         edgeModePopup, foldFlagsPopup, foldCompactButton, showDocSwitcherButton, perLineResultButton].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -930,7 +934,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          keepFindDialogOpenButton, replaceDoesNotMoveButton,
          findDialogMonospaceButton, fillFindFromSelectionButton,
          autoSelectWordUnderCaretButton, findInFilesIgnoreUnsavedButton,
-         confirmReplaceInAllDocsButton,
+         confirmReplaceInAllDocsButton, perLineResultButton,
          maxFindHistoryLabel, maxFindHistoryField, maxFindHistoryStepper,
          findTransparencyLabel, findTransparencySlider
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; toolsCV.addSubview($0) }
@@ -947,7 +951,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          scintillaRenderingLabel, scintillaRenderingPopup,
          disableAdvancedScrollingButton, rightClickKeepSelectionButton,
          edgeModeLabel, edgeModePopup,
-         foldFlagsLabel, foldFlagsPopup, foldCompactButton,
+         foldFlagsLabel, foldFlagsPopup, foldCompactButton, showDocSwitcherButton,
          appearanceSectionLabel, appearanceModeLabel, appearanceModeSegmented,
          postItSectionLabel, postItAlphaLabel, postItAlphaSlider
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; windowCV.addSubview($0) }
@@ -1744,8 +1748,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             confirmReplaceInAllDocsButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
             confirmReplaceInAllDocsButton.topAnchor.constraint(equalTo: findInFilesIgnoreUnsavedButton.bottomAnchor, constant: 10),
 
+            perLineResultButton.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
+            perLineResultButton.topAnchor.constraint(equalTo: confirmReplaceInAllDocsButton.bottomAnchor, constant: 10),
+
             maxFindHistoryLabel.leadingAnchor.constraint(equalTo: findDefaultsSectionLabel.leadingAnchor),
-            maxFindHistoryLabel.topAnchor.constraint(equalTo: confirmReplaceInAllDocsButton.bottomAnchor, constant: 10),
+            maxFindHistoryLabel.topAnchor.constraint(equalTo: perLineResultButton.bottomAnchor, constant: 10),
             maxFindHistoryLabel.widthAnchor.constraint(equalToConstant: 200),
 
             maxFindHistoryField.leadingAnchor.constraint(equalTo: maxFindHistoryLabel.trailingAnchor, constant: 8),
@@ -2026,6 +2033,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         autoSelectWordUnderCaretButton.state = preferences.autoSelectWordUnderCaret ? .on : .off
         findInFilesIgnoreUnsavedButton.state = preferences.findInFilesIgnoreUnsaved ? .on : .off
         confirmReplaceInAllDocsButton.state = preferences.confirmReplaceInAllDocs ? .on : .off
+        perLineResultButton.state = preferences.perLineResultInFind ? .on : .off
         maxFindHistoryField.intValue = Int32(preferences.maxFindHistoryCount)
         maxFindHistoryStepper.intValue = Int32(preferences.maxFindHistoryCount)
         copyLineWithoutSelectionButton.state = preferences.copyLineWithoutSelection ? .on : .off
@@ -2069,6 +2077,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         edgeModePopup.selectItem(at: max(0, min(2, preferences.edgeMode)))
         foldFlagsPopup.selectItem(at: preferences.foldFlags == 0 ? 0 : min(preferences.foldFlags / 2, 4))
         foldCompactButton.state = preferences.foldCompact ? .on : .off
+        showDocSwitcherButton.state = preferences.showDocSwitcher ? .on : .off
         reloadScrollToLastCaretButton.state = preferences.reloadScrollToLastCaret ? .on : .off
         appearanceModeSegmented.selectedSegment = max(0, min(2, preferences.appearanceMode))
         postItAlphaSlider.doubleValue = max(0.2, min(1.0, preferences.postItAlpha))
@@ -2355,7 +2364,9 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             rightClickKeepSelection: rightClickKeepSelectionButton.state == .on,
             edgeMode: edgeModePopup.indexOfSelectedItem,
             foldFlags: foldFlagsPopup.indexOfSelectedItem == 0 ? 0 : foldFlagsPopup.indexOfSelectedItem * 2,
-            foldCompact: foldCompactButton.state == .on
+            foldCompact: foldCompactButton.state == .on,
+            showDocSwitcher: showDocSwitcherButton.state == .on,
+            perLineResultInFind: perLineResultButton.state == .on
         )
         preferencesStore.save(preferences)
         loadPreferences()
