@@ -2367,12 +2367,49 @@ final class ScintillaEditorSurface: EditorSurface {
         styleCatalog: StyleCatalog,
         stylePreferences: StylePreferences
     ) {
-        guard let lexer = styleCatalog.lexer(named: language.name) else { return }
+        guard let lexer = styleCatalog.lexer(named: language.name) else {
+            // No style catalog entry for this language — apply sensible default colors
+            // so syntax highlighting is visible even without a matching theme
+            applyDefaultLexerStyles()
+            return
+        }
 
         for baseStyle in lexer.styles {
             let key = StyleOverrideKey(languageName: lexer.name, styleID: baseStyle.styleID)
             let style = stylePreferences.resolvedStyle(for: key, base: baseStyle)
             applyStyle(style)
+        }
+    }
+
+    /// Apply minimal default colors for common Scintilla lexer style IDs (0-15).
+    /// Ensures syntax highlighting is visible when the style catalog has no entry
+    /// for the current language (e.g. fallback catalog language with no theme match).
+    private func applyDefaultLexerStyles() {
+        // Standard Scintilla lexer style ID semantics:
+        // 0=default, 1=identifier, 2=comment, 3=number, 4=string/double-quoted,
+        // 5=character/single-quoted, 6=keyword/instruction, 7=triple-quoted/verbatim,
+        // 8=preprocessor, 9=operator, 10=label, 11-15=extended lexer styles
+        let defaults: [(Int, UInt8, UInt8, UInt8)] = [
+            (0,  217, 217, 217),  // default: light grey
+            (1,  230, 230, 230),  // identifier: white-ish
+            (2,  102, 179, 102),  // comment: green
+            (3,  255, 153, 77),   // number: orange
+            (4,  255, 204, 102),  // string: yellow
+            (5,  255, 128, 128),  // character: red-ish
+            (6,  77,  153, 255),  // keyword: blue
+            (7,  153, 102, 204),  // verbatim: purple
+            (8,  102, 153, 204),  // preprocessor: steel blue
+            (9,  230, 230, 128),  // operator: light yellow
+            (10, 204, 128, 204),  // label: magenta
+            (11, 128, 204, 204),  // extended: teal
+            (12, 204, 153, 102),  // extended: tan
+            (13, 153, 204, 128),  // extended: sage
+            (14, 179, 179, 102),  // extended: olive
+            (15, 204, 102, 102),  // extended: dark red
+        ]
+        for (styleID, r, g, b) in defaults {
+            let color = StyleColor(red: r, green: g, blue: b)
+            bridge.setGeneralProperty(ScintillaMessage.styleSetFore, parameter: CLong(styleID), value: CLong(color.scintillaColor))
         }
     }
 

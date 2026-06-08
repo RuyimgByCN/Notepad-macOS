@@ -4170,10 +4170,15 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func configureContent() {
         guard let window else { return }
 
-        let rootView = DragDestinationView()
-        rootView.dragDelegate = self
+        let rootView = NSView()
         rootView.translatesAutoresizingMaskIntoConstraints = false
         window.contentView = rootView
+
+        // Transparent drag overlay on top of everything to catch file drops reliably
+        let dragOverlay = DragOverlayView()
+        dragOverlay.dragDelegate = self
+        dragOverlay.translatesAutoresizingMaskIntoConstraints = false
+        dragOverlay.registerForDraggedTypes([.fileURL])
 
         tabBarView.translatesAutoresizingMaskIntoConstraints = false
         tabBarView.onSelectTab = { [weak self] identity in self?.onTabSelect?(identity) }
@@ -4198,6 +4203,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         rootView.addSubview(tabBarView)
         rootView.addSubview(editorSurface.view)
         rootView.addSubview(statusField)
+        rootView.addSubview(dragOverlay)   // on top of everything, catches file drops
 
         NSLayoutConstraint.activate([
             tabBarView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
@@ -4212,7 +4218,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
             statusField.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 10),
             statusField.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -10),
-            statusField.bottomAnchor.constraint(equalTo: rootView.bottomAnchor, constant: -5)
+            statusField.bottomAnchor.constraint(equalTo: rootView.bottomAnchor, constant: -5),
+
+            dragOverlay.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            dragOverlay.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            dragOverlay.topAnchor.constraint(equalTo: rootView.topAnchor),
+            dragOverlay.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
         ])
         statusFieldHeightConstraint = statusField.heightAnchor.constraint(equalToConstant: 18)
         statusFieldHeightConstraint?.isActive = true
@@ -4557,8 +4568,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func configureDragAndDrop() {
-        window?.contentView?.registerForDraggedTypes([.fileURL])
-        window?.contentView?.wantsLayer = true
+        // Register on the window too for robust drag handling.
+        window?.registerForDraggedTypes([.fileURL])
     }
 
     // MARK: - NSDraggingDestination
@@ -5598,29 +5609,39 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 }
 
-// MARK: - DragDestinationView
+// MARK: - DragOverlayView
 
-/// A custom NSView that forwards NSDraggingDestination calls to a delegate (the window controller).
-/// Plain NSView's default implementations return NSDragOperationNone, which silently rejects drags.
+/// Transparent overlay that captures file drag-and-drop events at the top of the view
+/// hierarchy, forwarding them to the controller. All non-drag events (clicks, keys)
+/// pass through to the underlying views via hitTest returning nil for non-drag scenarios.
 @MainActor
-private final class DragDestinationView: NSView {
+private final class DragOverlayView: NSView {
     weak var dragDelegate: NSDraggingDestination?
 
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // Pass through all mouse events to views below — we only handle drags
+        return nil
+    }
+
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard let d = dragDelegate else { return [] }
-        return d.draggingEntered?(sender) ?? []
+        let pb = sender.draggingPasteboard
+        guard pb.types?.contains(.fileURL) == true else { return [] }
+        return .copy
     }
 
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard let d = dragDelegate else { return [] }
-        return d.draggingUpdated?(sender) ?? []
+        let pb = sender.draggingPasteboard
+        guard pb.types?.contains(.fileURL) == true else { return [] }
+        return .copy
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        guard let d = dragDelegate else { return false }
-        return d.performDragOperation?(sender) ?? false
+        dragDelegate?.performDragOperation?(sender) ?? false
     }
 }
+
+// Backward compatibility alias
+private typealias DragDestinationView = DragOverlayView
 
 private extension String.Encoding {
     var displayName: String {
