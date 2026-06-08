@@ -73,22 +73,57 @@ final class SyntaxHighlighter {
         }
     }
 
-    /// Apply XML/HTML tag-based coloring: tag names in blue, attributes in orange,
-    /// attribute values in yellow, XML declarations in purple.
+    /// Apply XML/HTML tag-based coloring using upstream Notepad++ XML style colors
+    /// when available, falling back to system colors.
     private func applyXmlTagHighlighting(in storage: NSTextStorage, text: String) {
-        // Match XML/HTML tags: <...> including self-closing and declarations
-        // Step 1: tag names (e.g. <div, </span, <root, <xsl:template)
+        // Load upstream XML lexer colors from style catalog
+        let xmlStyles = loadXmlStyleColors()
+        let tagColor = xmlStyles[1] ?? .systemBlue       // TAG → #0000FF blue
+        let attrColor = xmlStyles[3] ?? .systemRed        // ATTRIBUTE → #FF0000 red
+        let stringColor = xmlStyles[6] ?? .systemPurple   // STRING → #8000FF purple
+        let commentColor = xmlStyles[9] ?? .systemGreen   // COMMENT → #008000 green
+        let cdataColor = xmlStyles[17] ?? .systemOrange   // CDATA → #FF8000 orange
+        let declColor = xmlStyles[12] ?? .systemPurple    // XMLSTART
+
+        // Tag names: <tagname, </tagname
         apply(pattern: #"(?<=</?)[A-Za-z_:][\w.\-:]*(?=\s|>|/)"#,
-              to: storage, text: text, color: .systemBlue)
-        // Step 2: attribute names (e.g. class=, id=, xmlns:xsl=)
+              to: storage, text: text, color: tagColor)
+        // Attribute names: attr=
         apply(pattern: #"\b[A-Za-z_][\w.\-:]*(?=\s*=)"#,
-              to: storage, text: text, color: .systemOrange)
-        // Step 3: XML declaration <?xml ...?>
+              to: storage, text: text, color: attrColor)
+        // XML declaration <?xml ...?>
         apply(pattern: #"<\?[^>]*\?>"#,
-              to: storage, text: text, color: .systemPurple)
-        // Step 4: CDATA sections
+              to: storage, text: text, color: declColor)
+        // CDATA sections
         apply(pattern: #"<!\[CDATA\[[\s\S]*?\]\]>"#,
-              to: storage, text: text, color: .systemGray)
+              to: storage, text: text, color: cdataColor)
+        // HTML/XML comments <!-- ... -->
+        apply(pattern: #"<!--[\s\S]*?-->"#,
+              to: storage, text: text, color: commentColor)
+    }
+
+    /// Load upstream Notepad++ XML lexer colors from stylers.model.xml.
+    /// These match the exact colors shown in Notepad++ Windows for XML files.
+    private func loadXmlStyleColors() -> [Int: NSColor] {
+        // Match upstream Notepad++ XML style definitions:
+        // TAG=#0000FF, ATTRIBUTE=#FF0000, STRING=#8000FF, COMMENT=#008000, CDATA=#FF8000
+        let upstreamDefaults: [(Int, UInt8, UInt8, UInt8)] = [
+            (1,  0x00, 0x00, 0xFF),  // TAG → blue #0000FF
+            (2,  0x00, 0x00, 0xFF),  // TAG UNKNOWN → blue #0000FF
+            (3,  0xFF, 0x00, 0x00),  // ATTRIBUTE → red #FF0000
+            (4,  0xFF, 0x00, 0x00),  // ATTRIBUTE UNKNOWN → red #FF0000
+            (6,  0x80, 0x00, 0xFF),  // DOUBLE STRING → purple #8000FF
+            (7,  0x80, 0x00, 0xFF),  // SINGLE STRING → purple #8000FF
+            (9,  0x00, 0x80, 0x00),  // COMMENT → green #008000
+            (11, 0x00, 0x00, 0xFF),  // TAG END → blue
+            (12, 0xFF, 0x00, 0x00),  // XML START → red
+            (17, 0xFF, 0x80, 0x00),  // CDATA → orange #FF8000
+        ]
+        var colors: [Int: NSColor] = [:]
+        for (id, r, g, b) in upstreamDefaults {
+            colors[id] = NSColor(srgbRed: CGFloat(r)/255, green: CGFloat(g)/255, blue: CGFloat(b)/255, alpha: 1)
+        }
+        return colors
     }
 
     private func apply(pattern: String, to storage: NSTextStorage, text: String, color: NSColor) {
