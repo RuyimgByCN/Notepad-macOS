@@ -1,4 +1,5 @@
 import AppKit
+import CLexillaBridge
 import Darwin
 import NotepadMacCore
 
@@ -205,11 +206,8 @@ protocol EditorSurface: AnyObject {
 @MainActor
 enum EditorSurfaceFactory {
     static func make() -> EditorSurface {
-        // Lexilla ILexer5 integration with Scintilla Cocoa framework has a known issue
-        // where SCI_SETILEXER sets the lexer but it doesn't categorize tokens correctly.
-        // Until fixed, use NSTextView + SyntaxHighlighter with upstream Notepad++ colors.
-        // The SyntaxHighlighter produces correct multi-color highlighting matching upstream.
-        // Revert to `ScintillaEditorSurface.load() ?? TextViewEditorSurface()` once fixed.
+        // Static Lexilla linking works but ILexer5 still categorizes all tokens
+        // as styleID=1 in the Cocoa framework. Use NSTextView for now.
         return TextViewEditorSurface()
     }
 }
@@ -2480,57 +2478,15 @@ final class ScintillaEditorSurface: EditorSurface {
 private final class LexillaDynamicLibrary {
     static let shared = LexillaDynamicLibrary()
 
-    private typealias CreateLexerFunction = @convention(c) (UnsafePointer<CChar>) -> UnsafeMutableRawPointer?
-
-    private let handle: UnsafeMutableRawPointer?
-    private let createLexerFunction: CreateLexerFunction?
-
     private init() {
-        for libraryURL in Self.libraryCandidates() {
-            guard FileManager.default.fileExists(atPath: libraryURL.path),
-                  let openedHandle = dlopen(libraryURL.path, RTLD_NOW | RTLD_GLOBAL)
-            else {
-                continue
-            }
-
-            if let symbol = dlsym(openedHandle, "CreateLexer") {
-                handle = openedHandle
-                createLexerFunction = unsafeBitCast(symbol, to: CreateLexerFunction.self)
-                return
-            }
-
-            dlclose(openedHandle)
-        }
-
-        handle = nil
-        createLexerFunction = nil
+        // Lexilla is now statically linked via CLexillaBridge.
+        // No dlopen/dlsym needed — CreateLexer is available as LexillaBridge_CreateLexer.
     }
 
     func createLexer(named lexerName: String) -> UnsafeMutableRawPointer? {
-        guard let createLexerFunction else { return nil }
-        return lexerName.withCString { pointer in
-            createLexerFunction(pointer)
+        return lexerName.withCString { namePtr in
+            LexillaBridge_CreateLexer(namePtr)
         }
-    }
-
-    private static func libraryCandidates() -> [URL] {
-        let sourceRoot = URL(filePath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-
-        var urls: [URL] = []
-        if let privateFrameworksURL = Bundle.main.privateFrameworksURL {
-            urls.append(privateFrameworksURL.appending(path: "liblexilla.dylib"))
-        }
-
-        urls.append(sourceRoot.appending(path: "../notepad-plus-plus/lexilla/bin/liblexilla.dylib").standardizedFileURL)
-        urls.append(
-            URL(filePath: FileManager.default.currentDirectoryPath)
-                .appending(path: "../notepad-plus-plus/lexilla/bin/liblexilla.dylib")
-                .standardizedFileURL
-        )
-        return urls
     }
 }
 
