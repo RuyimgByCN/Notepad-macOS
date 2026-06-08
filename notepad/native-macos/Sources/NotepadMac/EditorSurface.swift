@@ -520,16 +520,16 @@ final class ScintillaEditorSurface: EditorSurface {
         get {
             let selector = NSSelectorFromString("string")
             guard scintillaView.responds(to: selector),
-                  let result = scintillaView.perform(selector)?.takeUnretainedValue() as? NSString
-            else {
-                return ""
-            }
-            return result as String
+                  let imp = scintillaView.method(for: selector) else { return "" }
+            typealias Fn = @convention(c) (AnyObject, Selector) -> Unmanaged<NSString>
+            return unsafeBitCast(imp, to: Fn.self)(scintillaView, selector).takeUnretainedValue() as String
         }
         set {
             let selector = NSSelectorFromString("setString:")
-            guard scintillaView.responds(to: selector) else { return }
-            scintillaView.perform(selector, with: newValue as NSString)
+            guard scintillaView.responds(to: selector),
+                  let imp = scintillaView.method(for: selector) else { return }
+            typealias Fn = @convention(c) (AnyObject, Selector, NSString) -> Void
+            unsafeBitCast(imp, to: Fn.self)(scintillaView, selector, newValue as NSString)
         }
     }
 
