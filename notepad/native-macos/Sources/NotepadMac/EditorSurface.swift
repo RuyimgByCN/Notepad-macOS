@@ -1037,6 +1037,9 @@ final class ScintillaEditorSurface: EditorSurface {
         stylePreferences: StylePreferences,
         highlighter: SyntaxHighlighter
     ) {
+        // Ensure the view is laid out so Scintilla's internal state is properly initialized
+        scintillaView.layoutSubtreeIfNeeded()
+
         bridge.setFont(name: "Menlo", size: 13, bold: false, italic: false)
         bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
 
