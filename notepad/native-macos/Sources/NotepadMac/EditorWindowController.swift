@@ -4591,15 +4591,17 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         else { return false }
 
         let appDelegate = NSApp.delegate as? AppDelegate
-        if items.count == 1 && fileURL == nil && !isDirty {
-            // Single drop on empty untitled window: load directly
+        // Hold Shift while dropping to open as a new tab instead of replacing current
+        let shiftHeld = NSEvent.modifierFlags.contains(.shift)
+        if !shiftHeld && items.count == 1 && fileURL == nil && !isDirty {
+            // Single drop on empty untitled window: load directly (classic Notepad++ behavior)
             do {
                 try load(items[0])
             } catch {
                 appDelegate?.openFile(at: items[0])
             }
         } else {
-            // Multiple files: use batch-confirmation path
+            // Multiple files or Shift held: open in new tabs
             appDelegate?.openURLs(items)
         }
         return true

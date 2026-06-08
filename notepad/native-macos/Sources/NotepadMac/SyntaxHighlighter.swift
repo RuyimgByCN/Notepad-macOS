@@ -32,6 +32,10 @@ final class SyntaxHighlighter {
         applyStringHighlighting(in: storage, text: text)
         applyCommentHighlighting(in: storage, text: text, language: language)
         applyKeywordHighlighting(in: storage, text: text, language: language)
+        // XML/HTML tag-based highlighting for XML, HTML and derived languages
+        if language.name == "xml" || language.name == "html" {
+            applyXmlTagHighlighting(in: storage, text: text)
+        }
         storage.endEditing()
     }
 
@@ -67,6 +71,24 @@ final class SyntaxHighlighter {
                 color: .secondaryLabelColor
             )
         }
+    }
+
+    /// Apply XML/HTML tag-based coloring: tag names in blue, attributes in orange,
+    /// attribute values in yellow, XML declarations in purple.
+    private func applyXmlTagHighlighting(in storage: NSTextStorage, text: String) {
+        // Match XML/HTML tags: <...> including self-closing and declarations
+        // Step 1: tag names (e.g. <div, </span, <root, <xsl:template)
+        apply(pattern: #"(?<=</?)[A-Za-z_:][\w.\-:]*(?=\s|>|/)"#,
+              to: storage, text: text, color: .systemBlue)
+        // Step 2: attribute names (e.g. class=, id=, xmlns:xsl=)
+        apply(pattern: #"\b[A-Za-z_][\w.\-:]*(?=\s*=)"#,
+              to: storage, text: text, color: .systemOrange)
+        // Step 3: XML declaration <?xml ...?>
+        apply(pattern: #"<\?[^>]*\?>"#,
+              to: storage, text: text, color: .systemPurple)
+        // Step 4: CDATA sections
+        apply(pattern: #"<!\[CDATA\[[\s\S]*?\]\]>"#,
+              to: storage, text: text, color: .systemGray)
     }
 
     private func apply(pattern: String, to storage: NSTextStorage, text: String, color: NSColor) {
