@@ -206,9 +206,7 @@ protocol EditorSurface: AnyObject {
 @MainActor
 enum EditorSurfaceFactory {
     static func make() -> EditorSurface {
-        // Static Lexilla linking works but ILexer5 still categorizes all tokens
-        // as styleID=1 in the Cocoa framework. Use NSTextView for now.
-        return TextViewEditorSurface()
+        return ScintillaEditorSurface.load() ?? TextViewEditorSurface()
     }
 }
 
