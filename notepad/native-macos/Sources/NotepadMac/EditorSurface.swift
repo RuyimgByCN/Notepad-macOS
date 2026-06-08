@@ -205,8 +205,12 @@ protocol EditorSurface: AnyObject {
 @MainActor
 enum EditorSurfaceFactory {
     static func make() -> EditorSurface {
-        _ = LexillaDynamicLibrary.shared
-        return ScintillaEditorSurface.load() ?? TextViewEditorSurface()
+        // Lexilla ILexer5 integration with Scintilla Cocoa framework has a known issue
+        // where SCI_SETILEXER sets the lexer but it doesn't categorize tokens correctly.
+        // Until fixed, use NSTextView + SyntaxHighlighter with upstream Notepad++ colors.
+        // The SyntaxHighlighter produces correct multi-color highlighting matching upstream.
+        // Revert to `ScintillaEditorSurface.load() ?? TextViewEditorSurface()` once fixed.
+        return TextViewEditorSurface()
     }
 }
 
@@ -1038,7 +1042,6 @@ final class ScintillaEditorSurface: EditorSurface {
                 parameter: 0,
                 value: UnsafeRawPointer(lexer)
             )
-            // Clear per-character styling so new lexer runs fresh (matching NotepadNext)
             bridge.setGeneralProperty(ScintillaMessage.clearDocumentStyle, parameter: 0, value: 0)
             configureFoldingProperties()
         } else {
