@@ -64,7 +64,7 @@ import Testing
 
     #expect(NotepadPlusLexillaMapping.lexerName(for: "markdown") == "markdown")
     #expect(catalog.language(named: "normal")?.lexillaLexerName == nil)
-    #expect(catalog.language(named: "swift")?.lexillaLexerName == "swift")
+    #expect(catalog.language(named: "swift")?.lexillaLexerName == nil)
 }
 
 @Test func parsesUpstreamNotepadPlusStyleModel() throws {

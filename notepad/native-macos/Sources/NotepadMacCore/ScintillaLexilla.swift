@@ -25,13 +25,12 @@ public enum NotepadPlusLexillaMapping {
         "html": "hypertext",
         "ini": "props",
         "makefile": "makefile",
-        "objc": "objc",
-        "objective-c": "objc",
-        "php": "hypertext",
-        "powershell": "powershell",
+        "php": "phpscript",
         "xml": "xml"
     ]
 
+    /// Lexer names verified present in this Lexilla build (see _lm* symbols).
+    /// Names NOT in this set or aliases will return nil → no lexer → SyntaxHighlighter fallback.
     private static let directNames: Set<String> = [
         "ada",
         "asm",
@@ -43,22 +42,17 @@ public enum NotepadPlusLexillaMapping {
         "css",
         "dart",
         "diff",
-        "dockerfile",
         "fortran",
-        "go",
-        "groovy",
-        "javascript",
         "json",
         "lua",
         "markdown",
         "perl",
+        "powershell",
         "python",
         "r",
         "ruby",
         "rust",
-        "scala",
         "sql",
-        "swift",
         "tcl",
         "toml",
         "vb",
