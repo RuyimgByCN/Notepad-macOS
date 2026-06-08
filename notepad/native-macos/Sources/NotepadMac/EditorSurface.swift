@@ -1039,6 +1039,8 @@ final class ScintillaEditorSurface: EditorSurface {
                 parameter: 0,
                 value: UnsafeRawPointer(lexer)
             )
+            // Clear per-character styling so new lexer runs fresh (matching NotepadNext)
+            bridge.setGeneralProperty(ScintillaMessage.clearDocumentStyle, parameter: 0, value: 0)
             configureFoldingProperties()
         } else {
             bridge.setReferenceProperty(ScintillaMessage.setILexer, parameter: 0, value: nil)
@@ -2747,6 +2749,7 @@ private enum ScintillaMessage {
     static let setILexer: Int32 = 4033
     static let setLexerLanguage: Int32 = 4005
     static let setLexer: Int32 = 4001
+    static let clearDocumentStyle: Int32 = 2005
     static let markerDefine: Int32 = 2040
     static let markerSetFore: Int32 = 2041
     static let markerSetBack: Int32 = 2042
