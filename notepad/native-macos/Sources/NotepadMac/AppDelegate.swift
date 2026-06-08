@@ -146,6 +146,15 @@ private var appearanceObservation: NSKeyValueObservation?
         applyAppearanceMode(preferences.appearanceMode)
         Localization.apply(localizationFileName: preferences.localizationFileName, postNotification: false)
         reloadLanguageCatalog()
+        // Load style catalog synchronously before files are opened, so highlighting works
+        styleCatalog = StyleCatalog.loadDefault()
+        Task { [weak self, selectedThemeName = self.selectedThemeName] in
+            // Async theme loading runs in parallel without blocking file opening
+            let result = await Task.detached(priority: .userInitiated) {
+                Self.loadThemeResources(selectedThemeName: selectedThemeName)
+            }.value
+            self?.applyLoadedThemeResources(result)
+        }
         AppMenu.install(
             delegate: self,
             catalog: languageCatalog,
@@ -213,10 +222,6 @@ private var appearanceObservation: NSKeyValueObservation?
                 window.setFrameOrigin(NSPoint(x: CGFloat(x), y: y))
             }
         }
-        DispatchQueue.main.async { [weak self] in
-            self?.loadThemeResources()
-        }
-
         NSApp.activate(ignoringOtherApps: true)
     }
 
