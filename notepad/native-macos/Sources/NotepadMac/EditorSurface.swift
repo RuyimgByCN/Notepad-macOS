@@ -205,7 +205,9 @@ protocol EditorSurface: AnyObject {
 @MainActor
 enum EditorSurfaceFactory {
     static func make() -> EditorSurface {
-        ScintillaEditorSurface.load() ?? TextViewEditorSurface()
+        // Pre-load Lexilla before Scintilla so RTLD_GLOBAL symbols are available
+        _ = LexillaDynamicLibrary.shared
+        return ScintillaEditorSurface.load() ?? TextViewEditorSurface()
     }
 }
 
@@ -2489,7 +2491,7 @@ private final class LexillaDynamicLibrary {
     private init() {
         for libraryURL in Self.libraryCandidates() {
             guard FileManager.default.fileExists(atPath: libraryURL.path),
-                  let openedHandle = dlopen(libraryURL.path, RTLD_NOW | RTLD_LOCAL)
+                  let openedHandle = dlopen(libraryURL.path, RTLD_NOW | RTLD_GLOBAL)
             else {
                 continue
             }
