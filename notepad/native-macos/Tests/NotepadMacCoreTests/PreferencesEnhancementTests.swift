@@ -898,4 +898,46 @@ final class PreferencesEnhancementTests: XCTestCase {
         store.save(AppPreferences(rightClickKeepSelection: false))
         XCTAssertFalse(store.load().rightClickKeepSelection)
     }
+
+    // MARK: - Edge Mode
+
+    func testEdgeModeDefault() {
+        let prefs = AppPreferences()
+        XCTAssertEqual(prefs.edgeMode, 1, "Default edge mode should be 1 (line)")
+    }
+
+    func testEdgeModeClamped() {
+        let tooHigh = AppPreferences(edgeMode: 5)
+        XCTAssertEqual(tooHigh.edgeMode, 2)
+        let negative = AppPreferences(edgeMode: -1)
+        XCTAssertEqual(negative.edgeMode, 0)
+    }
+
+    func testEdgeModeRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.edgeMode.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(edgeMode: 2))
+        XCTAssertEqual(store.load().edgeMode, 2)
+    }
+
+    // MARK: - Fold Flags
+
+    func testFoldFlagsDefault() {
+        let prefs = AppPreferences()
+        XCTAssertEqual(prefs.foldFlags, 0, "Default fold flags should be 0 (none)")
+    }
+
+    func testFoldFlagsClamped() {
+        let tooHigh = AppPreferences(foldFlags: 100)
+        XCTAssertEqual(tooHigh.foldFlags, 30)
+        let negative = AppPreferences(foldFlags: -1)
+        XCTAssertEqual(negative.foldFlags, 0)
+    }
+
+    func testFoldFlagsRoundtrip() {
+        let defaults = UserDefaults(suiteName: "test.foldFlags.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+        store.save(AppPreferences(foldFlags: 10))
+        XCTAssertEqual(store.load().foldFlags, 10)
+    }
 }

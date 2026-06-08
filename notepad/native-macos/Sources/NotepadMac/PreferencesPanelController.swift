@@ -278,6 +278,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let scintillaRenderingPopup = NSPopUpButton()
     private let disableAdvancedScrollingButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let rightClickKeepSelectionButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let edgeModeLabel = NSTextField(labelWithString: "")
+    private let edgeModePopup = NSPopUpButton()
+    private let foldFlagsLabel = NSTextField(labelWithString: "")
+    private let foldFlagsPopup = NSPopUpButton()
     private let tabbarMaxLabelLengthLabel = NSTextField(labelWithString: "")
     private let tabbarMaxLabelLengthField = NSTextField(string: "0")
     private let tabbarMaxLabelLengthStepper = NSStepper()
@@ -565,6 +569,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         scintillaRenderingLabel.stringValue = "Scintilla rendering:"
         disableAdvancedScrollingButton.title = "Disable advanced scrolling"
         rightClickKeepSelectionButton.title = "Keep selection on right-click"
+        edgeModeLabel.stringValue = "Edge line style:"
+        foldFlagsLabel.stringValue = "Fold indicators:"
         tabbarExitOnLastTabButton.title = "Exit app when last tab is closed"
         tabbarMaxLabelLengthLabel.stringValue = "Max tab label length (0 = unlimited):"
         printSectionLabel.stringValue = "Print"
@@ -693,7 +699,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          printMarginTopField, printMarginBottomField, printMarginLeftField, printMarginRightField,
          delimiterLeftField, delimiterRightField,
          openAnsiAsUtf8Button, xmlTagAttributeHighlightButton, highlightNonHtmlZoneButton, defaultSaveDirField,
-         toolbarIconSizeSegmented, scintillaRenderingPopup, disableAdvancedScrollingButton, rightClickKeepSelectionButton].forEach {
+         toolbarIconSizeSegmented, scintillaRenderingPopup, disableAdvancedScrollingButton, rightClickKeepSelectionButton,
+         edgeModePopup, foldFlagsPopup].forEach {
             $0.target = self
             $0.action = #selector(controlChanged(_:))
         }
@@ -793,6 +800,12 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
 
         scintillaRenderingPopup.removeAllItems()
         scintillaRenderingPopup.addItems(withTitles: ["Default", "Direct (better quality)"])
+
+        edgeModePopup.removeAllItems()
+        edgeModePopup.addItems(withTitles: ["None", "Line", "Background highlight"])
+
+        foldFlagsPopup.removeAllItems()
+        foldFlagsPopup.addItems(withTitles: ["None", "Line before expanded", "Line before contracted", "Line after expanded", "Line after contracted"])
 
         recentFilesMaxField.formatter = integerFormatter
         recentFilesMaxStepper.minValue = 1
@@ -931,6 +944,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          toolbarIconSizeLabel, toolbarIconSizeSegmented,
          scintillaRenderingLabel, scintillaRenderingPopup,
          disableAdvancedScrollingButton, rightClickKeepSelectionButton,
+         edgeModeLabel, edgeModePopup,
+         foldFlagsLabel, foldFlagsPopup,
          appearanceSectionLabel, appearanceModeLabel, appearanceModeSegmented,
          postItSectionLabel, postItAlphaLabel, postItAlphaSlider
         ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; windowCV.addSubview($0) }
@@ -1837,8 +1852,24 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             rightClickKeepSelectionButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
             rightClickKeepSelectionButton.topAnchor.constraint(equalTo: disableAdvancedScrollingButton.bottomAnchor, constant: 6),
 
+            edgeModeLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            edgeModeLabel.topAnchor.constraint(equalTo: rightClickKeepSelectionButton.bottomAnchor, constant: 10),
+            edgeModeLabel.widthAnchor.constraint(equalToConstant: 120),
+
+            edgeModePopup.leadingAnchor.constraint(equalTo: edgeModeLabel.trailingAnchor, constant: 8),
+            edgeModePopup.centerYAnchor.constraint(equalTo: edgeModeLabel.centerYAnchor),
+            edgeModePopup.widthAnchor.constraint(equalToConstant: 180),
+
+            foldFlagsLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
+            foldFlagsLabel.topAnchor.constraint(equalTo: edgeModeLabel.bottomAnchor, constant: 10),
+            foldFlagsLabel.widthAnchor.constraint(equalToConstant: 120),
+
+            foldFlagsPopup.leadingAnchor.constraint(equalTo: foldFlagsLabel.trailingAnchor, constant: 8),
+            foldFlagsPopup.centerYAnchor.constraint(equalTo: foldFlagsLabel.centerYAnchor),
+            foldFlagsPopup.widthAnchor.constraint(equalToConstant: 220),
+
             reloadScrollToLastCaretButton.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
-            reloadScrollToLastCaretButton.topAnchor.constraint(equalTo: rightClickKeepSelectionButton.bottomAnchor, constant: 10),
+            reloadScrollToLastCaretButton.topAnchor.constraint(equalTo: foldFlagsLabel.bottomAnchor, constant: 10),
 
             appearanceSectionLabel.leadingAnchor.constraint(equalTo: tabbarSectionLabel.leadingAnchor),
             appearanceSectionLabel.topAnchor.constraint(equalTo: reloadScrollToLastCaretButton.bottomAnchor, constant: 18),
@@ -2030,6 +2061,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         scintillaRenderingPopup.selectItem(at: preferences.scintillaRenderingTechnology)
         disableAdvancedScrollingButton.state = preferences.disableAdvancedScrolling ? .on : .off
         rightClickKeepSelectionButton.state = preferences.rightClickKeepSelection ? .on : .off
+        edgeModePopup.selectItem(at: max(0, min(2, preferences.edgeMode)))
+        foldFlagsPopup.selectItem(at: preferences.foldFlags == 0 ? 0 : min(preferences.foldFlags / 2, 4))
         reloadScrollToLastCaretButton.state = preferences.reloadScrollToLastCaret ? .on : .off
         appearanceModeSegmented.selectedSegment = max(0, min(2, preferences.appearanceMode))
         postItAlphaSlider.doubleValue = max(0.2, min(1.0, preferences.postItAlpha))
@@ -2313,7 +2346,9 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             toolbarIconSizeStyle: toolbarIconSizeSegmented.selectedSegment,
             scintillaRenderingTechnology: scintillaRenderingPopup.indexOfSelectedItem,
             disableAdvancedScrolling: disableAdvancedScrollingButton.state == .on,
-            rightClickKeepSelection: rightClickKeepSelectionButton.state == .on
+            rightClickKeepSelection: rightClickKeepSelectionButton.state == .on,
+            edgeMode: edgeModePopup.indexOfSelectedItem,
+            foldFlags: foldFlagsPopup.indexOfSelectedItem == 0 ? 0 : foldFlagsPopup.indexOfSelectedItem * 2
         )
         preferencesStore.save(preferences)
         loadPreferences()

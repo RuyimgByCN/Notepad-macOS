@@ -179,6 +179,8 @@ protocol EditorSurface: AnyObject {
     func applyScintillaRenderingTechnology(_ tech: Int)
     func applyRightClickKeepSelection(_ keep: Bool)
     func applyDisableAdvancedScrolling(_ disabled: Bool)
+    func applyEdgeMode(_ mode: Int)     // 0=none, 1=line, 2=background
+    func applyFoldFlags(_ flags: Int)   // bitmask: 2=before_expanded, 4=before_contracted, 8=after_expanded, 16=after_contracted
 
     // MARK: - Copy/Cut behavior
     func applyCopyLineWithoutSelection(_ enabled: Bool)
@@ -459,6 +461,8 @@ final class TextViewEditorSurface: EditorSurface {
     func applyScintillaRenderingTechnology(_ tech: Int) {}
     func applyRightClickKeepSelection(_ keep: Bool) {}
     func applyDisableAdvancedScrolling(_ disabled: Bool) {}
+    func applyEdgeMode(_ mode: Int) {}
+    func applyFoldFlags(_ flags: Int) {}
     func applyCopyLineWithoutSelection(_ enabled: Bool) {}
     func styledSegments(ofSelection range: NSRange) -> [StyledSegment] {
         let nsText = textView.string as NSString
@@ -1992,6 +1996,16 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setLayoutCache, parameter: disabled ? 0 : 1, value: 0)
     }
 
+    func applyEdgeMode(_ mode: Int) {
+        // SCI_SETEDGEMODE: 0=EDGE_NONE, 1=EDGE_LINE, 2=EDGE_BACKGROUND
+        bridge.setGeneralProperty(ScintillaMessage.setEdgeMode, parameter: CLong(max(0, min(3, mode))), value: 0)
+    }
+
+    func applyFoldFlags(_ flags: Int) {
+        // SCI_SETFOLDFLAGS: bitmask for fold visualization
+        bridge.setGeneralProperty(ScintillaMessage.setFoldFlags, parameter: CLong(max(0, min(30, flags))), value: 0)
+    }
+
     func applyCopyLineWithoutSelection(_ enabled: Bool) {
         bridge.setGeneralProperty(ScintillaMessage.setCopyAllowsLineSelection, parameter: enabled ? 1 : 0, value: 0)
     }
@@ -2771,6 +2785,7 @@ private enum ScintillaMessage {
     static let setAdditionalCaretsBlink: Int32 = 2761
     static let setTechnology: Int32 = 2630  // SCI_SETTECHNOLOGY: SC_TECHNOLOGY_DEFAULT=0, SC_TECHNOLOGY_DIRECTWRITE=1
     static let setLayoutCache: Int32 = 2213 // SCI_SETLAYOUTCACHE: SC_CACHE_NONE=0, SC_CACHE_DOCUMENT=1
+    static let setFoldFlags: Int32 = 2233   // SCI_SETFOLDFLAGS: bitmask for fold line indicators
     static let setWhitespaceSize: Int32 = 2087
     static let setSelAlpha: Int32 = 2473
     static let setControlCharSymbol: Int32 = 2388

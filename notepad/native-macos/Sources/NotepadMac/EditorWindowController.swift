@@ -142,6 +142,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var scintillaRenderingTechnology = 0
     private var disableAdvancedScrolling = false
     private var rightClickKeepSelection = true
+    private var edgeMode = 1
+    private var foldFlags = 0
     private var htmlXmlCloseTagEnabled = true
     private var enablesAutoPair = true
     private var autoPairParentheses = true
@@ -431,6 +433,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.scintillaRenderingTechnology = preferences.scintillaRenderingTechnology
         self.disableAdvancedScrolling = preferences.disableAdvancedScrolling
         self.rightClickKeepSelection = preferences.rightClickKeepSelection
+        self.edgeMode = preferences.edgeMode
+        self.foldFlags = preferences.foldFlags
         self.htmlXmlCloseTagEnabled = preferences.htmlXmlCloseTagEnabled
         self.enablesClickableLinks = preferences.enableClickableLinks
         self.showsLineNumberMargin = preferences.showLineNumberMargin
@@ -3803,6 +3807,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyScintillaRenderingTechnology(scintillaRenderingTechnology)
         editorSurface.applyRightClickKeepSelection(rightClickKeepSelection)
         editorSurface.applyDisableAdvancedScrolling(disableAdvancedScrolling)
+        editorSurface.applyEdgeMode(edgeMode)
+        editorSurface.applyFoldFlags(foldFlags)
         editorSurface.applyScintillaKeyRemaps(scintillaKeyMapStore.load())
         tabBarView.doubleClickClosesTab = preferences.tabbarDoubleClickClose
         tabBarView.lockDragDrop = preferences.tabbarLockDragDrop
@@ -4949,6 +4955,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             .withToolbarIconSizeStyle(toolbarIconSizeStyle)
             .withScintillaRenderingTechnology(scintillaRenderingTechnology)
             .withDisableAdvancedScrolling(disableAdvancedScrolling)
+            .withEdgeMode(edgeMode)
+            .withFoldFlags(foldFlags)
             .withRightClickKeepSelection(rightClickKeepSelection)
         preferencesStore.save(preferences)
     }
