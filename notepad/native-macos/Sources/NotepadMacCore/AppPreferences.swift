@@ -9,6 +9,38 @@ public enum SearchEngineChoice: String, Codable, Equatable, Sendable, CaseIterab
     case stackOverflow
 }
 
+public enum FoldMarginStyle: Int, Codable, Equatable, Sendable, CaseIterable {
+    case simple = 1
+    case arrow = 2
+    case circle = 3
+    case box = 4
+    case none = 5
+
+    public static let storageVersion = 2
+    public static let defaultRawValue = FoldMarginStyle.box.rawValue
+
+    public static func normalizedRawValue(_ rawValue: Int) -> Int {
+        allCases.contains { $0.rawValue == rawValue } ? rawValue : defaultRawValue
+    }
+
+    public static func migratedRawValue(stored rawValue: Int?, storageVersion: Int) -> Int {
+        guard let rawValue else {
+            return defaultRawValue
+        }
+        guard storageVersion >= Self.storageVersion else {
+            switch rawValue {
+            case 2:
+                return FoldMarginStyle.circle.rawValue
+            case 0, 1:
+                return FoldMarginStyle.box.rawValue
+            default:
+                return normalizedRawValue(rawValue)
+            }
+        }
+        return normalizedRawValue(rawValue)
+    }
+}
+
 public struct AppPreferences: Codable, Equatable, Sendable {
     public static let minimumEditorFontSize = 9.0
     public static let maximumEditorFontSize = 32.0
@@ -140,7 +172,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let caretBlinkRate: Int
     public let currentLineFrameWidth: Int   // 0 = fill, 1-4 = frame width in pixels
     public let lineWrapIndent: Int          // 0=fixed, 1=same, 2=indent, 3=deepindent
-    public let foldMarginStyle: Int         // 0=simple arrows, 1=box tree, 2=circle tree
+    public let foldMarginStyle: Int         // FoldMarginStyle raw value: 1=simple, 2=arrow, 3=circle, 4=box, 5=none
     public let useFirstLineAsTabName: Bool
     public let recentFilesMaxCount: Int     // 1-50
     public let recentFilesShowFullPath: Bool
@@ -403,7 +435,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         caretBlinkRate: Int = 500,
         currentLineFrameWidth: Int = 0,
         lineWrapIndent: Int = 0,
-        foldMarginStyle: Int = 0,
+        foldMarginStyle: Int = FoldMarginStyle.defaultRawValue,
         useFirstLineAsTabName: Bool = false,
         recentFilesMaxCount: Int = 20,
         recentFilesShowFullPath: Bool = false,
@@ -571,7 +603,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.caretBlinkRate = max(100, min(2000, caretBlinkRate))
         self.currentLineFrameWidth = max(0, min(4, currentLineFrameWidth))
         self.lineWrapIndent = max(0, min(3, lineWrapIndent))
-        self.foldMarginStyle = max(0, min(2, foldMarginStyle))
+        self.foldMarginStyle = FoldMarginStyle.normalizedRawValue(foldMarginStyle)
         self.useFirstLineAsTabName = useFirstLineAsTabName
         self.recentFilesMaxCount = max(1, min(50, recentFilesMaxCount))
         self.recentFilesShowFullPath = recentFilesShowFullPath
@@ -1435,6 +1467,7 @@ public final class PreferencesStore {
         static let currentLineFrameWidth = "notepadMac.currentLineFrameWidth"
         static let lineWrapIndent = "notepadMac.lineWrapIndent"
         static let foldMarginStyle = "notepadMac.foldMarginStyle"
+        static let foldMarginStyleStorageVersion = "notepadMac.foldMarginStyle.storageVersion"
         static let useFirstLineAsTabName = "notepadMac.useFirstLineAsTabName"
         static let recentFilesMaxCount = "notepadMac.recentFilesMaxCount"
         static let recentFilesShowFullPath = "notepadMac.recentFilesShowFullPath"
@@ -1614,7 +1647,10 @@ public final class PreferencesStore {
             caretBlinkRate: defaults.object(forKey: Key.caretBlinkRate) as? Int ?? 500,
             currentLineFrameWidth: defaults.object(forKey: Key.currentLineFrameWidth) as? Int ?? 0,
             lineWrapIndent: defaults.object(forKey: Key.lineWrapIndent) as? Int ?? 0,
-            foldMarginStyle: defaults.object(forKey: Key.foldMarginStyle) as? Int ?? 0,
+            foldMarginStyle: FoldMarginStyle.migratedRawValue(
+                stored: defaults.object(forKey: Key.foldMarginStyle) as? Int,
+                storageVersion: defaults.object(forKey: Key.foldMarginStyleStorageVersion) as? Int ?? 0
+            ),
             useFirstLineAsTabName: defaults.object(forKey: Key.useFirstLineAsTabName) as? Bool ?? false,
             recentFilesMaxCount: defaults.object(forKey: Key.recentFilesMaxCount) as? Int ?? 20,
             recentFilesShowFullPath: defaults.object(forKey: Key.recentFilesShowFullPath) as? Bool ?? false,
@@ -1790,6 +1826,7 @@ public final class PreferencesStore {
         defaults.set(preferences.currentLineFrameWidth, forKey: Key.currentLineFrameWidth)
         defaults.set(preferences.lineWrapIndent, forKey: Key.lineWrapIndent)
         defaults.set(preferences.foldMarginStyle, forKey: Key.foldMarginStyle)
+        defaults.set(FoldMarginStyle.storageVersion, forKey: Key.foldMarginStyleStorageVersion)
         defaults.set(preferences.useFirstLineAsTabName, forKey: Key.useFirstLineAsTabName)
         defaults.set(preferences.recentFilesMaxCount, forKey: Key.recentFilesMaxCount)
         defaults.set(preferences.recentFilesShowFullPath, forKey: Key.recentFilesShowFullPath)

@@ -822,41 +822,9 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyFoldMarginStyle(_ style: Int) {
-        // Marker numbers (SC_MARKNUM_*)
-        let folderEnd: CLong = 25, folderOpenMid: CLong = 26, folderMidTail: CLong = 27
-        let folderTail: CLong = 28, folderSub: CLong = 29, folder: CLong = 30, folderOpen: CLong = 31
-        // Marker symbols
-        let arrow: CLong = 2, arrowDown: CLong = 6, vline: CLong = 9
-        let lCorner: CLong = 10, tCorner: CLong = 11, empty: CLong = 22
-        let boxPlus: CLong = 12, boxPlusConn: CLong = 13, boxMinus: CLong = 14, boxMinusConn: CLong = 15
-        let circPlus: CLong = 18, circPlusConn: CLong = 19, circMinus: CLong = 20, circMinusConn: CLong = 21
         let define = ScintillaMessage.markerDefine
-
-        switch style {
-        case 1: // box tree
-            bridge.setGeneralProperty(define, parameter: folder, value: boxPlus)
-            bridge.setGeneralProperty(define, parameter: folderOpen, value: boxMinus)
-            bridge.setGeneralProperty(define, parameter: folderSub, value: vline)
-            bridge.setGeneralProperty(define, parameter: folderTail, value: lCorner)
-            bridge.setGeneralProperty(define, parameter: folderMidTail, value: tCorner)
-            bridge.setGeneralProperty(define, parameter: folderEnd, value: boxPlusConn)
-            bridge.setGeneralProperty(define, parameter: folderOpenMid, value: boxMinusConn)
-        case 2: // circle tree
-            bridge.setGeneralProperty(define, parameter: folder, value: circPlus)
-            bridge.setGeneralProperty(define, parameter: folderOpen, value: circMinus)
-            bridge.setGeneralProperty(define, parameter: folderSub, value: vline)
-            bridge.setGeneralProperty(define, parameter: folderTail, value: lCorner)
-            bridge.setGeneralProperty(define, parameter: folderMidTail, value: tCorner)
-            bridge.setGeneralProperty(define, parameter: folderEnd, value: circPlusConn)
-            bridge.setGeneralProperty(define, parameter: folderOpenMid, value: circMinusConn)
-        default: // 0 = simple arrows
-            bridge.setGeneralProperty(define, parameter: folder, value: arrow)
-            bridge.setGeneralProperty(define, parameter: folderOpen, value: arrowDown)
-            bridge.setGeneralProperty(define, parameter: folderSub, value: empty)
-            bridge.setGeneralProperty(define, parameter: folderTail, value: empty)
-            bridge.setGeneralProperty(define, parameter: folderMidTail, value: empty)
-            bridge.setGeneralProperty(define, parameter: folderEnd, value: empty)
-            bridge.setGeneralProperty(define, parameter: folderOpenMid, value: empty)
+        for marker in ScintillaFoldMarginMarkerStyle.symbols(forRawValue: style) {
+            bridge.setGeneralProperty(define, parameter: marker.markerNumber, value: marker.symbol)
         }
     }
 
@@ -2978,6 +2946,74 @@ private enum ScintillaFoldLevel {
     static let headerFlag: CLong = 0x2000
 }
 
+enum ScintillaFoldMarginMarkerStyle {
+    static func symbols(forRawValue rawValue: Int) -> [(markerNumber: CLong, symbol: CLong)] {
+        let style = FoldMarginStyle(rawValue: FoldMarginStyle.normalizedRawValue(rawValue)) ?? .box
+        switch style {
+        case .simple:
+            return symbols(
+                open: ScintillaMarkerSymbol.minus,
+                closed: ScintillaMarkerSymbol.plus,
+                sub: ScintillaMarkerSymbol.empty,
+                tail: ScintillaMarkerSymbol.empty,
+                end: ScintillaMarkerSymbol.empty,
+                openMid: ScintillaMarkerSymbol.empty,
+                midTail: ScintillaMarkerSymbol.empty
+            )
+        case .arrow:
+            return symbols(
+                open: ScintillaMarkerSymbol.arrowDown,
+                closed: ScintillaMarkerSymbol.arrow,
+                sub: ScintillaMarkerSymbol.empty,
+                tail: ScintillaMarkerSymbol.empty,
+                end: ScintillaMarkerSymbol.empty,
+                openMid: ScintillaMarkerSymbol.empty,
+                midTail: ScintillaMarkerSymbol.empty
+            )
+        case .circle:
+            return symbols(
+                open: ScintillaMarkerSymbol.circleMinus,
+                closed: ScintillaMarkerSymbol.circlePlus,
+                sub: ScintillaMarkerSymbol.vLine,
+                tail: ScintillaMarkerSymbol.lCornerCurve,
+                end: ScintillaMarkerSymbol.circlePlusConnected,
+                openMid: ScintillaMarkerSymbol.circleMinusConnected,
+                midTail: ScintillaMarkerSymbol.tCornerCurve
+            )
+        case .box, .none:
+            return symbols(
+                open: ScintillaMarkerSymbol.boxMinus,
+                closed: ScintillaMarkerSymbol.boxPlus,
+                sub: ScintillaMarkerSymbol.vLine,
+                tail: ScintillaMarkerSymbol.lCorner,
+                end: ScintillaMarkerSymbol.boxPlusConnected,
+                openMid: ScintillaMarkerSymbol.boxMinusConnected,
+                midTail: ScintillaMarkerSymbol.tCorner
+            )
+        }
+    }
+
+    private static func symbols(
+        open: CLong,
+        closed: CLong,
+        sub: CLong,
+        tail: CLong,
+        end: CLong,
+        openMid: CLong,
+        midTail: CLong
+    ) -> [(markerNumber: CLong, symbol: CLong)] {
+        [
+            (ScintillaMarker.folderOpen, open),
+            (ScintillaMarker.folder, closed),
+            (ScintillaMarker.folderSub, sub),
+            (ScintillaMarker.folderTail, tail),
+            (ScintillaMarker.folderEnd, end),
+            (ScintillaMarker.folderOpenMid, openMid),
+            (ScintillaMarker.folderMidTail, midTail)
+        ]
+    }
+}
+
 private enum ScintillaIndicatorStyle {
     static let straightBox: CLong = 0
     static let plain: CLong = 1      // plain underline
@@ -3014,6 +3050,11 @@ private enum ScintillaMarker {
 
 private enum ScintillaMarkerSymbol {
     static let circle: CLong = 0
+    static let arrow: CLong = 2
+    static let empty: CLong = 5
+    static let arrowDown: CLong = 6
+    static let minus: CLong = 7
+    static let plus: CLong = 8
     static let vLine: CLong = 9
     static let lCorner: CLong = 10
     static let tCorner: CLong = 11
@@ -3021,4 +3062,10 @@ private enum ScintillaMarkerSymbol {
     static let boxPlusConnected: CLong = 13
     static let boxMinus: CLong = 14
     static let boxMinusConnected: CLong = 15
+    static let lCornerCurve: CLong = 16
+    static let tCornerCurve: CLong = 17
+    static let circlePlus: CLong = 18
+    static let circlePlusConnected: CLong = 19
+    static let circleMinus: CLong = 20
+    static let circleMinusConnected: CLong = 21
 }

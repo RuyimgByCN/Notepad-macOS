@@ -450,6 +450,36 @@ final class PreferencesEnhancementTests: XCTestCase {
         XCTAssertFalse(store.load().enableCodeFolding)
     }
 
+    func testFoldMarginStyleDefaultsToUpstreamBoxTree() {
+        XCTAssertEqual(AppPreferences().foldMarginStyle, 4)
+    }
+
+    func testFoldMarginStyleMigratesLegacyStoredValuesToUpstreamRawValues() {
+        let expectations = [
+            0: 4,
+            1: 4,
+            2: 3
+        ]
+
+        for (legacy, upstream) in expectations {
+            let defaults = UserDefaults(suiteName: "test.foldMarginStyle.legacy.\(legacy).\(UUID().uuidString)")!
+            defaults.set(legacy, forKey: "notepadMac.foldMarginStyle")
+            let store = PreferencesStore(defaults: defaults)
+
+            XCTAssertEqual(store.load().foldMarginStyle, upstream)
+        }
+    }
+
+    func testFoldMarginStyleRoundtripsAllUpstreamOptions() {
+        let defaults = UserDefaults(suiteName: "test.foldMarginStyle.upstream.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+
+        for style in 1...5 {
+            store.save(AppPreferences(foldMarginStyle: style))
+            XCTAssertEqual(store.load().foldMarginStyle, style)
+        }
+    }
+
     // MARK: - Auto-Complete Ignore Case
 
     func testAutoCompleteIgnoreCaseDefault() {

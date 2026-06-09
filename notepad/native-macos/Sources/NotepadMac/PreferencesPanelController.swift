@@ -782,7 +782,17 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         lineWrapIndentPopup.addItems(withTitles: ["Fixed", "Same indent", "Indent", "Deep indent"])
 
         foldMarginStylePopup.removeAllItems()
-        foldMarginStylePopup.addItems(withTitles: ["Simple arrows", "Box tree", "Circle tree"])
+        let foldMarginStyleItems: [(title: String, style: FoldMarginStyle)] = [
+            ("Simple", .simple),
+            ("Arrow", .arrow),
+            ("Circle tree", .circle),
+            ("Box tree", .box),
+            ("None", .none)
+        ]
+        for (title, style) in foldMarginStyleItems {
+            foldMarginStylePopup.addItem(withTitle: title)
+            foldMarginStylePopup.lastItem?.tag = style.rawValue
+        }
 
         edgeLineColumnField.formatter = integerFormatter
         edgeLineColumnStepper.target = self
@@ -1948,7 +1958,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         currentLineFrameSegmented.selectedSegment = max(0, min(3, preferences.currentLineFrameWidth))
         lineWrapIndentPopup.selectItem(at: max(0, min(3, preferences.lineWrapIndent)))
         enableCodeFoldingButton.state = preferences.enableCodeFolding ? .on : .off
-        foldMarginStylePopup.selectItem(at: max(0, min(2, preferences.foldMarginStyle)))
+        foldMarginStylePopup.selectItem(withTag: preferences.foldMarginStyle)
+        if foldMarginStylePopup.selectedItem == nil {
+            foldMarginStylePopup.selectItem(withTag: FoldMarginStyle.defaultRawValue)
+        }
         useFirstLineAsTabNameButton.state = preferences.useFirstLineAsTabName ? .on : .off
         recentFilesMaxField.intValue = Int32(preferences.recentFilesMaxCount)
         recentFilesMaxStepper.intValue = Int32(preferences.recentFilesMaxCount)
@@ -2252,7 +2265,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             caretBlinkRate: Int(caretBlinkRateField.intValue),
             currentLineFrameWidth: currentLineFrameSegmented.selectedSegment,
             lineWrapIndent: lineWrapIndentPopup.indexOfSelectedItem,
-            foldMarginStyle: foldMarginStylePopup.indexOfSelectedItem,
+            foldMarginStyle: foldMarginStylePopup.selectedItem?.tag ?? FoldMarginStyle.defaultRawValue,
             useFirstLineAsTabName: useFirstLineAsTabNameButton.state == .on,
             recentFilesMaxCount: Int(recentFilesMaxField.intValue),
             recentFilesShowFullPath: recentFilesShowFullPathButton.state == .on,

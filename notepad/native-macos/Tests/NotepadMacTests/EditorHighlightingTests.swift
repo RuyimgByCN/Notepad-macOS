@@ -46,6 +46,22 @@ import Testing
     #expect(rgbValue(of: color) == 0x8000FF)
 }
 
+@Test func foldMarginBoxTreeShowsNestedXmlHeaderMarkers() {
+    let symbols = foldMarginSymbols(for: FoldMarginStyle.box.rawValue)
+
+    #expect(symbols[25] == 13)
+    #expect(symbols[26] == 15)
+    #expect(symbols[27] == 11)
+}
+
+@Test func foldMarginArrowStyleKeepsUpstreamEmptyNestedMarkers() {
+    let symbols = foldMarginSymbols(for: FoldMarginStyle.arrow.rawValue)
+
+    #expect(symbols[25] == 5)
+    #expect(symbols[26] == 5)
+    #expect(symbols[27] == 5)
+}
+
 private func upstreamLanguageModelURL() -> URL {
     URL(filePath: #filePath)
         .deletingLastPathComponent()
@@ -72,4 +88,12 @@ private func rgbValue(of color: NSColor) -> Int? {
     let green = Int(round(converted.greenComponent * 255))
     let blue = Int(round(converted.blueComponent * 255))
     return (red << 16) | (green << 8) | blue
+}
+
+private func foldMarginSymbols(for style: Int) -> [Int: Int] {
+    Dictionary(
+        uniqueKeysWithValues: ScintillaFoldMarginMarkerStyle
+            .symbols(forRawValue: style)
+            .map { (Int($0.markerNumber), Int($0.symbol)) }
+    )
 }

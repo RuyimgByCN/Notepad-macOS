@@ -84,7 +84,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var caretBlinkRate = 500
     private var currentLineFrameWidth = 0
     private var lineWrapIndent = 0
-    private var foldMarginStyle = 0
+    private var foldMarginStyle = FoldMarginStyle.defaultRawValue
     private var useFirstLineAsTabName = false
     private var autoReloadOnExternalChange = false
     private var fileChangeDetectionEnabled = true
@@ -5384,7 +5384,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyAdditionalEdgeColumns(additionalEdgeColumns)
         editorSurface.applyCurrentLineFrameWidth(currentLineFrameWidth)
         editorSurface.applyFoldMarginStyle(foldMarginStyle)
-        editorSurface.applyCodeFolding(enableCodeFolding)
+        editorSurface.applyCodeFolding(enableCodeFolding && foldMarginStyle != FoldMarginStyle.none.rawValue)
         editorSurface.applyFoldCompact(foldCompact)
         editorSurface.applyVirtualSpace(enableVirtualSpace)
         editorSurface.applyBackspaceUnindents(backspaceUnindents)
