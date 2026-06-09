@@ -81,6 +81,8 @@ import Testing
     #expect(rustKeyword.keywordClass == "instre1")
     #expect(rustKeyword.isBold)
     #expect(!rustKeyword.isItalic)
+    #expect(defaultStyle.foreground == StyleColor(hexRGB: "000000"))
+    #expect(defaultStyle.background == StyleColor(hexRGB: "FFFFFF"))
     #expect(defaultStyle.fontName == "Courier New")
     #expect(defaultStyle.fontSize == 10)
 }
@@ -109,6 +111,36 @@ import Testing
     #expect(lexillaProperties.count == 1)
     #expect(lexillaProperties[0].name == "lexer.xml.allow.scripts")
     #expect(lexillaProperties[0].value == "0")
+}
+
+@Test func representativeLexillaLanguagesHaveUpstreamStyleEntries() throws {
+    let languageCatalog = try LanguageCatalog.load(from: upstreamLanguageModelURL())
+    let styleCatalog = try StyleCatalog.load(from: upstreamStyleModelURL())
+    let styledLanguages = [
+        "bash",
+        "cpp",
+        "css",
+        "html",
+        "json",
+        "makefile",
+        "python",
+        "rust",
+        "sql",
+        "xml"
+    ]
+
+    for languageName in styledLanguages {
+        let language = try #require(languageCatalog.language(named: languageName))
+        let lexer = try #require(styleCatalog.lexer(named: languageName))
+        #expect(language.lexillaLexerName != nil)
+        #expect(!lexer.styles.isEmpty)
+    }
+
+    let plainText = try #require(languageCatalog.language(named: "normal"))
+    #expect(plainText.lexillaLexerName == nil)
+    #expect(NotepadPlusLexillaMapping.lexerName(for: "markdown") == "markdown")
+    #expect(styleCatalog.lexer(named: "normal") == nil)
+    #expect(styleCatalog.lexer(named: "markdown") == nil)
 }
 
 @Test func convertsNotepadPlusRgbColorsToScintillaColorOrder() throws {

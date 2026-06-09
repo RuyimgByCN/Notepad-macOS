@@ -91,6 +91,9 @@ final class SyntaxHighlighter {
         // Attribute names: attr=
         apply(pattern: #"\b[A-Za-z_][\w.\-:]*(?=\s*=)"#,
               to: storage, text: text, color: attrColor)
+        // Attribute values: "value" or 'value'
+        applyCapture(pattern: #"=\s*("[^"]*"|'[^']*')"#,
+                     captureGroup: 1, to: storage, text: text, color: stringColor)
         // XML declaration <?xml ...?>
         apply(pattern: #"<\?[^>]*\?>"#,
               to: storage, text: text, color: declColor)
@@ -131,6 +134,25 @@ final class SyntaxHighlighter {
         let range = NSRange(location: 0, length: (text as NSString).length)
         regex.enumerateMatches(in: text, range: range) { match, _, _ in
             guard let matchRange = match?.range, matchRange.location != NSNotFound else { return }
+            storage.addAttribute(.foregroundColor, value: color, range: matchRange)
+        }
+    }
+
+    private func applyCapture(
+        pattern: String,
+        captureGroup: Int,
+        to storage: NSTextStorage,
+        text: String,
+        color: NSColor
+    ) {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
+        let range = NSRange(location: 0, length: (text as NSString).length)
+        regex.enumerateMatches(in: text, range: range) { match, _, _ in
+            guard let match,
+                  captureGroup < match.numberOfRanges
+            else { return }
+            let matchRange = match.range(at: captureGroup)
+            guard matchRange.location != NSNotFound else { return }
             storage.addAttribute(.foregroundColor, value: color, range: matchRange)
         }
     }

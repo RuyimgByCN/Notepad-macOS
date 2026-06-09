@@ -54,6 +54,7 @@ import Testing
 @MainActor
 @Test func toolbarButtonsLoadPackagedUpstreamBitmapImages() {
     let controller = EditorWindowController()
+    defer { controller.editorSurface.teardown() }
     let toolbarDelegate = EditorWindowToolbar(controller: controller)
     let toolbar = toolbarDelegate.makeToolbar()
 
@@ -70,8 +71,33 @@ import Testing
 }
 
 @MainActor
+@Test func toolbarButtonsMaskPackagedBitmapBackgrounds() throws {
+    let controller = EditorWindowController()
+    defer { controller.editorSurface.teardown() }
+    let toolbarDelegate = EditorWindowToolbar(controller: controller)
+    let toolbar = toolbarDelegate.makeToolbar()
+
+    for rawIdentifier in upstreamToolbarOrder where rawIdentifier != NSToolbarItem.Identifier.space.rawValue {
+        let identifier = NSToolbarItem.Identifier(rawIdentifier)
+        let item = toolbarDelegate.toolbar(
+            toolbar,
+            itemForItemIdentifier: identifier,
+            willBeInsertedIntoToolbar: true
+        )
+        let image = try #require(item?.image)
+        let transparentEdgePixelCount = try countTransparentEdgePixels(in: image)
+
+        #expect(
+            transparentEdgePixelCount > 0,
+            "Toolbar bitmap background should be transparent for \(rawIdentifier)"
+        )
+    }
+}
+
+@MainActor
 @Test func upstreamToolbarButtonsExposeConcreteActions() {
     let controller = EditorWindowController()
+    defer { controller.editorSurface.teardown() }
     let toolbarDelegate = EditorWindowToolbar(controller: controller)
     let toolbar = toolbarDelegate.makeToolbar()
 
@@ -92,6 +118,7 @@ import Testing
 @Test func findReplacePanelIsResizable() {
     let defaults = UserDefaults(suiteName: "test.findPanel.resizable.\(UUID().uuidString)")!
     let controller = EditorWindowController(preferencesStore: PreferencesStore(defaults: defaults))
+    defer { controller.editorSurface.teardown() }
     let panel = FindPanelController(editor: controller, preferencesStore: PreferencesStore(defaults: defaults))
 
     #expect(panel.window?.styleMask.contains(NSWindow.StyleMask.resizable) == true)
@@ -142,3 +169,60 @@ private let upstreamToolbarOrder = [
         "org.notepad-plus-plus.macnative.editor.toolbar.macro.run-multiple",
         "org.notepad-plus-plus.macnative.editor.toolbar.macro.save-current"
 ]
+
+private func countTransparentEdgePixels(in image: NSImage) throws -> Int {
+    let representation = try bitmapRepresentation(for: image)
+    let width = representation.pixelsWide
+    let height = representation.pixelsHigh
+    var count = 0
+
+    for x in 0..<width {
+        if (representation.colorAt(x: x, y: 0)?.alphaComponent ?? 1) < 0.01 {
+            count += 1
+        }
+        if (representation.colorAt(x: x, y: height - 1)?.alphaComponent ?? 1) < 0.01 {
+            count += 1
+        }
+    }
+
+    guard height > 2 else { return count }
+    for y in 1..<(height - 1) {
+        if (representation.colorAt(x: 0, y: y)?.alphaComponent ?? 1) < 0.01 {
+            count += 1
+        }
+        if (representation.colorAt(x: width - 1, y: y)?.alphaComponent ?? 1) < 0.01 {
+            count += 1
+        }
+    }
+
+    return count
+}
+
+private func bitmapRepresentation(for image: NSImage) throws -> NSBitmapImageRep {
+    let imageSize = NSSize(width: 16, height: 16)
+    let representation = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: Int(imageSize.width),
+        pixelsHigh: Int(imageSize.height),
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    )
+    let bitmap = try #require(representation)
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+    image.draw(
+        in: NSRect(origin: .zero, size: imageSize),
+        from: NSRect(origin: .zero, size: image.size),
+        operation: .copy,
+        fraction: 1,
+        respectFlipped: false,
+        hints: [.interpolation: NSImageInterpolation.none]
+    )
+    NSGraphicsContext.restoreGraphicsState()
+    return bitmap
+}

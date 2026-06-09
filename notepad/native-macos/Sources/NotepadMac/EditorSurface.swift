@@ -2460,7 +2460,7 @@ final class ScintillaEditorSurface: EditorSurface {
         guard let lexer = styleCatalog.lexer(named: language.name) else {
             // No style catalog entry for this language — apply sensible default colors
             // so syntax highlighting is visible even without a matching theme
-            applyDefaultLexerStyles()
+            applyDefaultLexerStyles(styleCatalog: styleCatalog, stylePreferences: stylePreferences)
             return
         }
 
@@ -2474,32 +2474,36 @@ final class ScintillaEditorSurface: EditorSurface {
     /// Apply minimal default colors for common Scintilla lexer style IDs (0-15).
     /// Ensures syntax highlighting is visible when the style catalog has no entry
     /// for the current language (e.g. fallback catalog language with no theme match).
-    private func applyDefaultLexerStyles() {
+    private func applyDefaultLexerStyles(styleCatalog: StyleCatalog, stylePreferences: StylePreferences) {
+        let defaultStyle = resolvedDefaultStyle(styleCatalog: styleCatalog, stylePreferences: stylePreferences)
+        let textColor = defaultStyle.foreground ?? StyleColor(red: 0, green: 0, blue: 0)
+        let backgroundColor = defaultStyle.background ?? StyleColor(red: 255, green: 255, blue: 255)
+
         // Standard Scintilla lexer style ID semantics:
         // 0=default, 1=identifier, 2=comment, 3=number, 4=string/double-quoted,
         // 5=character/single-quoted, 6=keyword/instruction, 7=triple-quoted/verbatim,
         // 8=preprocessor, 9=operator, 10=label, 11-15=extended lexer styles
-        let defaults: [(Int, UInt8, UInt8, UInt8)] = [
-            (0,  217, 217, 217),  // default: light grey
-            (1,  230, 230, 230),  // identifier: white-ish
-            (2,  102, 179, 102),  // comment: green
-            (3,  255, 153, 77),   // number: orange
-            (4,  255, 204, 102),  // string: yellow
-            (5,  255, 128, 128),  // character: red-ish
-            (6,  77,  153, 255),  // keyword: blue
-            (7,  153, 102, 204),  // verbatim: purple
-            (8,  102, 153, 204),  // preprocessor: steel blue
-            (9,  230, 230, 128),  // operator: light yellow
-            (10, 204, 128, 204),  // label: magenta
-            (11, 128, 204, 204),  // extended: teal
-            (12, 204, 153, 102),  // extended: tan
-            (13, 153, 204, 128),  // extended: sage
-            (14, 179, 179, 102),  // extended: olive
-            (15, 204, 102, 102),  // extended: dark red
+        let defaults: [(Int, StyleColor)] = [
+            (0, textColor),
+            (1, textColor),
+            (2, StyleColor(red: 0, green: 128, blue: 0)),
+            (3, StyleColor(red: 255, green: 128, blue: 0)),
+            (4, StyleColor(red: 128, green: 128, blue: 128)),
+            (5, StyleColor(red: 128, green: 128, blue: 128)),
+            (6, StyleColor(red: 0, green: 0, blue: 255)),
+            (7, StyleColor(red: 128, green: 128, blue: 128)),
+            (8, StyleColor(red: 128, green: 0, blue: 0)),
+            (9, textColor),
+            (10, textColor),
+            (11, textColor),
+            (12, textColor),
+            (13, textColor),
+            (14, textColor),
+            (15, textColor),
         ]
-        for (styleID, r, g, b) in defaults {
-            let color = StyleColor(red: r, green: g, blue: b)
+        for (styleID, color) in defaults {
             bridge.setGeneralProperty(ScintillaMessage.styleSetFore, parameter: CLong(styleID), value: CLong(color.scintillaColor))
+            bridge.setGeneralProperty(ScintillaMessage.styleSetBack, parameter: CLong(styleID), value: CLong(backgroundColor.scintillaColor))
         }
     }
 
@@ -2523,6 +2527,26 @@ final class ScintillaEditorSurface: EditorSurface {
                 bridge.setGeneralProperty(ScintillaMessage.autoCSetBack, parameter: CLong(bg.scintillaColor), value: 0)
             }
         }
+    }
+
+    private func resolvedDefaultStyle(
+        styleCatalog: StyleCatalog,
+        stylePreferences: StylePreferences
+    ) -> LexerStyle {
+        let base = styleCatalog.globalStyle(named: "Default Style")
+            ?? styleCatalog.globalStyles.first { $0.styleID == 32 }
+            ?? LexerStyle(
+                name: "Default Style",
+                styleID: 32,
+                foreground: StyleColor(red: 0, green: 0, blue: 0),
+                background: StyleColor(red: 255, green: 255, blue: 255),
+                fontName: nil,
+                fontSize: nil,
+                fontStyle: 0,
+                keywordClass: nil
+            )
+        let key = StyleOverrideKey(languageName: "global", styleID: base.styleID)
+        return stylePreferences.resolvedStyle(for: key, base: base)
     }
 
     private func applyStyle(_ style: LexerStyle) {
