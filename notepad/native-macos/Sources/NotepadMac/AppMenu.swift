@@ -1041,8 +1041,16 @@ enum AppMenu {
         viewMenu.addItem(NSMenuItem.separator())
 
         // --- Scroll sync ---
-        viewMenu.addItem(withTitle: Localization.string(.viewSyncVerticalScroll, default: "Synchronize Vertical Scrolling"), action: nil, keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewSyncHorizontalScroll, default: "Synchronize Horizontal Scrolling"), action: nil, keyEquivalent: "")
+        viewMenu.addItem(
+            withTitle: Localization.string(.viewSyncVerticalScroll, default: "Synchronize Vertical Scrolling"),
+            action: #selector(EditorWindowController.toggleSynchronizedVerticalScrolling(_:)),
+            keyEquivalent: ""
+        )
+        viewMenu.addItem(
+            withTitle: Localization.string(.viewSyncHorizontalScroll, default: "Synchronize Horizontal Scrolling"),
+            action: #selector(EditorWindowController.toggleSynchronizedHorizontalScrolling(_:)),
+            keyEquivalent: ""
+        )
         viewMenu.addItem(NSMenuItem.separator())
 
         // --- Window chrome ---

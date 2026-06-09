@@ -1,4 +1,5 @@
 import AppKit
+import NotepadMacCore
 import Testing
 @testable import NotepadMac
 
@@ -48,6 +49,54 @@ import Testing
         "playRecord_m",
         "saveRecord"
     ])
+}
+
+@MainActor
+@Test func toolbarButtonsLoadPackagedUpstreamBitmapImages() {
+    let controller = EditorWindowController()
+    let toolbarDelegate = EditorWindowToolbar(controller: controller)
+    let toolbar = toolbarDelegate.makeToolbar()
+
+    for rawIdentifier in upstreamToolbarOrder where rawIdentifier != NSToolbarItem.Identifier.space.rawValue {
+        let identifier = NSToolbarItem.Identifier(rawIdentifier)
+        let item = toolbarDelegate.toolbar(
+            toolbar,
+            itemForItemIdentifier: identifier,
+            willBeInsertedIntoToolbar: true
+        )
+
+        #expect(item?.image?.isTemplate == false, "Toolbar item should use upstream bitmap image for \(rawIdentifier)")
+    }
+}
+
+@MainActor
+@Test func upstreamToolbarButtonsExposeConcreteActions() {
+    let controller = EditorWindowController()
+    let toolbarDelegate = EditorWindowToolbar(controller: controller)
+    let toolbar = toolbarDelegate.makeToolbar()
+
+    for rawIdentifier in upstreamToolbarOrder where rawIdentifier != NSToolbarItem.Identifier.space.rawValue {
+        let identifier = NSToolbarItem.Identifier(rawIdentifier)
+        let item = toolbarDelegate.toolbar(
+            toolbar,
+            itemForItemIdentifier: identifier,
+            willBeInsertedIntoToolbar: true
+        )
+
+        #expect(item?.action != nil, "Missing toolbar action for \(rawIdentifier)")
+        #expect(item?.isEnabled == true, "Toolbar item should be enabled for \(rawIdentifier)")
+    }
+}
+
+@MainActor
+@Test func findReplacePanelIsResizable() {
+    let defaults = UserDefaults(suiteName: "test.findPanel.resizable.\(UUID().uuidString)")!
+    let controller = EditorWindowController(preferencesStore: PreferencesStore(defaults: defaults))
+    let panel = FindPanelController(editor: controller, preferencesStore: PreferencesStore(defaults: defaults))
+
+    #expect(panel.window?.styleMask.contains(NSWindow.StyleMask.resizable) == true)
+    #expect((panel.window?.minSize.width ?? 0) >= 460)
+    #expect((panel.window?.minSize.height ?? 0) >= 295)
 }
 
 private let upstreamToolbarOrder = [

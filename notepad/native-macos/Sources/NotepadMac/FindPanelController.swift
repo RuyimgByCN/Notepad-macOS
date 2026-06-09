@@ -52,10 +52,11 @@ final class FindPanelController: NSWindowController, NSWindowDelegate {
 
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 460, height: 295),
-            styleMask: [.titled, .closable, .utilityWindow],
+            styleMask: [.titled, .closable, .resizable, .utilityWindow],
             backing: .buffered,
             defer: false
         )
+        panel.minSize = NSSize(width: 460, height: 295)
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
 

@@ -240,17 +240,21 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
     }
 
     private static func upstreamToolbarImage(for identifier: NSToolbarItem.Identifier) -> NSImage? {
-        guard let resourceName = upstreamBitmapResourceNamesByIdentifier[identifier],
-              let url = Bundle.module.url(
-                forResource: resourceName,
-                withExtension: "bmp",
-                subdirectory: "UpstreamToolbar"
-              ),
-              let image = NSImage(contentsOf: url)
-        else {
+        guard let resourceName = upstreamBitmapResourceNamesByIdentifier[identifier] else {
             return nil
         }
 
+        let url = Bundle.module.url(
+            forResource: resourceName,
+            withExtension: "bmp",
+            subdirectory: "UpstreamToolbar"
+        ) ?? Bundle.module.url(
+            forResource: resourceName,
+            withExtension: "bmp"
+        )
+        guard let url, let image = NSImage(contentsOf: url) else {
+            return nil
+        }
         image.isTemplate = false
         return image
     }
@@ -441,8 +445,8 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
             paletteLabel: Localization.string(.viewSyncVerticalScroll, default: "Synchronize Vertical Scrolling"),
             toolTip: Localization.string(.viewSyncVerticalScroll, default: "Synchronize Vertical Scrolling"),
             symbolName: "arrow.up.arrow.down",
-            action: nil,
-            target: .unavailable
+            action: #selector(EditorWindowController.toggleSynchronizedVerticalScrolling(_:)),
+            target: .controller
         ),
         Command(
             identifier: .editorSyncHorizontalScroll,
@@ -450,8 +454,8 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
             paletteLabel: Localization.string(.viewSyncHorizontalScroll, default: "Synchronize Horizontal Scrolling"),
             toolTip: Localization.string(.viewSyncHorizontalScroll, default: "Synchronize Horizontal Scrolling"),
             symbolName: "arrow.left.arrow.right",
-            action: nil,
-            target: .unavailable
+            action: #selector(EditorWindowController.toggleSynchronizedHorizontalScrolling(_:)),
+            target: .controller
         ),
         Command(
             identifier: .editorToggleBookmark,

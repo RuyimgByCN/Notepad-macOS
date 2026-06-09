@@ -105,6 +105,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var fileAutoDetection = 1
     private var updateSilently = false
     private var scrollBeyondLastLine = false
+    private var synchronizesVerticalScrolling = false
+    private var synchronizesHorizontalScrolling = false
     private var selectedTextDragDrop = true
     private var lineNumberDynamicWidth = false
     private var columnSelectionToMultiEditing = false
@@ -973,6 +975,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         showsWrapSymbol.toggle()
         saveCurrentEditorPreferences()
         applyAdvancedViewOptions()
+    }
+
+    @objc func toggleSynchronizedVerticalScrolling(_ sender: Any?) {
+        synchronizesVerticalScrolling.toggle()
+        updateStatus()
+    }
+
+    @objc func toggleSynchronizedHorizontalScrolling(_ sender: Any?) {
+        synchronizesHorizontalScrolling.toggle()
+        updateStatus()
     }
 
     @objc func toggleChangeHistory(_ sender: Any?) {
@@ -4007,6 +4019,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case #selector(toggleWrapSymbol(_:)):
             menuItem.state = showsWrapSymbol ? .on : .off
             return editorSurface.supportsAdvancedViewOptions
+        case #selector(toggleSynchronizedVerticalScrolling(_:)):
+            menuItem.state = synchronizesVerticalScrolling ? .on : .off
+            return true
+        case #selector(toggleSynchronizedHorizontalScrolling(_:)):
+            menuItem.state = synchronizesHorizontalScrolling ? .on : .off
+            return true
         case #selector(toggleChangeHistory(_:)):
             menuItem.state = showsChangeHistory ? .on : .off
             return editorSurface.supportsAdvancedViewOptions
