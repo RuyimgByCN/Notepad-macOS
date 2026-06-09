@@ -16,6 +16,7 @@ VMAP_ERROR=""
 EXECUTABLE_NAME=""
 SCINTILLA_FRAMEWORK_PATH=""
 LEXILLA_DYLIB_PATH=""
+LEXILLA_RUNTIME_MODE=""
 BASELINE_PIDS=""
 LAUNCHED_PIDS=()
 
@@ -219,6 +220,12 @@ wait_for_mapped_runtime_libraries() {
             contains_text "$VMAP_OUTPUT" "$SCINTILLA_FRAMEWORK_PATH" && has_scintilla=0
             contains_text "$VMAP_OUTPUT" "$LEXILLA_DYLIB_PATH" && has_lexilla=0
 
+            if (( has_scintilla == 0 )) && [[ "$LEXILLA_RUNTIME_MODE" == "static" ]]; then
+                echo "vmmap verified bundled Scintilla.framework is loaded."
+                echo "Lexilla is statically linked into $EXECUTABLE_NAME."
+                return 0
+            fi
+
             if (( has_scintilla == 0 && has_lexilla == 0 )); then
                 echo "vmmap verified bundled Scintilla.framework and liblexilla.dylib are loaded."
                 return 0
@@ -239,6 +246,28 @@ wait_for_mapped_runtime_libraries() {
         echo "  Last vmmap error: $last_error" >&2
     fi
     exit 1
+}
+
+detect_lexilla_runtime_mode() {
+    local executable_path="$APP_PATH/Contents/MacOS/$EXECUTABLE_NAME"
+    local linked_libraries
+    local executable_symbols
+
+    linked_libraries="$(otool -L "$executable_path")"
+    if grep -Fq "@rpath/liblexilla.dylib" <<< "$linked_libraries"; then
+        LEXILLA_RUNTIME_MODE="dynamic"
+        echo "Lexilla runtime mode: dynamic dylib"
+        return 0
+    fi
+
+    executable_symbols="$(nm "$executable_path" 2>/dev/null || true)"
+    if grep -Eq '_(LexillaBridge_CreateLexer|CreateLexer)$' <<< "$executable_symbols"; then
+        LEXILLA_RUNTIME_MODE="static"
+        echo "Lexilla runtime mode: static executable symbols"
+        return 0
+    fi
+
+    fail "$EXECUTABLE_NAME neither links @rpath/liblexilla.dylib nor exposes static Lexilla symbols"
 }
 
 confirm_no_launched_processes_remain() {
@@ -263,6 +292,8 @@ require_command pgrep
 require_command vmmap
 require_command grep
 require_command kill
+require_command nm
+require_command otool
 
 APP_PATH="$(resolve_path "$APP_PATH_INPUT")"
 
@@ -278,6 +309,7 @@ EXECUTABLE_NAME="$("$PLIST_BUDDY" -c 'Print :CFBundleExecutable' "$APP_PATH/Cont
 [[ -f "$APP_PATH/Contents/Frameworks/liblexilla.dylib" ]] || fail "Packaged liblexilla.dylib is missing from $APP_PATH"
 SCINTILLA_FRAMEWORK_PATH="$(cd "$APP_PATH/Contents/Frameworks/Scintilla.framework" && pwd -P)"
 LEXILLA_DYLIB_PATH="$(cd "$APP_PATH/Contents/Frameworks" && pwd -P)/liblexilla.dylib"
+detect_lexilla_runtime_mode
 
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/notepad-mac-smoke.XXXXXX")"
 RUST_FILE="$TMP_DIR/smoke.rs"
