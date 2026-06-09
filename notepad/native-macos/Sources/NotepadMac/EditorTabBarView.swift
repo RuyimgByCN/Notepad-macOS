@@ -1,6 +1,7 @@
 import AppKit
 import NotepadMacCore
 import Foundation
+import UniformTypeIdentifiers
 
 // MARK: - Tab bar container
 
@@ -359,8 +360,10 @@ final class EditorTabButton: NSView {
     private static let hPad: CGFloat = 8
     private static let closeSize: CGFloat = 13
     private static let closeRightPad: CGFloat = 5
+    private static let documentIconSize: CGFloat = 14
+    private static let documentIconTitleGap: CGFloat = 5
     // minWidth must fit: hPad + some text + pin + gap + close + closeRightPad
-    static let minWidth: CGFloat = 90
+    static let minWidth: CGFloat = 110
     static let absoluteMaxWidth: CGFloat = 400
     // Set by the tab bar to half its visible width; tabs only truncate when the title exceeds that.
     var dynamicMaxWidth: CGFloat = 300
@@ -374,6 +377,7 @@ final class EditorTabButton: NSView {
     private let onContextAction: (TabContextAction) -> Void
     var onRename: (() -> Void)?
 
+    private let documentIconView = NSImageView()
     private let titleLabel = NSTextField(labelWithString: "")
     private let pinBtn = NSButton()
     private let closeBtn = NSButton()
@@ -409,6 +413,13 @@ final class EditorTabButton: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     private func setupViews() {
+        documentIconView.image = Self.documentIcon(for: item)
+        documentIconView.imageScaling = .scaleProportionallyDown
+        documentIconView.contentTintColor = isActive ? .labelColor : .secondaryLabelColor
+        documentIconView.alphaValue = isActive ? 0.9 : 0.65
+        documentIconView.setAccessibilityLabel("Document")
+        addSubview(documentIconView)
+
         let statusPrefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
         let indexPrefix: String
         if let idx = tabIndex, idx <= 9 {
@@ -473,13 +484,26 @@ final class EditorTabButton: NSView {
         let textW = (text as NSString).size(withAttributes: attrs).width
         // Always reserve space for pin button because it appears on hover even when unpinned.
         // +12: NSTextField insets (4px) + gap before buttons (4px) + CJK rendering safety (4px)
-        let raw = Self.hPad + textW + 12 + Self.pinSize + Self.pinGap + Self.closeSize + Self.closeRightPad
+        let raw = Self.hPad
+            + Self.documentIconSize
+            + Self.documentIconTitleGap
+            + textW
+            + 12
+            + Self.pinSize
+            + Self.pinGap
+            + Self.closeSize
+            + Self.closeRightPad
         return max(Self.minWidth, min(dynamicMaxWidth, ceil(raw)))
     }
 
     override func layout() {
         super.layout()
         let h = bounds.height
+        let iconSz = Self.documentIconSize
+        let iconX = Self.hPad
+        let iconY = (h - iconSz) / 2
+        documentIconView.frame = CGRect(x: iconX, y: iconY, width: iconSz, height: iconSz)
+
         let closeSz = Self.closeSize
         let closeX = bounds.maxX - closeSz - Self.closeRightPad
         let closeY = (h - closeSz) / 2
@@ -491,7 +515,7 @@ final class EditorTabButton: NSView {
         let pinY = (h - pinSz) / 2
         pinBtn.frame = CGRect(x: pinX, y: pinY, width: pinSz, height: pinSz)
 
-        let titleX = Self.hPad
+        let titleX = documentIconView.frame.maxX + Self.documentIconTitleGap
         let rightEdge: CGFloat
         if !closeBtn.isHidden {
             // Always leave room for pin button even when hidden, so title doesn't jump on hover.
@@ -588,6 +612,23 @@ final class EditorTabButton: NSView {
         let palette: [NSColor] = [.systemYellow, .systemGreen, .systemBlue, .systemRed, .systemOrange, .systemPurple]
         guard idx >= 1, idx <= palette.count else { return .clear }
         return palette[idx - 1]
+    }
+
+    static func documentIconSymbolName(for item: EditorTabItem) -> String {
+        if item.isMonitoring {
+            return "arrow.clockwise.circle"
+        }
+        return item.isDirty ? "doc.badge.ellipsis" : "doc.text"
+    }
+
+    private static func documentIcon(for item: EditorTabItem) -> NSImage {
+        let symbolName = documentIconSymbolName(for: item)
+        let symbolImage = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Document")
+        let sourceImage = symbolImage ?? NSWorkspace.shared.icon(for: .plainText)
+        let image = (sourceImage.copy() as? NSImage) ?? sourceImage
+        image.size = NSSize(width: documentIconSize, height: documentIconSize)
+        image.isTemplate = symbolImage != nil || sourceImage.isTemplate
+        return image
     }
 
     override func rightMouseDown(with event: NSEvent) {
