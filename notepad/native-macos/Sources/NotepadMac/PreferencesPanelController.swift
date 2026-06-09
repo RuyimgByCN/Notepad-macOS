@@ -168,6 +168,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let showIndentGuidesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let highlightCurrentLineButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let showNpcCharactersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let showControlCharactersAndUnicodeEOLButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let showWrapSymbolButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let showChangeHistoryButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let edgeLineColumnLabel = NSTextField(labelWithString: "")
@@ -461,6 +462,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         showIndentGuidesButton.title = "Show indent guides"
         highlightCurrentLineButton.title = "Highlight current line"
         showNpcCharactersButton.title = "Show non-printable characters"
+        showControlCharactersAndUnicodeEOLButton.title = "Show control characters && Unicode EOL"
         showWrapSymbolButton.title = "Show wrap symbol"
         showChangeHistoryButton.title = "Show change history margin"
         edgeLineColumnLabel.stringValue = "Edge column:"
@@ -864,7 +866,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
          bidiModeLabel, bidiModePopup,
          showEOLButton,
          showIndentGuidesButton, highlightCurrentLineButton,
-         showNpcCharactersButton, showWrapSymbolButton, showChangeHistoryButton,
+         showNpcCharactersButton, showControlCharactersAndUnicodeEOLButton, showWrapSymbolButton, showChangeHistoryButton,
          linePaddingLabel, linePaddingSegmented,
          autoCompleteLabel, autoCompleteField, autoCompleteStepper,
          largeFileSectionLabel, largeFileMBLabel, largeFileMBField, largeFileMBStepper,
@@ -1193,8 +1195,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             showNpcCharactersButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             showNpcCharactersButton.topAnchor.constraint(equalTo: highlightCurrentLineButton.bottomAnchor, constant: 6),
 
+            showControlCharactersAndUnicodeEOLButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
+            showControlCharactersAndUnicodeEOLButton.topAnchor.constraint(equalTo: showNpcCharactersButton.bottomAnchor, constant: 6),
+
             showWrapSymbolButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
-            showWrapSymbolButton.topAnchor.constraint(equalTo: showNpcCharactersButton.bottomAnchor, constant: 6),
+            showWrapSymbolButton.topAnchor.constraint(equalTo: showControlCharactersAndUnicodeEOLButton.bottomAnchor, constant: 6),
 
             showChangeHistoryButton.leadingAnchor.constraint(equalTo: autoPairButton.leadingAnchor),
             showChangeHistoryButton.topAnchor.constraint(equalTo: showWrapSymbolButton.bottomAnchor, constant: 6),
@@ -1988,6 +1993,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         showIndentGuidesButton.state = preferences.showIndentGuides ? .on : .off
         highlightCurrentLineButton.state = preferences.highlightCurrentLine ? .on : .off
         showNpcCharactersButton.state = preferences.showNpcCharacters ? .on : .off
+        showControlCharactersAndUnicodeEOLButton.state = preferences.showControlCharactersAndUnicodeEOL ? .on : .off
         showWrapSymbolButton.state = preferences.showWrapSymbol ? .on : .off
         showChangeHistoryButton.state = preferences.showChangeHistory ? .on : .off
         linePaddingSegmented.selectedSegment = max(0, min(5, preferences.linePadding))
@@ -2221,6 +2227,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
             defaultNewDocumentLineEnding: selectedNewDocLineEnding,
             rememberLastSession: rememberSessionButton.state == .on,
             showNpcCharacters: showNpcCharactersButton.state == .on,
+            showControlCharactersAndUnicodeEOL: showControlCharactersAndUnicodeEOLButton.state == .on,
             smartHighlightMatchCase: smartHighlightMatchCaseButton.state == .on,
             smartHighlightWholeWord: smartHighlightWholeWordButton.state == .on,
             markAllMatchCase: markAllMatchCaseButton.state == .on,

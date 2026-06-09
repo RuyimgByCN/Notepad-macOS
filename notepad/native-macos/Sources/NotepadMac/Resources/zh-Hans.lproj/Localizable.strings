@@ -559,12 +559,13 @@
 "menu.search.changeHistory" = "变更历史";
 "view.toggleLineWrap" = "切换自动换行";
 "view.showAllCharacters" = "显示所有字符";
-"view.showWhitespace" = "显示空白";
+"view.showWhitespace" = "显示空格和制表符";
 "view.showWhitespaceAfterIndent" = "仅缩进后空白";
 "view.showWhitespaceOnlyIndent" = "仅缩进空白";
 "menu.viewWhitespace" = "空白显示";
 "view.showEOL" = "显示行尾标记";
-"view.showNpcCharacters" = "显示 NPC 字符";
+"view.showNpcCharacters" = "显示非打印字符";
+"view.showControlCharactersAndUnicodeEOL" = "显示控制字符和 Unicode 行尾符";
 "view.showIndentGuide" = "显示缩进参考线";
 "view.highlightCurrentLine" = "高亮当前行";
 "view.showWrapSymbol" = "显示换行符号";

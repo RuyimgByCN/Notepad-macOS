@@ -133,6 +133,7 @@ protocol EditorSurface: AnyObject {
     // MARK: - NPC (Non-Printing Characters) display
     var supportsNpcDisplay: Bool { get }
     func applyNpcDisplay(_ show: Bool)
+    func applyControlCharactersAndUnicodeEOLDisplay(_ show: Bool)
 
     // MARK: - XML tag matching
     var supportsXmlTagMatch: Bool { get }
@@ -422,6 +423,7 @@ final class TextViewEditorSurface: EditorSurface {
 
     var supportsNpcDisplay: Bool { false }
     func applyNpcDisplay(_ show: Bool) {}
+    func applyControlCharactersAndUnicodeEOLDisplay(_ show: Bool) {}
 
     var supportsSmartHighlight: Bool { false }
     func applySmartHighlight(_ word: String, matchCase: Bool, wholeWord: Bool) {}
@@ -690,12 +692,23 @@ final class ScintillaEditorSurface: EditorSurface {
         _ = bridge.setDelegate(nil)
     }
 
+    private static func dbgWrite(_ s: String) {
+        let path = "/tmp/notepad_debug.txt"
+        if let f = fopen(path, "a") {
+            fputs(s + "\n", f)
+            fclose(f)
+        }
+    }
+
     static func load() -> ScintillaEditorSurface? {
+        dbgWrite("[load] starting ScintillaEditorSurface.load()")
         for frameworkURL in frameworkCandidates() {
+            dbgWrite("[load] trying \(frameworkURL.path) exists=\(FileManager.default.fileExists(atPath: frameworkURL.path))")
             guard FileManager.default.fileExists(atPath: frameworkURL.path),
                   let bundle = Bundle(url: frameworkURL),
                   bundle.load()
             else {
+                dbgWrite("[load] skipping \(frameworkURL.lastPathComponent)")
                 continue
             }
 
@@ -1028,7 +1041,9 @@ final class ScintillaEditorSurface: EditorSurface {
         stylePreferences: StylePreferences,
         highlighter: SyntaxHighlighter
     ) {
+        Self.dbgWrite("[applyHighlight] lang=\(language.name) lexer=\(language.lexillaLexerName ?? "nil")")
         bridge.setFont(name: "Menlo", size: 13, bold: false, italic: false)
+        bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
 
         let lexerName = language.lexillaLexerName
         if let name = lexerName,
@@ -1040,11 +1055,12 @@ final class ScintillaEditorSurface: EditorSurface {
             )
             bridge.setGeneralProperty(ScintillaMessage.clearDocumentStyle, parameter: 0, value: 0)
             configureFoldingProperties()
+            configureLexillaProperties(for: language)
         } else {
             bridge.setReferenceProperty(ScintillaMessage.setILexer, parameter: 0, value: nil)
         }
 
-        for (scintillaIndex, keywords) in language.scintillaKeywordSets where scintillaIndex < ScintillaKeyword.maximumSets {
+        for (scintillaIndex, keywords) in language.scintillaKeywordSets where scintillaIndex < ScintillaKeywordSet.maximumSets {
             let keywordText = keywords.joined(separator: " ")
             keywordText.withCString { pointer in
                 bridge.setReferenceProperty(
@@ -1064,7 +1080,30 @@ final class ScintillaEditorSurface: EditorSurface {
 
         applyStyles(language: language, styleCatalog: styleCatalog, stylePreferences: stylePreferences)
         applyGlobalStyles(styleCatalog: styleCatalog, stylePreferences: stylePreferences)
+        var preLines = "[readback-pre] styles after applyStyles:\n"
+        for sid in [1, 3, 9, 12, 17] {
+            let f = bridge.getGeneralProperty(ScintillaMessage.styleGetFore, parameter: CLong(sid)) ?? -1
+            preLines += "[readback-pre] style\(sid) fore=0x\(String(format:"%06X", f))\n"
+        }
+        Self.dbgWrite(preLines)
         bridge.setGeneralProperty(ScintillaMessage.colourise, parameter: 0, value: -1)
+        var postLines = "[readback-post] styles after colourise:\n"
+        for sid in [1, 3, 9, 12, 17] {
+            let f = bridge.getGeneralProperty(ScintillaMessage.styleGetFore, parameter: CLong(sid)) ?? -1
+            postLines += "[readback-post] style\(sid) fore=0x\(String(format:"%06X", f))\n"
+        }
+        // Check style IDs assigned to first 20 positions
+        let docLen = bridge.getGeneralProperty(ScintillaMessage.getLength, parameter: 0) ?? 0
+        if docLen > 0 {
+            postLines += "[getstyle] doc len=\(docLen), styles at pos 0..19:\n"
+            var styleStr = ""
+            for pos in 0..<min(20, Int(docLen)) {
+                let s = bridge.getGeneralProperty(ScintillaMessage.getStyleAt, parameter: CLong(pos)) ?? -1
+                styleStr += "pos\(pos)=\(s) "
+            }
+            postLines += styleStr
+        }
+        Self.dbgWrite(postLines)
     }
 
     func syncBookmarkMarkers(_ bookmarks: BookmarkSet) {
@@ -1552,37 +1591,86 @@ final class ScintillaEditorSurface: EditorSurface {
     var supportsNpcDisplay: Bool { true }
 
     func applyNpcDisplay(_ show: Bool) {
-        let npcEntries: [(code: UInt8, abbrev: String)] = [
-            (0x00, "NUL"), (0x01, "SOH"), (0x02, "STX"), (0x03, "ETX"),
-            (0x04, "EOT"), (0x05, "ENQ"), (0x06, "ACK"), (0x07, "BEL"),
-            (0x08, "BS"),  (0x09, "HT"),  (0x0A, "LF"),  (0x0B, "VT"),
-            (0x0C, "FF"),  (0x0D, "CR"),  (0x0E, "SO"),   (0x0F, "SI"),
-            (0x10, "DLE"), (0x11, "DC1"), (0x12, "DC2"), (0x13, "DC3"),
-            (0x14, "DC4"), (0x15, "NAK"), (0x16, "SYN"), (0x17, "ETB"),
-            (0x18, "CAN"), (0x19, "EM"),  (0x1A, "SUB"), (0x1B, "ESC"),
-            (0x1C, "FS"),  (0x1D, "GS"),  (0x1E, "RS"),  (0x1F, "US"),
-            (0x7F, "DEL")
+        let npcEntries: [(encodedCharacter: String, representation: String)] = [
+            ("\u{00A0}", "NBSP"), ("\u{00AD}", "SHY"), ("\u{061C}", "ALM"),
+            ("\u{070F}", "SAM"), ("\u{1680}", "OSPM"), ("\u{180E}", "MVS"),
+            ("\u{2000}", "NQSP"), ("\u{2001}", "MQSP"), ("\u{2002}", "ENSP"),
+            ("\u{2003}", "EMSP"), ("\u{2004}", "3/MSP"), ("\u{2005}", "4/MSP"),
+            ("\u{2006}", "6/MSP"), ("\u{2007}", "FSP"), ("\u{2008}", "PSP"),
+            ("\u{2009}", "THSP"), ("\u{200A}", "HSP"), ("\u{200B}", "ZWSP"),
+            ("\u{200C}", "ZWNJ"), ("\u{200D}", "ZWJ"), ("\u{200E}", "LRM"),
+            ("\u{200F}", "RLM"), ("\u{202A}", "LRE"), ("\u{202B}", "RLE"),
+            ("\u{202C}", "PDF"), ("\u{202D}", "LRO"), ("\u{202E}", "RLO"),
+            ("\u{202F}", "NNBSP"), ("\u{205F}", "MMSP"), ("\u{2060}", "WJ"),
+            ("\u{2061}", "(FA)"), ("\u{2062}", "(IT)"), ("\u{2063}", "(IS)"),
+            ("\u{2064}", "(IP)"), ("\u{2066}", "LRI"), ("\u{2067}", "RLI"),
+            ("\u{2068}", "FSI"), ("\u{2069}", "PDI"), ("\u{206A}", "ISS"),
+            ("\u{206B}", "ASS"), ("\u{206C}", "IAFS"), ("\u{206D}", "AAFS"),
+            ("\u{206E}", "NADS"), ("\u{206F}", "NODS"), ("\u{3000}", "IDSP"),
+            ("\u{FEFF}", "ZWNBSP"), ("\u{FFF9}", "IAA"), ("\u{FFFA}", "IAS"),
+            ("\u{FFFB}", "IAT")
         ]
-        for (code, abbrev) in npcEntries {
-            var charBytes: [UInt8] = [code, 0]
-            charBytes.withUnsafeMutableBytes { charBuf in
-                let paramAsInt = CLong(bitPattern: UInt(bitPattern: charBuf.baseAddress!))
+        applyRepresentations(npcEntries, show: show)
+    }
+
+    func applyControlCharactersAndUnicodeEOLDisplay(_ show: Bool) {
+        let controlEntries: [(encodedCharacter: String, representation: String)] = [
+            ("\u{0000}", "NUL"), ("\u{0001}", "SOH"), ("\u{0002}", "STX"),
+            ("\u{0003}", "ETX"), ("\u{0004}", "EOT"), ("\u{0005}", "ENQ"),
+            ("\u{0006}", "ACK"), ("\u{0007}", "BEL"), ("\u{0008}", "BS"),
+            ("\u{000B}", "VT"), ("\u{000C}", "FF"), ("\u{000E}", "SO"),
+            ("\u{000F}", "SI"), ("\u{0010}", "DLE"), ("\u{0011}", "DC1"),
+            ("\u{0012}", "DC2"), ("\u{0013}", "DC3"), ("\u{0014}", "DC4"),
+            ("\u{0015}", "NAK"), ("\u{0016}", "SYN"), ("\u{0017}", "ETB"),
+            ("\u{0018}", "CAN"), ("\u{0019}", "EM"), ("\u{001A}", "SUB"),
+            ("\u{001B}", "ESC"), ("\u{001C}", "FS"), ("\u{001D}", "GS"),
+            ("\u{001E}", "RS"), ("\u{001F}", "US"), ("\u{007F}", "DEL"),
+            ("\u{0080}", "PAD"), ("\u{0081}", "HOP"), ("\u{0082}", "BPH"),
+            ("\u{0083}", "NBH"), ("\u{0084}", "IND"), ("\u{0086}", "SSA"),
+            ("\u{0087}", "ESA"), ("\u{0088}", "HTS"), ("\u{0089}", "HTJ"),
+            ("\u{008A}", "VTS"), ("\u{008B}", "PLD"), ("\u{008C}", "PLU"),
+            ("\u{008D}", "RI"), ("\u{008E}", "SS2"), ("\u{008F}", "SS3"),
+            ("\u{0090}", "DCS"), ("\u{0091}", "PU1"), ("\u{0092}", "PU2"),
+            ("\u{0093}", "STS"), ("\u{0094}", "CCH"), ("\u{0095}", "MW"),
+            ("\u{0096}", "SPA"), ("\u{0097}", "EPA"), ("\u{0098}", "SOS"),
+            ("\u{0099}", "SGCI"), ("\u{009A}", "SCI"), ("\u{009B}", "CSI"),
+            ("\u{009C}", "ST"), ("\u{009D}", "OSC"), ("\u{009E}", "PM"),
+            ("\u{009F}", "APC"), ("\u{0085}", "NEL"), ("\u{2028}", "LS"),
+            ("\u{2029}", "PS")
+        ]
+        applyRepresentations(controlEntries, show: show, hiddenRepresentation: "\u{200B}")
+    }
+
+    private func applyRepresentations(
+        _ entries: [(encodedCharacter: String, representation: String)],
+        show: Bool,
+        hiddenRepresentation: String? = nil
+    ) {
+        for entry in entries {
+            entry.encodedCharacter.withCString { charPtr in
+                let parameter = CLong(bitPattern: UInt(bitPattern: charPtr))
                 if show {
-                    abbrev.withCString { reprPtr in
-                        bridge.setReferenceProperty(
-                            ScintillaMessage.setRepresentation,
-                            parameter: paramAsInt,
-                            value: UnsafeRawPointer(reprPtr)
-                        )
-                    }
+                    setRepresentation(entry.representation, for: parameter)
+                } else if let hiddenRepresentation {
+                    setRepresentation(hiddenRepresentation, for: parameter)
                 } else {
                     bridge.setReferenceProperty(
                         ScintillaMessage.clearRepresentation,
-                        parameter: paramAsInt,
+                        parameter: parameter,
                         value: nil
                     )
                 }
             }
+        }
+    }
+
+    private func setRepresentation(_ representation: String, for parameter: CLong) {
+        representation.withCString { reprPtr in
+            bridge.setReferenceProperty(
+                ScintillaMessage.setRepresentation,
+                parameter: parameter,
+                value: UnsafeRawPointer(reprPtr)
+            )
         }
     }
 
@@ -2328,6 +2416,12 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setLexerProperty(name: "fold.html", value: "1")
     }
 
+    private func configureLexillaProperties(for language: LanguageDefinition) {
+        for property in language.lexillaProperties {
+            bridge.setLexerProperty(name: property.name, value: property.value)
+        }
+    }
+
     private func configureFolderMarkers() {
         let folderMarkers: [(CLong, CLong)] = [
             (ScintillaMarker.folderEnd, ScintillaMarkerSymbol.boxPlusConnected),
@@ -2412,9 +2506,8 @@ final class ScintillaEditorSurface: EditorSurface {
     // Apply global/widget styles (STYLE_DEFAULT=32, STYLE_LINENUMBER=33, etc.)
     // and propagate the Default Style colors to the autocomplete list.
     private func applyGlobalStyles(styleCatalog: StyleCatalog, stylePreferences: StylePreferences) {
-        // Valid Scintilla built-in style IDs for global widget styles
-        let scintillaBuiltinRange = 21...40
-        for baseStyle in styleCatalog.globalStyles where scintillaBuiltinRange.contains(baseStyle.styleID) {
+        // Notepad++ global style IDs 21...31 are indicators, not Scintilla text styles.
+        for baseStyle in styleCatalog.globalStyles where ScintillaStyleRouting.isGlobalTextStyle(baseStyle.styleID) {
             let key = StyleOverrideKey(languageName: "global", styleID: baseStyle.styleID)
             let style = stylePreferences.resolvedStyle(for: key, base: baseStyle)
             applyStyle(style)
@@ -2436,7 +2529,11 @@ final class ScintillaEditorSurface: EditorSurface {
         let styleID = CLong(style.styleID)
 
         if let foreground = style.foreground {
-            bridge.setGeneralProperty(ScintillaMessage.styleSetFore, parameter: styleID, value: CLong(foreground.scintillaColor))
+            let scintVal = CLong(foreground.scintillaColor)
+            if [1, 3, 6, 9, 12, 17].contains(style.styleID) {
+                Self.dbgWrite("[applyStyle] id=\(style.styleID) fg=#\(foreground.hexRGB) scint=0x\(String(scintVal, radix: 16))")
+            }
+            bridge.setGeneralProperty(ScintillaMessage.styleSetFore, parameter: styleID, value: scintVal)
         }
 
         if let background = style.background {
@@ -2792,7 +2889,7 @@ private enum ScintillaMessage {
     static let setSelAlpha: Int32 = 2473
     static let setControlCharSymbol: Int32 = 2388
     // Style query
-    static let getStyleAt: Int32 = 2498
+    static let getStyleAt: Int32 = 2010
     static let styleGetFore: Int32 = 2481
     static let styleGetBack: Int32 = 2482
     static let styleGetBold: Int32 = 2483
@@ -2867,10 +2964,6 @@ private enum ScintillaIndicatorStyle {
     static let fullBox: CLong = 16           // filled translucent box
 }
 
-private enum ScintillaKeyword {
-    static let maximumSets = 30
-}
-
 private enum ScintillaMargin {
     static let lineNumber: CLong = 0
     static let bookmark: CLong = 1
@@ -2904,73 +2997,4 @@ private enum ScintillaMarkerSymbol {
     static let boxPlusConnected: CLong = 13
     static let boxMinus: CLong = 14
     static let boxMinusConnected: CLong = 15
-}
-
-private extension LanguageDefinition {
-    /// Returns (scintillaKeywordSetIndex, keywords) pairs in ascending index order.
-    /// For UDL languages (groups prefixed "udl_" or "udlkw"), the indices map to
-    /// SCE_USER_KWLIST_* constants so SCLEX_USER receives keywords at the right slots.
-    /// For standard languages, indices match the sequential position after priority sort,
-    /// which is what Lexilla's lexers expect.
-    var scintillaKeywordSets: [(index: Int, keywords: [String])] {
-        if isUserDefinedLanguage {
-            return keywordGroups
-                .compactMap { name, words -> (Int, [String])? in
-                    guard let idx = udlKeywordSetIndex(name), !words.isEmpty else { return nil }
-                    return (idx, words)
-                }
-                .sorted { $0.0 < $1.0 }
-        }
-        return keywordGroups
-            .sorted { keywordGroupPriority($0.key) < keywordGroupPriority($1.key) }
-            .filter { !$1.isEmpty }
-            .enumerated()
-            .map { (index: $0.offset, keywords: $0.element.value) }
-    }
-
-    var isUserDefinedLanguage: Bool {
-        keywordGroups.keys.contains { $0.hasPrefix("udlkw") || $0.hasPrefix("udl_") }
-    }
-
-    private func udlKeywordSetIndex(_ name: String) -> Int? {
-        switch name {
-        case "udl_comments":            return 0
-        case "udl_num_prefix1":         return 1
-        case "udl_num_prefix2":         return 2
-        case "udl_num_extras1":         return 3
-        case "udl_num_extras2":         return 4
-        case "udl_num_suffix1":         return 5
-        case "udl_num_suffix2":         return 6
-        case "udl_num_range":           return 7
-        case "udl_operators1":          return 8
-        case "udl_operators2":          return 9
-        case "udl_fold_code1_open":     return 10
-        case "udl_fold_code1_middle":   return 11
-        case "udl_fold_code1_close":    return 12
-        case "udl_fold_code2_open":     return 13
-        case "udl_fold_code2_middle":   return 14
-        case "udl_fold_code2_close":    return 15
-        case "udl_fold_comment_open":   return 16
-        case "udl_fold_comment_middle": return 17
-        case "udl_fold_comment_close":  return 18
-        case "udl_delimiters":          return 27
-        default: break
-        }
-        if name.hasPrefix("udlkw"), let n = Int(name.dropFirst(5)), (1...8).contains(n) {
-            return 18 + n  // udlkw1→19 (SCE_USER_KWLIST_KEYWORDS1), …, udlkw8→26
-        }
-        return nil
-    }
-
-    func keywordGroupPriority(_ name: String) -> Int {
-        if name == "instre1" { return 0 }
-        if name == "instre2" { return 1 }
-        if name.hasPrefix("type"), let number = Int(name.dropFirst("type".count)) {
-            return 1 + number
-        }
-        if name.hasPrefix("substyle"), let number = Int(name.dropFirst("substyle".count)) {
-            return 20 + number
-        }
-        return 100
-    }
 }

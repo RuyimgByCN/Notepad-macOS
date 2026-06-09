@@ -30,7 +30,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         localizationFileName: "english.xml",
         showWhitespace: false,
         showEOL: false,
-        showIndentGuides: false,
+        showIndentGuides: true,
         highlightCurrentLine: false,
         showWrapSymbol: false,
         showChangeHistory: false,
@@ -46,6 +46,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         defaultNewDocumentLineEnding: "lf",
         rememberLastSession: true,
         showNpcCharacters: false,
+        showControlCharactersAndUnicodeEOL: true,
         smartHighlightMatchCase: false,
         smartHighlightWholeWord: true,
         caretWidth: 1,
@@ -102,6 +103,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public let defaultNewDocumentLineEnding: String // LineEnding.rawValue
     public let rememberLastSession: Bool
     public let showNpcCharacters: Bool
+    public let showControlCharactersAndUnicodeEOL: Bool
     public let smartHighlightMatchCase: Bool
     public let smartHighlightWholeWord: Bool
     /// When true, "Mark All" respects match-case
@@ -354,7 +356,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         localizationFileName: String = "english.xml",
         showWhitespace: Bool = false,
         showEOL: Bool = false,
-        showIndentGuides: Bool = false,
+        showIndentGuides: Bool = true,
         highlightCurrentLine: Bool = false,
         showWrapSymbol: Bool = false,
         showChangeHistory: Bool = false,
@@ -376,6 +378,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         defaultNewDocumentLineEnding: String = "lf",
         rememberLastSession: Bool = true,
         showNpcCharacters: Bool = false,
+        showControlCharactersAndUnicodeEOL: Bool = true,
         smartHighlightMatchCase: Bool = false,
         smartHighlightWholeWord: Bool = true,
         markAllMatchCase: Bool = false,
@@ -543,6 +546,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.defaultNewDocumentLineEnding = defaultNewDocumentLineEnding.isEmpty ? "lf" : defaultNewDocumentLineEnding
         self.rememberLastSession = rememberLastSession
         self.showNpcCharacters = showNpcCharacters
+        self.showControlCharactersAndUnicodeEOL = showControlCharactersAndUnicodeEOL
         self.smartHighlightMatchCase = smartHighlightMatchCase
         self.smartHighlightWholeWord = smartHighlightWholeWord
         self.markAllMatchCase = markAllMatchCase
@@ -832,6 +836,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             defaultNewDocumentLineEnding: defaultNewDocumentLineEnding,
             rememberLastSession: rememberLastSession,
             showNpcCharacters: showNpcCharacters,
+            showControlCharactersAndUnicodeEOL: showControlCharactersAndUnicodeEOL,
             smartHighlightMatchCase: smartHighlightMatchCase ?? self.smartHighlightMatchCase,
             smartHighlightWholeWord: smartHighlightWholeWord ?? self.smartHighlightWholeWord,
             markAllMatchCase: markAllMatchCase,
@@ -978,6 +983,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         enableXmlTagMatch: Bool,
         enableClickableLinks: Bool,
         showNpcCharacters: Bool,
+        showControlCharactersAndUnicodeEOL: Bool,
         showBookmarkMargin: Bool
     ) -> AppPreferences {
         // Use copy() to ensure all newer fields are preserved
@@ -1014,6 +1020,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             defaultNewDocumentLineEnding: defaultNewDocumentLineEnding,
             rememberLastSession: rememberLastSession,
             showNpcCharacters: showNpcCharacters,
+            showControlCharactersAndUnicodeEOL: showControlCharactersAndUnicodeEOL,
             smartHighlightMatchCase: smartHighlightMatchCase,
             smartHighlightWholeWord: smartHighlightWholeWord,
             markAllMatchCase: markAllMatchCase,
@@ -1402,6 +1409,7 @@ public final class PreferencesStore {
         static let defaultNewDocumentLineEnding = "notepadMac.defaultNewDocumentLineEnding"
         static let rememberLastSession = "notepadMac.rememberLastSession"
         static let showNpcCharacters = "notepadMac.showNpcCharacters"
+        static let showControlCharactersAndUnicodeEOL = "notepadMac.showControlCharactersAndUnicodeEOL"
         static let smartHighlightMatchCase = "notepadMac.smartHighlightMatchCase"
         static let smartHighlightWholeWord = "notepadMac.smartHighlightWholeWord"
         static let markAllMatchCase = "notepadMac.markAllMatchCase"
@@ -1581,6 +1589,7 @@ public final class PreferencesStore {
             defaultNewDocumentLineEnding: defaults.string(forKey: Key.defaultNewDocumentLineEnding) ?? AppPreferences.defaultValue.defaultNewDocumentLineEnding,
             rememberLastSession: defaults.object(forKey: Key.rememberLastSession) as? Bool ?? AppPreferences.defaultValue.rememberLastSession,
             showNpcCharacters: defaults.object(forKey: Key.showNpcCharacters) as? Bool ?? AppPreferences.defaultValue.showNpcCharacters,
+            showControlCharactersAndUnicodeEOL: defaults.object(forKey: Key.showControlCharactersAndUnicodeEOL) as? Bool ?? AppPreferences.defaultValue.showControlCharactersAndUnicodeEOL,
             smartHighlightMatchCase: defaults.object(forKey: Key.smartHighlightMatchCase) as? Bool ?? AppPreferences.defaultValue.smartHighlightMatchCase,
             smartHighlightWholeWord: defaults.object(forKey: Key.smartHighlightWholeWord) as? Bool ?? AppPreferences.defaultValue.smartHighlightWholeWord,
             markAllMatchCase: defaults.object(forKey: Key.markAllMatchCase) as? Bool ?? AppPreferences.defaultValue.markAllMatchCase,
@@ -1755,6 +1764,7 @@ public final class PreferencesStore {
         defaults.set(preferences.defaultNewDocumentLineEnding, forKey: Key.defaultNewDocumentLineEnding)
         defaults.set(preferences.rememberLastSession, forKey: Key.rememberLastSession)
         defaults.set(preferences.showNpcCharacters, forKey: Key.showNpcCharacters)
+        defaults.set(preferences.showControlCharactersAndUnicodeEOL, forKey: Key.showControlCharactersAndUnicodeEOL)
         defaults.set(preferences.smartHighlightMatchCase, forKey: Key.smartHighlightMatchCase)
         defaults.set(preferences.smartHighlightWholeWord, forKey: Key.smartHighlightWholeWord)
         defaults.set(preferences.markAllMatchCase, forKey: Key.markAllMatchCase)

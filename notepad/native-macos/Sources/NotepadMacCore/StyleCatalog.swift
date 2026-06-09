@@ -187,6 +187,18 @@ public struct StyleCatalog: Codable, Equatable, Sendable {
     }
 }
 
+public enum ScintillaStyleRouting {
+    public static func isGlobalTextStyle(_ styleID: Int) -> Bool {
+        globalTextStyleIDs.contains(styleID)
+    }
+
+    public static func isNotepadPlusIndicatorStyle(_ styleID: Int) -> Bool {
+        (21...31).contains(styleID)
+    }
+
+    private static let globalTextStyleIDs: Set<Int> = [32, 33, 34, 35, 37]
+}
+
 public enum StyleCatalogError: Error, Equatable, Sendable {
     case unreadableModel(String)
     case invalidModel(String)

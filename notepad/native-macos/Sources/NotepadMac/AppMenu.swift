@@ -2,6 +2,30 @@ import AppKit
 import NotepadMacCore
 
 enum AppMenu {
+    struct ShowSymbolMenuItemSpec {
+        let localizationKey: Localization.Key?
+        let defaultTitle: String
+        let action: Selector?
+        let isSeparator: Bool
+
+        static func item(_ localizationKey: Localization.Key, _ defaultTitle: String, _ action: Selector) -> ShowSymbolMenuItemSpec {
+            ShowSymbolMenuItemSpec(localizationKey: localizationKey, defaultTitle: defaultTitle, action: action, isSeparator: false)
+        }
+
+        static let separator = ShowSymbolMenuItemSpec(localizationKey: nil, defaultTitle: "", action: nil, isSeparator: true)
+    }
+
+    static let showSymbolMenuItemSpecs: [ShowSymbolMenuItemSpec] = [
+        .item(.viewShowWhitespace, "Show Space and Tab", #selector(EditorWindowController.toggleShowWhitespace(_:))),
+        .item(.viewShowEOL, "Show End of Line", #selector(EditorWindowController.toggleShowEOL(_:))),
+        .item(.viewShowNpcCharacters, "Show Non-Printing Characters", #selector(EditorWindowController.toggleNpcDisplay(_:))),
+        .item(.viewShowControlCharactersAndUnicodeEOL, "Show Control Characters && Unicode EOL", #selector(EditorWindowController.toggleControlCharactersAndUnicodeEOL(_:))),
+        .item(.viewShowAllCharacters, "Show All Characters", #selector(EditorWindowController.toggleShowAllCharacters(_:))),
+        .separator,
+        .item(.viewShowIndentGuide, "Show Indent Guide", #selector(EditorWindowController.toggleIndentGuides(_:))),
+        .item(.viewShowWrapSymbol, "Show Wrap Symbol", #selector(EditorWindowController.toggleWrapSymbol(_:)))
+    ]
+
     enum WindowSortMode: Int {
         case none
         case nameAsc
@@ -931,22 +955,18 @@ enum AppMenu {
         let showSymbolItem = NSMenuItem(title: Localization.string(.viewShowSymbolMenu, default: "Show Symbol"), action: nil, keyEquivalent: "")
         let showSymbolMenu = NSMenu(title: Localization.string(.viewShowSymbolMenu, default: "Show Symbol"))
         showSymbolItem.submenu = showSymbolMenu
-        let whitespaceModes: [(Localization.Key, String, WhitespaceDisplayMode)] = [
-            (.viewShowWhitespace, "Show Whitespace", .visibleAlways),
-            (.viewShowWhitespaceAfterIndent, "Show Whitespace After Indent", .visibleAfterIndent),
-            (.viewShowWhitespaceOnlyIndent, "Show Whitespace Only in Indent", .visibleOnlyInIndent),
-            (.viewShowAllCharacters, "Show All Characters", .visibleAlways)
-        ]
-        for (key, defaultTitle, mode) in whitespaceModes {
-            let item = NSMenuItem(title: Localization.string(key, default: defaultTitle), action: #selector(EditorWindowController.setWhitespaceMode(_:)), keyEquivalent: "")
-            item.representedObject = mode
-            showSymbolMenu.addItem(item)
+        for spec in showSymbolMenuItemSpecs {
+            if spec.isSeparator {
+                showSymbolMenu.addItem(NSMenuItem.separator())
+                continue
+            }
+            guard let key = spec.localizationKey, let action = spec.action else { continue }
+            showSymbolMenu.addItem(
+                withTitle: Localization.string(key, default: spec.defaultTitle),
+                action: action,
+                keyEquivalent: ""
+            )
         }
-        showSymbolMenu.addItem(withTitle: Localization.string(.viewShowEOL, default: "Show End of Line"), action: #selector(EditorWindowController.toggleShowEOL(_:)), keyEquivalent: "")
-        showSymbolMenu.addItem(withTitle: Localization.string(.viewShowNpcCharacters, default: "Show NPC Characters"), action: #selector(EditorWindowController.toggleNpcDisplay(_:)), keyEquivalent: "")
-        showSymbolMenu.addItem(NSMenuItem.separator())
-        showSymbolMenu.addItem(withTitle: Localization.string(.viewShowIndentGuide, default: "Show Indent Guide"), action: #selector(EditorWindowController.toggleIndentGuides(_:)), keyEquivalent: "")
-        showSymbolMenu.addItem(withTitle: Localization.string(.viewShowWrapSymbol, default: "Show Wrap Symbol"), action: #selector(EditorWindowController.toggleWrapSymbol(_:)), keyEquivalent: "")
         viewMenu.addItem(showSymbolItem)
 
         // --- Zoom submenu ---

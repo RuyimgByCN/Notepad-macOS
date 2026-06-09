@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 
 enum DocumentListAction {
     case activate
@@ -55,8 +56,15 @@ struct DocumentListItem: Equatable {
 
 @MainActor
 final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
+    static let titleColumnInitialWidth: CGFloat = 200
+    private static let detailColumnInitialWidth: CGFloat = 260
+    private static let panelInitialWidth: CGFloat = 500
+    private static let titleCellIdentifier = NSUserInterfaceItemIdentifier("documentListTitleCell")
+    private static let detailCellIdentifier = NSUserInterfaceItemIdentifier("documentListDetailCell")
+    private static let documentIconSize = NSSize(width: 16, height: 16)
+
     private let panel = NSPanel(
-        contentRect: NSRect(x: 0, y: 0, width: 460, height: 420),
+        contentRect: NSRect(x: 0, y: 0, width: DocumentListPanelController.panelInitialWidth, height: 420),
         styleMask: [.titled, .closable, .resizable, .utilityWindow],
         backing: .buffered,
         defer: false
@@ -76,6 +84,26 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
     private var onSelect: ((DocumentListItem) -> Void)?
     private var onAction: ((DocumentListItem, DocumentListAction) -> Void)?
     private var onMultiAction: (([DocumentListItem], DocumentListAction) -> Void)?
+
+    static func titleText(for item: DocumentListItem) -> String {
+        let prefix = item.isDirty ? "● " : (item.isPinned ? "📌 " : "")
+        return prefix + item.title
+    }
+
+    static func documentIconSymbolName(for item: DocumentListItem) -> String {
+        item.isDirty ? "doc.badge.ellipsis" : "doc.text"
+    }
+
+    static func documentIcon(for item: DocumentListItem) -> NSImage {
+        let symbolName = documentIconSymbolName(for: item)
+        let description = item.isDirty ? "Modified document" : "Document"
+        let symbolImage = NSImage(systemSymbolName: symbolName, accessibilityDescription: description)
+        let sourceImage = symbolImage ?? NSWorkspace.shared.icon(for: .plainText)
+        let image = (sourceImage.copy() as? NSImage) ?? sourceImage
+        image.size = documentIconSize
+        image.isTemplate = symbolImage != nil || sourceImage.isTemplate
+        return image
+    }
 
     var window: NSWindow? {
         panel
@@ -168,8 +196,26 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
         case "detail":
             return item.detail
         default:
-            let prefix = item.isDirty ? "● " : (item.isPinned ? "📌 " : "")
-            return prefix + item.title
+            return Self.titleText(for: item)
+        }
+    }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        guard row >= 0, row < sortedItems.count else { return nil }
+        let item = sortedItems[row]
+
+        switch tableColumn?.identifier.rawValue {
+        case "detail":
+            let cell = tableView.makeView(withIdentifier: Self.detailCellIdentifier, owner: self) as? NSTableCellView
+                ?? makeDetailCell()
+            cell.textField?.stringValue = item.detail
+            return cell
+        default:
+            let cell = tableView.makeView(withIdentifier: Self.titleCellIdentifier, owner: self) as? NSTableCellView
+                ?? makeTitleCell()
+            cell.textField?.stringValue = Self.titleText(for: item)
+            cell.imageView?.image = Self.documentIcon(for: item)
+            return cell
         }
     }
 
@@ -213,9 +259,10 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
         tableView.doubleAction = #selector(activateSelectedDocument(_:))
         tableView.target = self
         tableView.menu = buildPlaceholderMenu()
-        titleColumn.width = 160
+        titleColumn.width = Self.titleColumnInitialWidth
+        titleColumn.minWidth = 180
         titleColumn.sortDescriptorPrototype = NSSortDescriptor(key: "title", ascending: true)
-        detailColumn.width = 260
+        detailColumn.width = Self.detailColumnInitialWidth
         detailColumn.sortDescriptorPrototype = NSSortDescriptor(key: "detail", ascending: true)
         tableView.addTableColumn(titleColumn)
         tableView.addTableColumn(detailColumn)
@@ -261,6 +308,56 @@ final class DocumentListPanelController: NSObject, NSTableViewDataSource, NSTabl
             activateButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -14),
             activateButton.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -14)
         ])
+    }
+
+    private func makeTitleCell() -> NSTableCellView {
+        let cell = NSTableCellView()
+        cell.identifier = Self.titleCellIdentifier
+
+        let imageView = NSImageView()
+        let textField = NSTextField(labelWithString: "")
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.imageScaling = .scaleProportionallyDown
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        textField.lineBreakMode = .byTruncatingMiddle
+
+        cell.addSubview(imageView)
+        cell.addSubview(textField)
+        cell.imageView = imageView
+        cell.textField = textField
+
+        NSLayoutConstraint.activate([
+            imageView.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+            imageView.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            imageView.widthAnchor.constraint(equalToConstant: Self.documentIconSize.width),
+            imageView.heightAnchor.constraint(equalToConstant: Self.documentIconSize.height),
+
+            textField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 6),
+            textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+            textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+        ])
+
+        return cell
+    }
+
+    private func makeDetailCell() -> NSTableCellView {
+        let cell = NSTableCellView()
+        cell.identifier = Self.detailCellIdentifier
+
+        let textField = NSTextField(labelWithString: "")
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        textField.lineBreakMode = .byTruncatingMiddle
+
+        cell.addSubview(textField)
+        cell.textField = textField
+
+        NSLayoutConstraint.activate([
+            textField.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+            textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+            textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+        ])
+
+        return cell
     }
 
     private func refreshLocalizedStrings() {

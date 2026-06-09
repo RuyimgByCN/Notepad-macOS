@@ -85,6 +85,32 @@ import Testing
     #expect(defaultStyle.fontSize == 10)
 }
 
+@Test func routesNotepadPlusWidgetStylesWithoutClobberingXmlSgmlStyles() throws {
+    let catalog = try StyleCatalog.load(from: upstreamStyleModelURL())
+    let xml = try #require(catalog.lexer(named: "xml"))
+    let sgmlDefault = try #require(xml.style(id: 21))
+    let markStyle5 = try #require(catalog.globalStyle(named: "Mark Style 5"))
+
+    #expect(sgmlDefault.name == "SGML DEFAULT")
+    #expect(markStyle5.styleID == 21)
+    #expect(ScintillaStyleRouting.isNotepadPlusIndicatorStyle(markStyle5.styleID))
+    #expect(!ScintillaStyleRouting.isGlobalTextStyle(markStyle5.styleID))
+    #expect(ScintillaStyleRouting.isGlobalTextStyle(32))
+}
+
+@Test func mapsXmlDtdKeywordsToLexillaXmlKeywordSlot() throws {
+    let catalog = try LanguageCatalog.load(from: upstreamLanguageModelURL())
+    let xml = try #require(catalog.language(named: "xml"))
+    let dtdKeywords = try #require(xml.scintillaKeywordSets.first { $0.index == 5 })
+    let lexillaProperties = xml.lexillaProperties
+
+    #expect(dtdKeywords.keywords.contains("DOCTYPE"))
+    #expect(!xml.scintillaKeywordSets.contains { $0.index == 0 })
+    #expect(lexillaProperties.count == 1)
+    #expect(lexillaProperties[0].name == "lexer.xml.allow.scripts")
+    #expect(lexillaProperties[0].value == "0")
+}
+
 @Test func convertsNotepadPlusRgbColorsToScintillaColorOrder() throws {
     let orange = try #require(StyleColor(hexRGB: "FF8000"))
 
@@ -1119,9 +1145,12 @@ import Testing
     #expect(AppPreferences.defaultValue.localizationFileName == "english.xml")
     #expect(AppPreferences.defaultValue.showWhitespace == false)
     #expect(AppPreferences.defaultValue.showEOL == false)
-    #expect(AppPreferences.defaultValue.showIndentGuides == false)
+    #expect(AppPreferences.defaultValue.showIndentGuides == true)
+    #expect(AppPreferences().showIndentGuides == true)
     #expect(AppPreferences.defaultValue.highlightCurrentLine == false)
     #expect(AppPreferences.defaultValue.showWrapSymbol == false)
+    #expect(AppPreferences.defaultValue.showControlCharactersAndUnicodeEOL == true)
+    #expect(AppPreferences().showControlCharactersAndUnicodeEOL == true)
 }
 
 @Test func storesAndLoadsAppPreferences() throws {
@@ -1145,7 +1174,8 @@ import Testing
         showEOL: true,
         showIndentGuides: true,
         highlightCurrentLine: true,
-        showWrapSymbol: true
+        showWrapSymbol: true,
+        showControlCharactersAndUnicodeEOL: false
     )
     store.save(saved)
     #expect(store.load() == saved)

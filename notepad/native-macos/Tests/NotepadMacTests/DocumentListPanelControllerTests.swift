@@ -1,3 +1,4 @@
+import AppKit
 import Testing
 @testable import NotepadMac
 
@@ -20,4 +21,25 @@ import Testing
 
     #expect(item.detail == "Unsaved document")
     #expect(item.isActive == true)
+}
+
+@MainActor
+@Test func documentListTitleCellsReserveSpaceForDocumentIcon() {
+    let cleanItem = DocumentListItem(
+        title: "notes.md",
+        detail: "/tmp/project/notes.md",
+        isActive: true
+    )
+    let dirtyItem = DocumentListItem(
+        title: "notes.md",
+        detail: "/tmp/project/notes.md",
+        isActive: true,
+        isDirty: true
+    )
+
+    #expect(DocumentListPanelController.titleColumnInitialWidth == 200)
+    #expect(DocumentListPanelController.titleText(for: cleanItem) == "notes.md")
+    #expect(DocumentListPanelController.titleText(for: dirtyItem) == "● notes.md")
+    #expect(DocumentListPanelController.documentIconSymbolName(for: cleanItem) == "doc.text")
+    #expect(DocumentListPanelController.documentIconSymbolName(for: dirtyItem) == "doc.badge.ellipsis")
 }

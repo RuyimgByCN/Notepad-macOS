@@ -443,6 +443,7 @@ enum Localization {
         case viewWhitespaceMenu = "menu.viewWhitespace"
         case viewShowEOL = "view.showEOL"
         case viewShowNpcCharacters = "view.showNpcCharacters"
+        case viewShowControlCharactersAndUnicodeEOL = "view.showControlCharactersAndUnicodeEOL"
         case viewShowIndentGuide = "view.showIndentGuide"
         case viewHighlightCurrentLine = "view.highlightCurrentLine"
         case viewShowWrapSymbol = "view.showWrapSymbol"

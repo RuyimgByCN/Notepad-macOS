@@ -559,12 +559,13 @@
 "menu.search.changeHistory" = "Change History";
 "view.toggleLineWrap" = "Toggle Line Wrap";
 "view.showAllCharacters" = "Show All Characters";
-"view.showWhitespace" = "Show Whitespace";
+"view.showWhitespace" = "Show Space and Tab";
 "view.showWhitespaceAfterIndent" = "Show Whitespace After Indent";
 "view.showWhitespaceOnlyIndent" = "Show Whitespace Only in Indent";
 "menu.viewWhitespace" = "Whitespace";
 "view.showEOL" = "Show End of Line";
-"view.showNpcCharacters" = "Show NPC Characters";
+"view.showNpcCharacters" = "Show Non-Printing Characters";
+"view.showControlCharactersAndUnicodeEOL" = "Show Control Characters && Unicode EOL";
 "view.showIndentGuide" = "Show Indent Guide";
 "view.highlightCurrentLine" = "Highlight Current Line";
 "view.showWrapSymbol" = "Show Wrap Symbol";

@@ -78,6 +78,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var showsWrapSymbol = false
     private var showsChangeHistory = false
     private var showsNpcCharacters = false
+    private var showsControlCharactersAndUnicodeEOL = true
     private var caretWidth = 1
     private var caretNoBlink = false
     private var caretBlinkRate = 500
@@ -398,6 +399,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.showsWrapSymbol = preferences.showWrapSymbol
         self.showsChangeHistory = preferences.showChangeHistory
         self.showsNpcCharacters = preferences.showNpcCharacters
+        self.showsControlCharactersAndUnicodeEOL = preferences.showControlCharactersAndUnicodeEOL
         self.caretWidth = preferences.caretWidth
         self.enableVirtualSpace = preferences.enableVirtualSpace
         self.backspaceUnindents = preferences.backspaceUnindents
@@ -939,6 +941,17 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         applyAdvancedViewOptions()
     }
 
+    @objc func toggleShowAllCharacters(_ sender: Any?) {
+        guard editorSurface.supportsAdvancedViewOptions else { return }
+        let shouldShowAll = !showsAllCharacters
+        whitespaceMode = shouldShowAll ? .visibleAlways : .invisible
+        showsEOL = shouldShowAll
+        showsNpcCharacters = shouldShowAll
+        showsControlCharactersAndUnicodeEOL = shouldShowAll
+        saveCurrentEditorPreferences()
+        applyAdvancedViewOptions()
+    }
+
     @objc func toggleIndentGuides(_ sender: Any?) {
         guard editorSurface.supportsAdvancedViewOptions else { return }
         showsIndentGuides.toggle()
@@ -1029,6 +1042,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard editorSurface.supportsNpcDisplay else { return }
         showsNpcCharacters.toggle()
         editorSurface.applyNpcDisplay(showsNpcCharacters)
+        saveCurrentEditorPreferences()
+    }
+
+    @objc func toggleControlCharactersAndUnicodeEOL(_ sender: Any?) {
+        guard editorSurface.supportsNpcDisplay else { return }
+        showsControlCharactersAndUnicodeEOL.toggle()
+        editorSurface.applyControlCharactersAndUnicodeEOLDisplay(showsControlCharactersAndUnicodeEOL)
         saveCurrentEditorPreferences()
     }
 
@@ -3717,6 +3737,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         htmlXmlCloseTagEnabled = preferences.htmlXmlCloseTagEnabled
         enablesClickableLinks = preferences.enableClickableLinks
         showsNpcCharacters = preferences.showNpcCharacters
+        showsControlCharactersAndUnicodeEOL = preferences.showControlCharactersAndUnicodeEOL
         caretWidth = preferences.caretWidth
         caretNoBlink = preferences.caretNoBlink
         caretBlinkRate = preferences.caretBlinkRate
@@ -3972,6 +3993,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case #selector(toggleShowEOL(_:)):
             menuItem.state = showsEOL ? .on : .off
             return editorSurface.supportsAdvancedViewOptions
+        case #selector(toggleShowAllCharacters(_:)):
+            menuItem.state = showsAllCharacters ? .on : .off
+            return editorSurface.supportsAdvancedViewOptions
         case #selector(toggleIndentGuides(_:)):
             menuItem.state = showsIndentGuides ? .on : .off
             return editorSurface.supportsAdvancedViewOptions
@@ -3998,6 +4022,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return editorSurface.supportsUrlHighlight
         case #selector(toggleNpcDisplay(_:)):
             menuItem.state = showsNpcCharacters ? .on : .off
+            return editorSurface.supportsNpcDisplay
+        case #selector(toggleControlCharactersAndUnicodeEOL(_:)):
+            menuItem.state = showsControlCharactersAndUnicodeEOL ? .on : .off
             return editorSurface.supportsNpcDisplay
         case #selector(toggleLineNumberMargin(_:)):
             menuItem.state = showsLineNumberMargin ? .on : .off
@@ -4239,6 +4266,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func applyEditorContextMenuSpec(_ spec: EditorContextMenuSpec?) {
         editorContextMenuSpec = spec
         editorSurface.setContextMenu(makeEditorContextMenu())
+    }
+
+    private var showsAllCharacters: Bool {
+        whitespaceMode != .invisible && showsEOL && showsNpcCharacters && showsControlCharactersAndUnicodeEOL
     }
 
     // MARK: - Editor right-click context menu
@@ -4950,6 +4981,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 enableXmlTagMatch: enablesXmlTagMatch,
                 enableClickableLinks: enablesClickableLinks,
                 showNpcCharacters: showsNpcCharacters,
+                showControlCharactersAndUnicodeEOL: showsControlCharactersAndUnicodeEOL,
                 showBookmarkMargin: showsBookmarkMargin
             )
             .withWhitespaceDisplayMode(whitespaceMode.rawValue)
@@ -5309,6 +5341,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyChangeHistory(showsChangeHistory)
         if editorSurface.supportsNpcDisplay {
             editorSurface.applyNpcDisplay(showsNpcCharacters)
+            editorSurface.applyControlCharactersAndUnicodeEOLDisplay(showsControlCharactersAndUnicodeEOL)
         }
         editorSurface.applyCaretWidth(caretWidth)
         editorSurface.applyCaretPeriod(caretNoBlink ? 0 : caretBlinkRate)
