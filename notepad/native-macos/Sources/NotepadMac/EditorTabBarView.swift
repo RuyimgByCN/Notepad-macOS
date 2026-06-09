@@ -358,7 +358,7 @@ final class EditorTabBarView: NSView {
 @MainActor
 final class EditorTabButton: NSView {
     private static let hPad: CGFloat = 8
-    private static let closeSize: CGFloat = 13
+    private static let closeSize: CGFloat = 11
     private static let closeRightPad: CGFloat = 5
     private static let documentIconSize: CGFloat = 14
     private static let documentIconTitleGap: CGFloat = 5
@@ -381,10 +381,12 @@ final class EditorTabButton: NSView {
     private let titleLabel = NSTextField(labelWithString: "")
     private let pinBtn = NSButton()
     private let closeBtn = NSButton()
-    private static let pinSize: CGFloat = 12
+    private static let pinSize: CGFloat = 11
     private static let pinGap: CGFloat = 3
     private var trackingArea: NSTrackingArea?
     private var isHovered = false
+    private var isCloseHovered = false
+    private var isPinHovered = false
     /// When true, double-clicking the tab closes it
     var doubleClickClosesTab = false
     /// Max characters to display in the tab label (0 = no limit)
@@ -392,7 +394,9 @@ final class EditorTabButton: NSView {
     /// Optional XML-driven tab context menu spec
     var tabContextMenuSpec: TabContextMenuSpec?
     /// When false, the close (×) button is never shown on this tab
-    var showCloseButton = true
+    var showCloseButton = true {
+        didSet { updateActionButtons() }
+    }
     /// When true, use compact style (smaller font)
     var compactMode = false {
         didSet { titleLabel.font = .systemFont(ofSize: compactMode ? EditorTabBarView.compactTabFontSize : EditorTabBarView.normalTabFontSize) }
@@ -415,8 +419,8 @@ final class EditorTabButton: NSView {
     private func setupViews() {
         documentIconView.image = Self.documentIcon(for: item)
         documentIconView.imageScaling = .scaleProportionallyDown
-        documentIconView.contentTintColor = isActive ? .labelColor : .secondaryLabelColor
-        documentIconView.alphaValue = isActive ? 0.9 : 0.65
+        documentIconView.contentTintColor = nil
+        documentIconView.alphaValue = 1.0
         documentIconView.setAccessibilityLabel("Document")
         addSubview(documentIconView)
 
@@ -439,19 +443,13 @@ final class EditorTabButton: NSView {
         titleLabel.lineBreakMode = .byTruncatingMiddle
         addSubview(titleLabel)
 
-        // Pin button — shows a filled pin when pinned, outline pin when unpinned (on hover).
-        let pinSymbol = item.isPinned ? "pin.fill" : "pin"
-        if let img = NSImage(systemSymbolName: pinSymbol, accessibilityDescription: nil) {
-            pinBtn.image = img
-            pinBtn.imageScaling = .scaleProportionallyDown
-            pinBtn.imagePosition = .imageOnly
-        }
+        pinBtn.title = ""
+        pinBtn.imageScaling = .scaleProportionallyDown
+        pinBtn.imagePosition = .imageOnly
         pinBtn.bezelStyle = .inline
         pinBtn.isBordered = false
-        pinBtn.contentTintColor = item.isPinned ? .controlAccentColor : .secondaryLabelColor
-        pinBtn.alphaValue = item.isPinned ? 0.8 : 0.55
-        // Always visible when pinned; shown on hover for unpinned (handled in mouseEntered/Exited)
-        pinBtn.isHidden = !item.isPinned
+        pinBtn.contentTintColor = nil
+        pinBtn.alphaValue = 1.0
         pinBtn.target = self
         pinBtn.action = #selector(pinTapped)
         pinBtn.toolTip = item.isPinned
@@ -459,20 +457,18 @@ final class EditorTabButton: NSView {
             : Localization.string(.windowPinTab, default: "固定标签页")
         addSubview(pinBtn)
 
-        if let img = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil) {
-            closeBtn.image = img
-            closeBtn.imageScaling = .scaleProportionallyDown
-            closeBtn.imagePosition = .imageOnly
-        } else {
-            closeBtn.title = "×"
-        }
+        closeBtn.title = ""
+        closeBtn.imageScaling = .scaleProportionallyDown
+        closeBtn.imagePosition = .imageOnly
         closeBtn.bezelStyle = .inline
         closeBtn.isBordered = false
-        closeBtn.alphaValue = 0.55
-        closeBtn.isHidden = !showCloseButton || !isActive
+        closeBtn.contentTintColor = nil
+        closeBtn.alphaValue = 1.0
         closeBtn.target = self
         closeBtn.action = #selector(closeTapped)
         addSubview(closeBtn)
+
+        updateActionButtons()
     }
 
     var preferredWidth: CGFloat {
@@ -516,13 +512,8 @@ final class EditorTabButton: NSView {
         pinBtn.frame = CGRect(x: pinX, y: pinY, width: pinSz, height: pinSz)
 
         let titleX = documentIconView.frame.maxX + Self.documentIconTitleGap
-        let rightEdge: CGFloat
-        if !closeBtn.isHidden {
-            // Always leave room for pin button even when hidden, so title doesn't jump on hover.
-            rightEdge = pinX - 2
-        } else {
-            rightEdge = bounds.maxX - Self.hPad
-        }
+        // Upstream reserves button space even when inactive icons resolve to empty.ico.
+        let rightEdge = pinX - 2
         let titleH: CGFloat = 17
         let titleY = (h - titleH) / 2
         titleLabel.frame = CGRect(x: titleX, y: titleY, width: max(0, rightEdge - titleX), height: titleH)
@@ -557,19 +548,24 @@ final class EditorTabButton: NSView {
 
     override func mouseEntered(with event: NSEvent) {
         isHovered = true
-        closeBtn.isHidden = !showCloseButton
-        // Show pin button on hover even for unpinned tabs so users can discover the feature.
-        pinBtn.isHidden = false
+        updateHoverState(with: event)
+        updateActionButtons()
         needsDisplay = true
         needsLayout = true
     }
 
     override func mouseExited(with event: NSEvent) {
         isHovered = false
-        closeBtn.isHidden = !showCloseButton || !isActive
-        pinBtn.isHidden = !item.isPinned
+        isCloseHovered = false
+        isPinHovered = false
+        updateActionButtons()
         needsDisplay = true
         needsLayout = true
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        updateHoverState(with: event)
+        updateActionButtons()
     }
 
     override func updateTrackingAreas() {
@@ -577,7 +573,7 @@ final class EditorTabButton: NSView {
         if let ta = trackingArea { removeTrackingArea(ta) }
         let ta = NSTrackingArea(
             rect: bounds,
-            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeInActiveApp, .inVisibleRect],
             owner: self, userInfo: nil
         )
         addTrackingArea(ta)
@@ -621,18 +617,137 @@ final class EditorTabButton: NSView {
         return item.isDirty ? "unsaved" : "saved"
     }
 
+    static func upstreamCloseButtonResourceName(
+        isActive: Bool,
+        isTabHovered: Bool,
+        isButtonHovered: Bool,
+        isPressed: Bool
+    ) -> String {
+        if isButtonHovered {
+            return isPressed ? "closeTabButton_push" : "closeTabButton_hoverIn"
+        }
+        if !isActive {
+            return isTabHovered ? "closeTabButton_hoverOnTab" : "empty"
+        }
+        return "closeTabButton"
+    }
+
+    static func upstreamPinButtonResourceName(
+        isPinned: Bool,
+        isActive: Bool,
+        isTabHovered: Bool,
+        isButtonHovered: Bool,
+        isPressed: Bool
+    ) -> String {
+        if isPinned {
+            return isButtonHovered ? "pinTabButton" : "pinTabButton_pinned"
+        }
+        if isButtonHovered {
+            return "pinTabButton_pinned"
+        }
+        if !isActive {
+            return isTabHovered ? "pinTabButton" : "empty"
+        }
+        return "pinTabButton"
+    }
+
     private static func documentIcon(for item: EditorTabItem) -> NSImage {
         let resourceName = upstreamDocumentIconResourceName(for: item)
-        let upstreamImage = Bundle.module.url(
-            forResource: resourceName,
-            withExtension: "ico",
-            subdirectory: "UpstreamTabBar"
-        ).flatMap { NSImage(contentsOf: $0) }
+        let upstreamImage = upstreamTabBarIcon(named: resourceName, size: documentIconSize)
         let sourceImage = upstreamImage ?? NSWorkspace.shared.icon(for: .plainText)
         let image = (sourceImage.copy() as? NSImage) ?? sourceImage
         image.size = NSSize(width: documentIconSize, height: documentIconSize)
         image.isTemplate = false
         return image
+    }
+
+    static func hasUpstreamTabBarIconResource(named resourceName: String) -> Bool {
+        upstreamTabBarIconURL(named: resourceName) != nil
+    }
+
+    private static func upstreamTabBarIconURL(named resourceName: String) -> URL? {
+        Bundle.module.url(
+            forResource: resourceName,
+            withExtension: "ico",
+            subdirectory: "UpstreamTabBar"
+        ) ?? Bundle.module.url(forResource: resourceName, withExtension: "ico")
+    }
+
+    private static func upstreamTabBarIcon(named resourceName: String, size: CGFloat) -> NSImage? {
+        guard let imageURL = upstreamTabBarIconURL(named: resourceName),
+              let sourceImage = NSImage(contentsOf: imageURL) ?? icoEmbeddedImage(at: imageURL) else {
+            return nil
+        }
+
+        let image = (sourceImage.copy() as? NSImage) ?? sourceImage
+        image.size = NSSize(width: size, height: size)
+        image.isTemplate = false
+        return image
+    }
+
+    private static func icoEmbeddedImage(at imageURL: URL) -> NSImage? {
+        guard let data = try? Data(contentsOf: imageURL), data.count >= 22 else {
+            return nil
+        }
+
+        let reserved = uint16LE(data, at: 0)
+        let imageType = uint16LE(data, at: 2)
+        let imageCount = uint16LE(data, at: 4)
+        guard reserved == 0, imageType == 1, imageCount > 0 else {
+            return nil
+        }
+
+        let entryOffset = 6
+        let bytesInResource = Int(uint32LE(data, at: entryOffset + 8))
+        let imageOffset = Int(uint32LE(data, at: entryOffset + 12))
+        guard bytesInResource > 0,
+              imageOffset >= 0,
+              imageOffset + bytesInResource <= data.count else {
+            return nil
+        }
+
+        let embeddedData = data.subdata(in: imageOffset..<(imageOffset + bytesInResource))
+        return NSImage(data: embeddedData)
+    }
+
+    private static func uint16LE(_ data: Data, at offset: Int) -> UInt16 {
+        UInt16(data[offset]) | (UInt16(data[offset + 1]) << 8)
+    }
+
+    private static func uint32LE(_ data: Data, at offset: Int) -> UInt32 {
+        UInt32(data[offset])
+            | (UInt32(data[offset + 1]) << 8)
+            | (UInt32(data[offset + 2]) << 16)
+            | (UInt32(data[offset + 3]) << 24)
+    }
+
+    private func updateHoverState(with event: NSEvent) {
+        let loc = convert(event.locationInWindow, from: nil)
+        isCloseHovered = !closeBtn.isHidden && closeBtn.frame.insetBy(dx: -4, dy: -4).contains(loc)
+        isPinHovered = !pinBtn.isHidden && pinBtn.frame.insetBy(dx: -4, dy: -4).contains(loc)
+    }
+
+    private func updateActionButtons() {
+        let closeResource = Self.upstreamCloseButtonResourceName(
+            isActive: isActive,
+            isTabHovered: isHovered,
+            isButtonHovered: isCloseHovered,
+            isPressed: false
+        )
+        closeBtn.image = Self.upstreamTabBarIcon(named: closeResource, size: Self.closeSize)
+        closeBtn.image?.isTemplate = false
+        closeBtn.isHidden = !showCloseButton || (!isActive && !isHovered)
+
+        let pinResource = Self.upstreamPinButtonResourceName(
+            isPinned: item.isPinned,
+            isActive: isActive,
+            isTabHovered: isHovered,
+            isButtonHovered: isPinHovered,
+            isPressed: false
+        )
+        pinBtn.image = Self.upstreamTabBarIcon(named: pinResource, size: Self.pinSize)
+        pinBtn.image?.isTemplate = false
+        pinBtn.isHidden = !(isActive || item.isPinned || isHovered)
     }
 
     override func rightMouseDown(with event: NSEvent) {
