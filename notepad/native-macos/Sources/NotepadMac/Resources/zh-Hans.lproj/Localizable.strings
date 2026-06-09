@@ -47,7 +47,8 @@
 "file.openInDefaultViewer.failed" = "无法使用默认查看器打开“%@”。";
 "file.reloadWithUnsavedChanges.warning" = "文件“%@”有未保存的修改，重新载入会丢弃当前编辑内容。";
 "file.closeUnsavedChanges.title" = "未保存的更改";
-"file.closeUnsavedChanges.message" = "选择的文档中有 %d 个未保存文档。是否要%1$@且不保存？";
+"file.closeUnsavedChanges.message" = "选择的文档中有 %d 个未保存文档。是否要%@且不保存？";
+"file.quitUnsavedChanges.message" = "如果不保存“%@”，所做更改将会丢失。";
 "menu.tools" = "工具";
 "tools.md5" = "MD5";
 "tools.sha1" = "SHA-1";
@@ -199,6 +200,7 @@
 "fileChange.keepCurrent" = "保留当前内容";
 "alert.ok" = "确定";
 "alert.cancel" = "取消";
+"alert.dontSave" = "不保存";
 "file.createNew.promptMessage" = "文件\"%@\"不存在，是否在此路径创建新文件？";
 "file.createNew.promptCreate" = "创建";
 "edit.columnEditor" = "列编辑器...";

@@ -47,7 +47,8 @@
 "file.openInDefaultViewer.failed" = "Failed to open %@ in default viewer.";
 "file.reloadWithUnsavedChanges.warning" = "The file \"%@\" has unsaved changes. Reloading from disk will discard current edits.";
 "file.closeUnsavedChanges.title" = "Unsaved Changes";
-"file.closeUnsavedChanges.message" = "There are %d unsaved document(s) in the selected group. Do you want to %1$@ without saving?";
+"file.closeUnsavedChanges.message" = "There are %d unsaved document(s) in the selected group. Do you want to %@ without saving?";
+"file.quitUnsavedChanges.message" = "Your changes to \"%@\" will be lost if you don't save them.";
 "menu.tools" = "Tools";
 "tools.md5" = "MD5";
 "tools.sha1" = "SHA-1";
@@ -199,6 +200,7 @@
 "fileChange.keepCurrent" = "Keep Current";
 "alert.ok" = "OK";
 "alert.cancel" = "Cancel";
+"alert.dontSave" = "Don't Save";
 "file.createNew.promptMessage" = "\"%@\" does not exist. Create a new file at this path?";
 "file.createNew.promptCreate" = "Create";
 "edit.columnEditor" = "Column Editor...";

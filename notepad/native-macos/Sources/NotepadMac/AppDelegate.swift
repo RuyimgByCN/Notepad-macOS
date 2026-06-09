@@ -248,12 +248,9 @@ private var appearanceObservation: NSKeyValueObservation?
                 format: Localization.string(.fileCloseUnsavedChangesTitle, default: "Save \"%@\"?"),
                 title
             )
-            alert.informativeText = Localization.string(
-                .fileCloseUnsavedChangesMessage,
-                default: "Your changes will be lost if you don't save them."
-            )
-            alert.addButton(withTitle: "Save")
-            alert.addButton(withTitle: "Don't Save")
+            alert.informativeText = Self.quitUnsavedChangesInformativeText(documentTitle: title)
+            alert.addButton(withTitle: Localization.string(.fileSave, default: "Save"))
+            alert.addButton(withTitle: Localization.string(.alertDontSave, default: "Don't Save"))
             alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
 
             switch alert.runModal() {
@@ -1974,12 +1971,7 @@ private var appearanceObservation: NSKeyValueObservation?
     private func confirmCloseUnsavedChanges(label: String, count: Int, confirm: @escaping () -> Void) {
         let alert = NSAlert()
         alert.messageText = Localization.string(.fileCloseUnsavedChangesTitle, default: "Unsaved Changes")
-        alert.informativeText = String(
-            format: Localization.string(.fileCloseUnsavedChangesMessage, default: "There are %d unsaved document(s) in the selected group. Do you want to %1$@ without saving?"),
-            locale: Locale.current,
-            count,
-            label
-        )
+        alert.informativeText = Self.closeUnsavedChangesInformativeText(label: label, count: count)
         alert.addButton(withTitle: Localization.string(.alertOK, default: "OK"))
         alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
         guard let anchorWindow = NSApp.mainWindow ?? NSApp.keyWindow ?? windows.last?.window else {
@@ -1991,6 +1983,29 @@ private var appearanceObservation: NSKeyValueObservation?
                 confirm()
             }
         }
+    }
+
+    static func quitUnsavedChangesInformativeText(documentTitle: String) -> String {
+        String(
+            format: Localization.string(
+                .fileQuitUnsavedChangesMessage,
+                default: "Your changes to \"%@\" will be lost if you don't save them."
+            ),
+            locale: Locale.current,
+            documentTitle
+        )
+    }
+
+    static func closeUnsavedChangesInformativeText(label: String, count: Int) -> String {
+        String(
+            format: Localization.string(
+                .fileCloseUnsavedChangesMessage,
+                default: "There are %d unsaved document(s) in the selected group. Do you want to %@ without saving?"
+            ),
+            locale: Locale.current,
+            count,
+            label
+        )
     }
 
     private func applyStyleCatalog(_ catalog: StyleCatalog) {
