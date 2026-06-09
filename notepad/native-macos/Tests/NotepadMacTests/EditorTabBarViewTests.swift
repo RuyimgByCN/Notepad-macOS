@@ -123,3 +123,48 @@ import Testing
     #expect(actionButtons.allSatisfy { !$0.isHidden })
     #expect(buttonTemplateStates == [false, false])
 }
+
+@MainActor
+@Test func clickingVisiblePinAreaTogglesPinInsteadOfSelectingTab() throws {
+    let item = EditorTabItem(
+        identity: .file(URL(fileURLWithPath: "/tmp/project/current.txt")),
+        title: "current.txt",
+        isDirty: false,
+        isPinned: false
+    )
+    var selected = false
+    var toggledPin = false
+    let button = EditorTabButton(
+        item: item,
+        isActive: true,
+        onSelect: { selected = true },
+        onClose: {},
+        onContextAction: { action in
+            if case .togglePin = action {
+                toggledPin = true
+            }
+        }
+    )
+
+    button.frame = CGRect(x: 0, y: 0, width: 150, height: EditorTabBarView.barHeight)
+    button.layoutSubtreeIfNeeded()
+
+    let actionButtons = button.subviews.compactMap { $0 as? NSButton }
+    let pinButton = try #require(actionButtons.sorted { $0.frame.minX < $1.frame.minX }.first)
+    let event = try #require(NSEvent.mouseEvent(
+        with: .leftMouseDown,
+        location: NSPoint(x: pinButton.frame.midX, y: pinButton.frame.midY),
+        modifierFlags: [],
+        timestamp: 0,
+        windowNumber: 0,
+        context: nil,
+        eventNumber: 0,
+        clickCount: 1,
+        pressure: 1
+    ))
+
+    button.mouseDown(with: event)
+
+    #expect(toggledPin)
+    #expect(!selected)
+}

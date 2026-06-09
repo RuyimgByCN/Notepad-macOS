@@ -530,6 +530,10 @@ final class EditorTabButton: NSView {
     override func mouseDown(with event: NSEvent) {
         let loc = convert(event.locationInWindow, from: nil)
         if closeBtn.frame.insetBy(dx: -4, dy: -4).contains(loc) { return }
+        if !pinBtn.isHidden && pinBtn.frame.insetBy(dx: -4, dy: -4).contains(loc) {
+            pinTapped()
+            return
+        }
         // Middle-click closes the tab
         if event.buttonNumber == 2 {
             onClose()
