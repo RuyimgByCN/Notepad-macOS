@@ -136,6 +136,7 @@ private enum NativeLangLookup {
         "menu.view": .mainMenu("view"),
         "menu.encoding": .mainMenu("encoding"),
         "menu.language": .mainMenu("language"),
+        "menu.settings": .mainMenu("settings"),
         "menu.tools": .mainMenu("tools"),
         "menu.macro": .mainMenu("macro"),
         "menu.run": .mainMenu("run"),

@@ -23,6 +23,7 @@ enum Localization {
         case appEditTabContextMenu = "app.editTabContextMenu"
         case appReloadContextMenus = "app.reloadContextMenus"
         case appQuit = "app.quit"
+        case settingsMenu = "menu.settings"
         case fileMenu = "menu.file"
         case fileNew = "file.new"
         case fileOpen = "file.open"

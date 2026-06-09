@@ -15,6 +15,7 @@
 "shortcutMapper.conflict.message" = "Already used by:";
 "shortcutMapper.recorder.hint" = "Click, then press a key combo";
 "app.quit" = "Quit Notepad++ Mac";
+"menu.settings" = "Settings";
 "menu.file" = "File";
 "file.new" = "New";
 "file.open" = "Open...";

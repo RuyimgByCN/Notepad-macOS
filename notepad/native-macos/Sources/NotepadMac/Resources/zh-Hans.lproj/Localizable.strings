@@ -15,6 +15,7 @@
 "shortcutMapper.recorder.hint" = "点击，然后按快捷键组合";
 "app.styleConfigurator" = "样式配置器...";
 "app.quit" = "退出 Notepad++ Mac";
+"menu.settings" = "设置";
 "menu.file" = "文件";
 "file.new" = "新建";
 "file.open" = "打开...";

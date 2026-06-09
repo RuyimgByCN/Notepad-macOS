@@ -4189,7 +4189,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func configureToolbar() {
         let prefs = preferencesStore.load()
         window?.toolbar = editorToolbar.makeToolbar(sizeStyle: prefs.toolbarIconSizeStyle)
-        window?.toolbarStyle = prefs.toolbarIconSizeStyle == 1 ? .unifiedCompact : .unified
+        window?.toolbarStyle = .expanded
         // Restore saved toolbar visibility preference
         window?.toolbar?.isVisible = prefs.toolbarVisible
     }

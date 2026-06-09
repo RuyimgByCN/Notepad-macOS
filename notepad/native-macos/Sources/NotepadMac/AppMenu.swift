@@ -2,6 +2,22 @@ import AppKit
 import NotepadMacCore
 
 enum AppMenu {
+    static let upstreamTopLevelMenuDefaultTitles: [String] = [
+        "File",
+        "Edit",
+        "Search",
+        "View",
+        "Encoding",
+        "Language",
+        "Settings",
+        "Tools",
+        "Macro",
+        "Run",
+        "Plugins",
+        "Window",
+        "Help"
+    ]
+
     struct ShowSymbolMenuItemSpec {
         let localizationKey: Localization.Key?
         let defaultTitle: String
@@ -85,37 +101,7 @@ enum AppMenu {
         mainMenu.addItem(appMenuItem)
         let appMenu = NSMenu()
         appMenuItem.submenu = appMenu
-        appMenu.addItem(
-            withTitle: Localization.string(.appPreferences, default: "Preferences..."),
-            action: #selector(AppDelegate.showPreferences(_:)),
-            keyEquivalent: ","
-        ).target = delegate
-        appMenu.addItem(
-            withTitle: Localization.string(.appStyleConfigurator, default: "Style Configurator..."),
-            action: #selector(AppDelegate.showStyleConfigurator(_:)),
-            keyEquivalent: ""
-        ).target = delegate
-        appMenu.addItem(
-            withTitle: Localization.string(.appShortcutMapper, default: "Shortcut Mapper..."),
-            action: #selector(AppDelegate.showShortcutMapper(_:)),
-            keyEquivalent: ""
-        ).target = delegate
-        appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(
-            withTitle: Localization.string(.appEditContextMenu, default: "Edit Context Menu..."),
-            action: #selector(AppDelegate.editContextMenuXML(_:)),
-            keyEquivalent: ""
-        ).target = delegate
-        appMenu.addItem(
-            withTitle: Localization.string(.appEditTabContextMenu, default: "Edit Tab Context Menu..."),
-            action: #selector(AppDelegate.editTabContextMenuXML(_:)),
-            keyEquivalent: ""
-        ).target = delegate
-        appMenu.addItem(
-            withTitle: Localization.string(.appReloadContextMenus, default: "Reload Context Menus"),
-            action: #selector(AppDelegate.reloadContextMenus(_:)),
-            keyEquivalent: ""
-        ).target = delegate
+        installSettingsMenuItems(in: appMenu, delegate: delegate)
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(
             withTitle: Localization.string(.appQuit, default: "Quit Notepad++ Mac"),
@@ -1112,6 +1098,12 @@ enum AppMenu {
         installedLanguageMenu = languageMenu
         populateLanguages(menu: languageMenu, delegate: delegate, catalog: catalog)
 
+        let settingsMenuItem = NSMenuItem()
+        mainMenu.addItem(settingsMenuItem)
+        let settingsMenu = NSMenu(title: Localization.string(.settingsMenu, default: "Settings"))
+        settingsMenuItem.submenu = settingsMenu
+        installSettingsMenuItems(in: settingsMenu, delegate: delegate)
+
         let windowMenuItem = NSMenuItem()
         mainMenu.addItem(windowMenuItem)
         let windowMenu = NSMenu(title: Localization.string(.windowMenu, default: "Window"))
@@ -1368,6 +1360,75 @@ enum AppMenu {
             activeIdentity: nil,
             sortMode: .none
         )
+        applyUpstreamTopLevelMenuOrder(
+            mainMenu: mainMenu,
+            appMenuItem: appMenuItem,
+            orderedItems: [
+                fileMenuItem,
+                editMenuItem,
+                searchMenuItem,
+                viewMenuItem,
+                encodingMenuItem,
+                languageMenuItem,
+                settingsMenuItem,
+                toolsMenuItem,
+                macroMenuItem,
+                runMenuItem,
+                pluginsMenuItem,
+                windowMenuItem,
+                helpMenuItem
+            ]
+        )
+    }
+
+    @MainActor
+    private static func installSettingsMenuItems(in menu: NSMenu, delegate: AppDelegate) {
+        menu.addItem(
+            withTitle: Localization.string(.appPreferences, default: "Preferences..."),
+            action: #selector(AppDelegate.showPreferences(_:)),
+            keyEquivalent: ","
+        ).target = delegate
+        menu.addItem(
+            withTitle: Localization.string(.appStyleConfigurator, default: "Style Configurator..."),
+            action: #selector(AppDelegate.showStyleConfigurator(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+        menu.addItem(
+            withTitle: Localization.string(.appShortcutMapper, default: "Shortcut Mapper..."),
+            action: #selector(AppDelegate.showShortcutMapper(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(
+            withTitle: Localization.string(.appEditContextMenu, default: "Edit Context Menu..."),
+            action: #selector(AppDelegate.editContextMenuXML(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+        menu.addItem(
+            withTitle: Localization.string(.appEditTabContextMenu, default: "Edit Tab Context Menu..."),
+            action: #selector(AppDelegate.editTabContextMenuXML(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+        menu.addItem(
+            withTitle: Localization.string(.appReloadContextMenus, default: "Reload Context Menus"),
+            action: #selector(AppDelegate.reloadContextMenus(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+    }
+
+    @MainActor
+    static func applyUpstreamTopLevelMenuOrder(
+        mainMenu: NSMenu,
+        appMenuItem: NSMenuItem,
+        orderedItems: [NSMenuItem]
+    ) {
+        for item in mainMenu.items.reversed() where item !== appMenuItem {
+            mainMenu.removeItem(item)
+        }
+
+        for item in orderedItems {
+            mainMenu.addItem(item)
+        }
     }
 
     @MainActor
