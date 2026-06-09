@@ -15,7 +15,7 @@ enum AppMenu {
         "Run",
         "Plugins",
         "Window",
-        "Help"
+        "?"
     ]
 
     struct ShowSymbolMenuItemSpec {
@@ -1308,7 +1308,7 @@ enum AppMenu {
 
         let helpMenuItem = NSMenuItem()
         mainMenu.addItem(helpMenuItem)
-        let helpMenu = NSMenu(title: Localization.string(.helpMenu, default: "Help"))
+        let helpMenu = NSMenu(title: "?")
         helpMenuItem.submenu = helpMenu
         helpMenu.addItem(
             withTitle: Localization.string(.helpCommandLineArguments, default: "Command Line Arguments..."),

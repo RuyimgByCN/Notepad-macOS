@@ -182,6 +182,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var untitledDisplayName: String
     private var pinnedToTab = false
     private var windowTabColorIndex: Int? = nil
+    private weak var toolbarContentRowView: NSView?
+    private var toolbarRowHeightConstraint: NSLayoutConstraint?
     private var statusFieldHeightConstraint: NSLayoutConstraint?
     private var tabBarHeightConstraint: NSLayoutConstraint?
 
@@ -1344,9 +1346,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     @objc func toggleToolbarVisibility(_ sender: Any?) {
-        guard let window = window else { return }
-        window.toolbar?.isVisible.toggle()
-        UserDefaults.standard.set(window.toolbar?.isVisible ?? true, forKey: "notepadMac.toolbarVisible")
+        let isVisible = toolbarContentRowView?.isHidden == true
+        applyToolbarVisibility(isVisible)
+        UserDefaults.standard.set(isVisible, forKey: "notepadMac.toolbarVisible")
     }
 
     @objc private func statusBarDoubleClicked(_ sender: Any?) {
@@ -4188,14 +4190,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func configureToolbar() {
         let prefs = preferencesStore.load()
-        window?.toolbar = editorToolbar.makeToolbar(sizeStyle: prefs.toolbarIconSizeStyle)
-        window?.toolbarStyle = .expanded
-        // Restore saved toolbar visibility preference
-        window?.toolbar?.isVisible = prefs.toolbarVisible
+        window?.toolbar = nil
+        applyToolbarVisibility(prefs.toolbarVisible)
     }
 
     private func configureContent() {
         guard let window else { return }
+        let preferences = preferencesStore.load()
 
         let rootView = NSView()
         rootView.translatesAutoresizingMaskIntoConstraints = false
@@ -4215,6 +4216,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         tabBarView.onNewTab = { [weak self] in self?.onNewDocument?() }
         tabBarView.onReorderTab = { [weak self] identity, index in self?.onReorderTab?(identity, index) }
 
+        let toolbarRow = editorToolbar.makeContentRow(sizeStyle: preferences.toolbarIconSizeStyle)
+        toolbarRow.translatesAutoresizingMaskIntoConstraints = false
+        toolbarContentRowView = toolbarRow
+
         statusField.translatesAutoresizingMaskIntoConstraints = false
         statusField.lineBreakMode = .byTruncatingTail
         statusField.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
@@ -4227,15 +4232,21 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         statusClick.numberOfClicksRequired = 2
         statusField.addGestureRecognizer(statusClick)
 
+        rootView.addSubview(toolbarRow)
         rootView.addSubview(tabBarView)
         rootView.addSubview(editorSurface.view)
         rootView.addSubview(statusField)
         rootView.addSubview(dragOverlay)   // on top of everything, catches file drops
 
         NSLayoutConstraint.activate([
+            toolbarRow.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            toolbarRow.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            toolbarRow.topAnchor.constraint(equalTo: rootView.topAnchor),
+            { toolbarRowHeightConstraint = toolbarRow.heightAnchor.constraint(equalToConstant: EditorWindowToolbar.contentRowHeight(sizeStyle: preferences.toolbarIconSizeStyle)); return toolbarRowHeightConstraint! }(),
+
             tabBarView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             tabBarView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            tabBarView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            tabBarView.topAnchor.constraint(equalTo: toolbarRow.bottomAnchor),
             { tabBarHeightConstraint = tabBarView.heightAnchor.constraint(equalToConstant: EditorTabBarView.barHeight); return tabBarHeightConstraint! }(),
 
             editorSurface.view.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
@@ -4261,6 +4272,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         applyWindowPresentationState()
         window.makeFirstResponder(editorSurface.firstResponder)
         editorSurface.setContextMenu(makeEditorContextMenu())
+    }
+
+    private func applyToolbarVisibility(_ isVisible: Bool) {
+        toolbarContentRowView?.isHidden = !isVisible
+        toolbarRowHeightConstraint?.constant = isVisible
+            ? EditorWindowToolbar.contentRowHeight(sizeStyle: toolbarIconSizeStyle)
+            : 0
     }
 
     func applyEditorContextMenuSpec(_ spec: EditorContextMenuSpec?) {

@@ -17,7 +17,7 @@ import Testing
         "Run",
         "Plugins",
         "Window",
-        "Help"
+        "?"
     ])
 }
 

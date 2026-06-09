@@ -614,20 +614,24 @@ final class EditorTabButton: NSView {
         return palette[idx - 1]
     }
 
-    static func documentIconSymbolName(for item: EditorTabItem) -> String {
+    static func upstreamDocumentIconResourceName(for item: EditorTabItem) -> String {
         if item.isMonitoring {
-            return "arrow.clockwise.circle"
+            return "monitoring"
         }
-        return item.isDirty ? "doc.badge.ellipsis" : "doc.text"
+        return item.isDirty ? "unsaved" : "saved"
     }
 
     private static func documentIcon(for item: EditorTabItem) -> NSImage {
-        let symbolName = documentIconSymbolName(for: item)
-        let symbolImage = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Document")
-        let sourceImage = symbolImage ?? NSWorkspace.shared.icon(for: .plainText)
+        let resourceName = upstreamDocumentIconResourceName(for: item)
+        let upstreamImage = Bundle.module.url(
+            forResource: resourceName,
+            withExtension: "ico",
+            subdirectory: "UpstreamTabBar"
+        ).flatMap { NSImage(contentsOf: $0) }
+        let sourceImage = upstreamImage ?? NSWorkspace.shared.icon(for: .plainText)
         let image = (sourceImage.copy() as? NSImage) ?? sourceImage
         image.size = NSSize(width: documentIconSize, height: documentIconSize)
-        image.isTemplate = symbolImage != nil || sourceImage.isTemplate
+        image.isTemplate = false
         return image
     }
 

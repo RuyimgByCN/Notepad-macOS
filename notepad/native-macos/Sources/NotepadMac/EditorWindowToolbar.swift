@@ -2,10 +2,13 @@ import AppKit
 
 @MainActor
 final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
+    static let contentRowAccessibilityIdentifier = "org.notepad-plus-plus.macnative.editor.toolbar.content-row"
+
     private enum CommandTarget: Equatable {
         case controller
         case appDelegate
         case responderChain
+        case unavailable
 
         @MainActor
         func resolve(using controller: EditorWindowController?) -> AnyObject? {
@@ -14,9 +17,13 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
                 return controller
             case .appDelegate:
                 return NSApp.delegate as AnyObject?
-            case .responderChain:
+            case .responderChain, .unavailable:
                 return nil
             }
+        }
+
+        var isUnavailable: Bool {
+            self == .unavailable
         }
     }
 
@@ -26,7 +33,7 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
         let paletteLabel: String
         let toolTip: String
         let symbolName: String
-        let action: Selector
+        let action: Selector?
         let target: CommandTarget
     }
 
@@ -49,6 +56,42 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
         return toolbar
     }
 
+    func makeContentRow(sizeStyle: Int = 0) -> NSView {
+        let row = EditorToolbarContentRowView()
+        row.setAccessibilityIdentifier(Self.contentRowAccessibilityIdentifier)
+
+        let stackView = NSStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.orientation = .horizontal
+        stackView.alignment = .centerY
+        stackView.distribution = .gravityAreas
+        stackView.spacing = 2
+
+        for identifier in Self.defaultItemIdentifiers(includesFoldingCommands: includesFoldingCommands) {
+            if identifier == .space {
+                stackView.addArrangedSubview(EditorToolbarSeparatorView(sizeStyle: sizeStyle))
+                continue
+            }
+
+            guard let command = Self.command(for: identifier) else { continue }
+            let button = makeButton(for: command, sizeStyle: sizeStyle)
+            stackView.addArrangedSubview(button)
+        }
+
+        row.addSubview(stackView)
+        NSLayoutConstraint.activate([
+            stackView.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 4),
+            stackView.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            stackView.trailingAnchor.constraint(lessThanOrEqualTo: row.trailingAnchor, constant: -4)
+        ])
+
+        return row
+    }
+
+    static func contentRowHeight(sizeStyle: Int = 0) -> CGFloat {
+        sizeStyle == 1 ? 24 : 30
+    }
+
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         Self.defaultItemIdentifiers(includesFoldingCommands: includesFoldingCommands)
     }
@@ -57,15 +100,20 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
         defaultItemIdentifiers(includesFoldingCommands: includesFoldingCommands).map(\.rawValue)
     }
 
+    static func upstreamToolbarBitmapResourceNames() -> [String] {
+        defaultItemIdentifiers(includesFoldingCommands: false).compactMap {
+            upstreamBitmapResourceNamesByIdentifier[$0]
+        }
+    }
+
     private static func defaultItemIdentifiers(includesFoldingCommands: Bool) -> [NSToolbarItem.Identifier] {
-        var identifiers: [NSToolbarItem.Identifier] = [
+        [
             .editorNew,
             .editorOpen,
             .editorSave,
             .editorSaveAll,
             .editorClose,
             .editorCloseAll,
-            .space,
             .editorPrint,
             .space,
             .editorCut,
@@ -78,24 +126,30 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
             .editorFind,
             .editorReplace,
             .space,
-            .editorToggleBookmark,
-            .editorPreviousBookmark,
-            .editorNextBookmark,
+            .editorZoomIn,
+            .editorZoomOut,
+            .space,
+            .editorSyncVerticalScroll,
+            .editorSyncHorizontalScroll,
             .space,
             .editorToggleLineWrap,
-            .editorFunctionList
+            .editorShowAllCharacters,
+            .editorIndentGuide,
+            .space,
+            .editorUserDefinedLanguage,
+            .editorDocumentMap,
+            .editorDocumentList,
+            .editorFunctionList,
+            .editorFileBrowser,
+            .space,
+            .editorMonitoring,
+            .space,
+            .editorMacroStartRecording,
+            .editorMacroStopRecording,
+            .editorMacroPlayRecorded,
+            .editorMacroRunMultiple,
+            .editorMacroSaveCurrent
         ]
-
-        if includesFoldingCommands {
-            identifiers.append(contentsOf: [
-                .space,
-                .editorToggleFold,
-                .editorFoldAll,
-                .editorUnfoldAll
-            ])
-        }
-
-        return identifiers
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -121,12 +175,15 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
         item.label = command.label
         item.paletteLabel = command.paletteLabel
         item.toolTip = command.toolTip
-        item.image = NSImage(systemSymbolName: command.symbolName, accessibilityDescription: command.label)
+        item.image = Self.upstreamToolbarImage(for: command.identifier)
+            ?? NSImage(systemSymbolName: command.symbolName, accessibilityDescription: command.label)
         item.target = target
         item.action = command.action
+        item.isEnabled = !command.target.isUnavailable
 
         let menuItem = NSMenuItem(title: command.paletteLabel, action: command.action, keyEquivalent: "")
         menuItem.target = target
+        menuItem.isEnabled = !command.target.isUnavailable
         item.menuFormRepresentation = menuItem
 
         return item
@@ -134,7 +191,8 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
 
     static func validate(toolbarItem: NSToolbarItem, using controller: EditorWindowController) -> Bool {
         guard let action = toolbarItem.action else {
-            return true
+            toolbarItem.menuFormRepresentation?.isEnabled = false
+            return false
         }
 
         let validationItem = NSMenuItem(title: toolbarItem.label, action: action, keyEquivalent: "")
@@ -154,6 +212,83 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
     private static func command(for identifier: NSToolbarItem.Identifier) -> Command? {
         commands.first { $0.identifier == identifier }
     }
+
+    private func makeButton(for command: Command, sizeStyle: Int) -> NSButton {
+        let button = NSButton()
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.identifier = NSUserInterfaceItemIdentifier(command.identifier.rawValue)
+        button.title = ""
+        button.image = Self.upstreamToolbarImage(for: command.identifier)
+            ?? NSImage(systemSymbolName: command.symbolName, accessibilityDescription: command.label)
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
+        button.bezelStyle = .inline
+        button.isBordered = false
+        button.toolTip = command.toolTip
+        button.target = command.target.resolve(using: controller)
+        button.action = command.action
+        button.isEnabled = !command.target.isUnavailable
+        button.setAccessibilityLabel(command.label)
+
+        let side = sizeStyle == 1 ? CGFloat(20) : CGFloat(24)
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: side),
+            button.heightAnchor.constraint(equalToConstant: side)
+        ])
+
+        return button
+    }
+
+    private static func upstreamToolbarImage(for identifier: NSToolbarItem.Identifier) -> NSImage? {
+        guard let resourceName = upstreamBitmapResourceNamesByIdentifier[identifier],
+              let url = Bundle.module.url(
+                forResource: resourceName,
+                withExtension: "bmp",
+                subdirectory: "UpstreamToolbar"
+              ),
+              let image = NSImage(contentsOf: url)
+        else {
+            return nil
+        }
+
+        image.isTemplate = false
+        return image
+    }
+
+    private static let upstreamBitmapResourceNamesByIdentifier: [NSToolbarItem.Identifier: String] = [
+        .editorNew: "newFile",
+        .editorOpen: "openFile",
+        .editorSave: "saveFile",
+        .editorSaveAll: "saveAll",
+        .editorClose: "closeFile",
+        .editorCloseAll: "closeAll",
+        .editorPrint: "print",
+        .editorCut: "cut",
+        .editorCopy: "copy",
+        .editorPaste: "paste",
+        .editorUndo: "undo",
+        .editorRedo: "redo",
+        .editorFind: "find",
+        .editorReplace: "findReplace",
+        .editorZoomIn: "zoomIn",
+        .editorZoomOut: "zoomOut",
+        .editorSyncVerticalScroll: "syncV",
+        .editorSyncHorizontalScroll: "syncH",
+        .editorToggleLineWrap: "wrap",
+        .editorShowAllCharacters: "allChars",
+        .editorIndentGuide: "indentGuide",
+        .editorUserDefinedLanguage: "udl",
+        .editorDocumentMap: "docMap",
+        .editorDocumentList: "docList",
+        .editorFunctionList: "funcList",
+        .editorFileBrowser: "fileBrowser",
+        .editorMonitoring: "monitoring",
+        .editorMacroStartRecording: "startRecord",
+        .editorMacroStopRecording: "stopRecord",
+        .editorMacroPlayRecorded: "playRecord",
+        .editorMacroRunMultiple: "playRecord_m",
+        .editorMacroSaveCurrent: "saveRecord"
+    ]
 
     private static let commands: [Command] = [
         Command(
@@ -283,6 +418,42 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
             target: .controller
         ),
         Command(
+            identifier: .editorZoomIn,
+            label: Localization.string(.viewBiggerText, default: "Zoom In"),
+            paletteLabel: Localization.string(.viewBiggerText, default: "Zoom In"),
+            toolTip: Localization.string(.viewBiggerText, default: "Zoom In"),
+            symbolName: "plus.magnifyingglass",
+            action: #selector(EditorWindowController.increaseFontSize(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorZoomOut,
+            label: Localization.string(.viewSmallerText, default: "Zoom Out"),
+            paletteLabel: Localization.string(.viewSmallerText, default: "Zoom Out"),
+            toolTip: Localization.string(.viewSmallerText, default: "Zoom Out"),
+            symbolName: "minus.magnifyingglass",
+            action: #selector(EditorWindowController.decreaseFontSize(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorSyncVerticalScroll,
+            label: Localization.string(.viewSyncVerticalScroll, default: "Synchronize Vertical Scrolling"),
+            paletteLabel: Localization.string(.viewSyncVerticalScroll, default: "Synchronize Vertical Scrolling"),
+            toolTip: Localization.string(.viewSyncVerticalScroll, default: "Synchronize Vertical Scrolling"),
+            symbolName: "arrow.up.arrow.down",
+            action: nil,
+            target: .unavailable
+        ),
+        Command(
+            identifier: .editorSyncHorizontalScroll,
+            label: Localization.string(.viewSyncHorizontalScroll, default: "Synchronize Horizontal Scrolling"),
+            paletteLabel: Localization.string(.viewSyncHorizontalScroll, default: "Synchronize Horizontal Scrolling"),
+            toolTip: Localization.string(.viewSyncHorizontalScroll, default: "Synchronize Horizontal Scrolling"),
+            symbolName: "arrow.left.arrow.right",
+            action: nil,
+            target: .unavailable
+        ),
+        Command(
             identifier: .editorToggleBookmark,
             label: Localization.string(.toolbarToggleBookmarkLabel, default: "Bookmark"),
             paletteLabel: Localization.string(.toolbarToggleBookmarkPalette, default: "Toggle Bookmark"),
@@ -319,12 +490,120 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
             target: .controller
         ),
         Command(
+            identifier: .editorShowAllCharacters,
+            label: Localization.string(.viewShowAllCharacters, default: "Show All Characters"),
+            paletteLabel: Localization.string(.viewShowAllCharacters, default: "Show All Characters"),
+            toolTip: Localization.string(.viewShowAllCharacters, default: "Show All Characters"),
+            symbolName: "paragraphsign",
+            action: #selector(EditorWindowController.toggleShowAllCharacters(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorIndentGuide,
+            label: Localization.string(.viewShowIndentGuide, default: "Show Indent Guide"),
+            paletteLabel: Localization.string(.viewShowIndentGuide, default: "Show Indent Guide"),
+            toolTip: Localization.string(.viewShowIndentGuide, default: "Show Indent Guide"),
+            symbolName: "increase.indent",
+            action: #selector(EditorWindowController.toggleIndentGuides(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorUserDefinedLanguage,
+            label: Localization.string(.languageUserDefined, default: "User Defined Languages..."),
+            paletteLabel: Localization.string(.languageUserDefined, default: "User Defined Languages..."),
+            toolTip: Localization.string(.languageUserDefined, default: "User Defined Languages..."),
+            symbolName: "person.crop.rectangle",
+            action: #selector(AppDelegate.showUserDefinedLanguages(_:)),
+            target: .appDelegate
+        ),
+        Command(
+            identifier: .editorDocumentMap,
+            label: Localization.string(.viewDocumentMap, default: "Document Map..."),
+            paletteLabel: Localization.string(.viewDocumentMap, default: "Document Map..."),
+            toolTip: Localization.string(.viewDocumentMap, default: "Document Map..."),
+            symbolName: "map",
+            action: #selector(EditorWindowController.showDocumentMap(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorDocumentList,
+            label: Localization.string(.viewDocumentList, default: "Document List..."),
+            paletteLabel: Localization.string(.viewDocumentList, default: "Document List..."),
+            toolTip: Localization.string(.viewDocumentList, default: "Document List..."),
+            symbolName: "doc.plaintext",
+            action: #selector(AppDelegate.showDocumentList(_:)),
+            target: .appDelegate
+        ),
+        Command(
             identifier: .editorFunctionList,
             label: Localization.string(.toolbarFunctionListLabel, default: "Functions"),
             paletteLabel: Localization.string(.toolbarFunctionListLabel, default: "Functions"),
             toolTip: Localization.string(.toolbarFunctionListTooltip, default: "Show the function list"),
             symbolName: "list.bullet.rectangle",
             action: #selector(EditorWindowController.showFunctionList(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorFileBrowser,
+            label: Localization.string(.viewFileBrowser, default: "File Browser..."),
+            paletteLabel: Localization.string(.viewFileBrowser, default: "File Browser..."),
+            toolTip: Localization.string(.viewFileBrowser, default: "File Browser..."),
+            symbolName: "folder.badge.gearshape",
+            action: #selector(AppDelegate.showFileBrowser(_:)),
+            target: .appDelegate
+        ),
+        Command(
+            identifier: .editorMonitoring,
+            label: Localization.string(.viewMonitoring, default: "Monitoring (tail -f)"),
+            paletteLabel: Localization.string(.viewMonitoring, default: "Monitoring (tail -f)"),
+            toolTip: Localization.string(.viewMonitoring, default: "Monitoring (tail -f)"),
+            symbolName: "eye",
+            action: #selector(EditorWindowController.toggleMonitoringMode(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorMacroStartRecording,
+            label: Localization.string(.macroStartRecording, default: "Start Recording"),
+            paletteLabel: Localization.string(.macroStartRecording, default: "Start Recording"),
+            toolTip: Localization.string(.macroStartRecording, default: "Start Recording"),
+            symbolName: "record.circle",
+            action: #selector(EditorWindowController.startMacroRecording(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorMacroStopRecording,
+            label: Localization.string(.macroStopRecording, default: "Stop Recording"),
+            paletteLabel: Localization.string(.macroStopRecording, default: "Stop Recording"),
+            toolTip: Localization.string(.macroStopRecording, default: "Stop Recording"),
+            symbolName: "stop.circle",
+            action: #selector(EditorWindowController.stopMacroRecording(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorMacroPlayRecorded,
+            label: Localization.string(.macroPlayLast, default: "Play Last Macro"),
+            paletteLabel: Localization.string(.macroPlayLast, default: "Play Last Macro"),
+            toolTip: Localization.string(.macroPlayLast, default: "Play Last Macro"),
+            symbolName: "play.circle",
+            action: #selector(EditorWindowController.playLastMacro(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorMacroRunMultiple,
+            label: Localization.string(.macroRunMultipleTimes, default: "Run a Macro Multiple Times..."),
+            paletteLabel: Localization.string(.macroRunMultipleTimes, default: "Run a Macro Multiple Times..."),
+            toolTip: Localization.string(.macroRunMultipleTimes, default: "Run a Macro Multiple Times..."),
+            symbolName: "repeat",
+            action: #selector(EditorWindowController.runMacroMultipleTimes(_:)),
+            target: .controller
+        ),
+        Command(
+            identifier: .editorMacroSaveCurrent,
+            label: Localization.string(.macroSaveLastAs, default: "Save Last Macro..."),
+            paletteLabel: Localization.string(.macroSaveLastAs, default: "Save Last Macro..."),
+            toolTip: Localization.string(.macroSaveLastAs, default: "Save Last Macro..."),
+            symbolName: "square.and.arrow.down.badge.clock",
+            action: #selector(EditorWindowController.saveLastMacroAsNamedMacro(_:)),
             target: .controller
         ),
         Command(
@@ -376,6 +655,22 @@ private extension NSToolbarItem.Identifier {
     static let editorRedo = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.redo")
     static let editorFind = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.find")
     static let editorReplace = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.replace")
+    static let editorZoomIn = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.zoom-in")
+    static let editorZoomOut = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.zoom-out")
+    static let editorSyncVerticalScroll = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.sync-vertical-scroll")
+    static let editorSyncHorizontalScroll = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.sync-horizontal-scroll")
+    static let editorShowAllCharacters = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.show-all-characters")
+    static let editorIndentGuide = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.indent-guide")
+    static let editorUserDefinedLanguage = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.user-defined-language")
+    static let editorDocumentMap = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.document-map")
+    static let editorDocumentList = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.document-list")
+    static let editorFileBrowser = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.file-browser")
+    static let editorMonitoring = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.monitoring")
+    static let editorMacroStartRecording = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.macro.start-recording")
+    static let editorMacroStopRecording = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.macro.stop-recording")
+    static let editorMacroPlayRecorded = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.macro.play-recorded")
+    static let editorMacroRunMultiple = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.macro.run-multiple")
+    static let editorMacroSaveCurrent = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.macro.save-current")
     static let editorToggleBookmark = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.bookmark.toggle")
     static let editorPreviousBookmark = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.bookmark.previous")
     static let editorNextBookmark = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.bookmark.next")
@@ -384,4 +679,42 @@ private extension NSToolbarItem.Identifier {
     static let editorToggleFold = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.fold.toggle")
     static let editorFoldAll = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.fold.all")
     static let editorUnfoldAll = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.fold.unfold-all")
+}
+
+private final class EditorToolbarContentRowView: NSView {
+    override var isFlipped: Bool { true }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.windowBackgroundColor.setFill()
+        dirtyRect.fill()
+
+        NSColor.separatorColor.withAlphaComponent(0.5).setFill()
+        NSRect(x: 0, y: bounds.maxY - 0.5, width: bounds.width, height: 0.5).fill()
+    }
+}
+
+private final class EditorToolbarSeparatorView: NSView {
+    private let separator = NSBox()
+
+    init(sizeStyle: Int) {
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        separator.boxType = .separator
+        addSubview(separator)
+
+        let height = sizeStyle == 1 ? CGFloat(14) : CGFloat(18)
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: 8),
+            separator.centerXAnchor.constraint(equalTo: centerXAnchor),
+            separator.centerYAnchor.constraint(equalTo: centerYAnchor),
+            separator.heightAnchor.constraint(equalToConstant: height)
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
 }

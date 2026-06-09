@@ -33,3 +33,27 @@ import Testing
         #expect(iconView.frame.maxX <= titleField.frame.minX)
     }
 }
+
+@MainActor
+@Test func editorTabButtonUsesUpstreamStatusIconResourceNames() {
+    let clean = EditorTabItem(
+        identity: .file(URL(fileURLWithPath: "/tmp/project/clean.txt")),
+        title: "clean.txt",
+        isDirty: false
+    )
+    let dirty = EditorTabItem(
+        identity: .file(URL(fileURLWithPath: "/tmp/project/dirty.txt")),
+        title: "dirty.txt",
+        isDirty: true
+    )
+    let monitoring = EditorTabItem(
+        identity: .file(URL(fileURLWithPath: "/tmp/project/log.txt")),
+        title: "log.txt",
+        isDirty: false,
+        isMonitoring: true
+    )
+
+    #expect(EditorTabButton.upstreamDocumentIconResourceName(for: clean) == "saved")
+    #expect(EditorTabButton.upstreamDocumentIconResourceName(for: dirty) == "unsaved")
+    #expect(EditorTabButton.upstreamDocumentIconResourceName(for: monitoring) == "monitoring")
+}
