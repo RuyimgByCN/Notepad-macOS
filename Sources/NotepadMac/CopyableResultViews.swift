@@ -13,9 +13,9 @@ final class CopyableOutlineView: NSOutlineView {
         }
     }
 
-    override func responds(to aSelector: Selector!) -> Bool {
+    override nonisolated func responds(to aSelector: Selector!) -> Bool {
         if aSelector == #selector(copy(_:)) {
-            return onCopy != nil
+            return MainActor.assumeIsolated { onCopy != nil }
         }
         return super.responds(to: aSelector)
     }
@@ -32,9 +32,9 @@ final class CopyableTableView: NSTableView {
         }
     }
 
-    override func responds(to aSelector: Selector!) -> Bool {
+    override nonisolated func responds(to aSelector: Selector!) -> Bool {
         if aSelector == #selector(copy(_:)) {
-            return onCopy != nil
+            return MainActor.assumeIsolated { onCopy != nil }
         }
         return super.responds(to: aSelector)
     }
