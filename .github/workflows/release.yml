@@ -65,19 +65,22 @@ jobs:
             COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
           fi
 
-          cat > /tmp/release-notes.md <<EOF
+          SHA="${{ steps.sha.outputs.sha256 }}"
+          VER="${{ steps.version.outputs.version }}"
+
+          cat > /tmp/release-notes.md <<RELEASEEOF
           ## What's Changed
 
           $COMMITS
 
           ---
 
-          **SHA-256:** \`$SHA\`
+          **SHA-256:** \`${SHA}\`
 
           | File | Architecture |
           |------|--------------|
-          | Notepad-macOS-${{ steps.version.outputs.version }}.dmg | arm64 (Apple Silicon) + x86_64 (Intel) — Universal |
-          EOF
+          | Notepad-macOS-${VER}.dmg | arm64 (Apple Silicon) + x86_64 (Intel) — Universal |
+          RELEASEEOF
           echo "path=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
