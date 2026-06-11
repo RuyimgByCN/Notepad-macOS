@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish DMG
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          # Strip leading 'v' from tag (e.g. v8.9.6 → 8.9.6)
+          TAG="${GITHUB_REF_NAME}"
+          VER="${TAG#v}"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build Scintilla framework
+        run: scripts/build-scintilla-framework.sh
+
+      - name: Build Lexilla dylib (universal)
+        env:
+          MACOS_LEXILLA_ARCHS: "arm64 x86_64"
+        run: scripts/build-lexilla-dylib.sh
+
+      - name: Package macOS app
+        env:
+          MACOS_APP_VERSION: ${{ steps.version.outputs.version }}
+          # Ad-hoc signing for CI; set MACOS_CODESIGN_IDENTITY
+          # to a Developer ID identity for distributable builds.
+          MACOS_CODESIGN_IDENTITY: "-"
+        run: scripts/package-macos.sh
+
+      - name: Rename DMG for release
+        run: |
+          mv "dist/Notepad++ Mac.dmg" \
+             "dist/Notepad-macOS-${{ steps.version.outputs.version }}.dmg"
+
+      - name: Compute SHA-256
+        id: sha
+        run: |
+          SHA=$(shasum -a 256 "dist/Notepad-macOS-${{ steps.version.outputs.version }}.dmg" | cut -d ' ' -f1)
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          # Collect commits since the last release tag (or all if first release)
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [[ -n "$PREV_TAG" ]]; then
+            COMMITS=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          fi
+
+          cat > /tmp/release-notes.md <<EOF
+          ## What's Changed
+
+          $COMMITS
+
+          ---
+
+          **SHA-256:** \`$SHA\`
+
+          | File | Architecture |
+          |------|--------------|
+          | Notepad-macOS-${{ steps.version.outputs.version }}.dmg | arm64 (Apple Silicon) + x86_64 (Intel) — Universal |
+          EOF
+          echo "path=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Notepad-macOS ${{ steps.version.outputs.version }}
+          body_path: /tmp/release-notes.md
+          files: |
+            dist/Notepad-macOS-${{ steps.version.outputs.version }}.dmg
