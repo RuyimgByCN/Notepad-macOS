@@ -312,7 +312,38 @@ rewrite_lexilla_install_name() {
 
 echo "Building $EXECUTABLE_NAME release binary..."
 build_scintilla_framework
+
+# Patch LexUser.cxx for macOS: the upstream file unconditionally includes <windows.h>
+# and uses _itoa (both Windows-only). Guard them so the file compiles on macOS.
+LEX_USER="$ROOT_DIR/upstream/notepad-plus-plus/lexilla/lexers/LexUser.cxx"
+if [[ -f "$LEX_USER" ]] && grep -q '#include <windows.h>' "$LEX_USER"; then
+    python3 - "$LEX_USER" <<'PYEOF'
+import sys, re, pathlib
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+text = text.replace(
+    '#include <windows.h>',
+    '#ifdef _WIN32\n#include <windows.h>\n#else\n'
+    '#include <cstdio>\n'
+    'static inline char* _itoa(int val, char* buf, int base) {\n'
+    '    std::snprintf(buf, 12, base == 16 ? "%x" : base == 8 ? "%o" : "%d", val);\n'
+    '    return buf;\n'
+    '}\n#endif'
+)
+path.write_text(text)
+print(f"Patched {path.name} for macOS compatibility")
+PYEOF
+fi
+
 build_lexilla_dylib
+
+# Build liblexilla.a static library from the .o files already compiled by build_lexilla_dylib.
+# swift build links against this static lib at build time; liblexilla.dylib is used at runtime.
+LEXILLA_SRC="$ROOT_DIR/upstream/notepad-plus-plus/lexilla/src"
+LEXILLA_STATIC="$ROOT_DIR/upstream/notepad-plus-plus/lexilla/bin/liblexilla.a"
+echo "Creating liblexilla.a static library..."
+libtool -static -o "$LEXILLA_STATIC" "$LEXILLA_SRC"/*.o
+
 if ! build_main_one_step_universal && ! build_main_lipo_universal; then
     echo "WARNING: Falling back to native Swift release build; main executable will not be universal." >&2
     build_main_native

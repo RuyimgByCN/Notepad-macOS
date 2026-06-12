@@ -23,8 +23,7 @@ let package = Package(
                 .headerSearchPath("include")
             ],
             linkerSettings: [
-                .linkedLibrary("c++"),
-                .unsafeFlags(["upstream/notepad-plus-plus/lexilla/bin/liblexilla.a"])
+                .linkedLibrary("c++")
             ]
         ),
         .target(
@@ -47,6 +46,9 @@ let package = Package(
             dependencies: ["NotepadMacCore", "CLexillaBridge"],
             resources: [
                 .process("Resources")
+            ],
+            linkerSettings: [
+                .unsafeFlags(["-Xlinker", "-force_load", "-Xlinker", "upstream/notepad-plus-plus/lexilla/bin/liblexilla.a"])
             ]
         ),
         .testTarget(

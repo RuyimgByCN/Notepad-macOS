@@ -244,11 +244,11 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
             return nil
         }
 
-        let url = Bundle.module.url(
+        let url = Localization.resourceBundle.url(
             forResource: resourceName,
             withExtension: "bmp",
             subdirectory: "UpstreamToolbar"
-        ) ?? Bundle.module.url(
+        ) ?? Localization.resourceBundle.url(
             forResource: resourceName,
             withExtension: "bmp"
         )

@@ -759,11 +759,11 @@ final class EditorTabButton: NSView {
     }
 
     private static func upstreamTabBarIconURL(named resourceName: String) -> URL? {
-        Bundle.module.url(
+        Localization.resourceBundle.url(
             forResource: resourceName,
             withExtension: "ico",
             subdirectory: "UpstreamTabBar"
-        ) ?? Bundle.module.url(forResource: resourceName, withExtension: "ico")
+        ) ?? Localization.resourceBundle.url(forResource: resourceName, withExtension: "ico")
     }
 
     private static func upstreamTabBarIcon(named resourceName: String, size: CGFloat) -> NSImage? {
