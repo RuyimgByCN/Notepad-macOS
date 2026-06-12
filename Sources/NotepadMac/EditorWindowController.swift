@@ -1122,19 +1122,19 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private var urlHighlightTimer: DispatchWorkItem?
 
-    private func scheduleUrlHighlightUpdate() {
+    private func scheduleUrlHighlightUpdate(preloadedText: String? = nil) {
         urlHighlightTimer?.cancel()
+        let text = preloadedText ?? editorSurface.text
         let item = DispatchWorkItem { [weak self] in
-            self?.applyUrlHighlights()
+            self?.applyUrlHighlights(text: text)
         }
         urlHighlightTimer = item
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: item)
     }
 
-    private func applyUrlHighlights() {
+    private func applyUrlHighlights(text: String) {
         guard enablesClickableLinks, editorSurface.supportsUrlHighlight else { return }
         let prefs = preferencesStore.load()
-        let text = editorSurface.text
         let schemes = prefs.effectiveURLSchemes
         let style = prefs.urlIndicatorStyle
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -5071,7 +5071,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
         updateStatus()
         if !isLargeFile {
-            scheduleUrlHighlightUpdate()
+            scheduleUrlHighlightUpdate(preloadedText: loaded.text)
         }
         startFileMonitoring(for: url)
     }
