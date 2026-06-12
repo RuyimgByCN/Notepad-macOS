@@ -197,7 +197,9 @@ final class FindInFilesPanelController: NSWindowController {
         resultsTable.menu = buildResultsContextMenu()
         resultsScrollView.documentView = resultsTable
         resultsScrollView.hasVerticalScroller = true
+        resultsScrollView.hasHorizontalScroller = true
         resultsScrollView.borderType = .bezelBorder
+        resultsTable.columnAutoresizingStyle = .noColumnAutoresizing
 
         searchModeControl.segmentCount = 3
         searchModeControl.trackingMode = .selectOne
@@ -428,6 +430,7 @@ final class FindInFilesPanelController: NSWindowController {
 
         results = foundResults
         resultsTable.reloadData()
+        fitResultsColumnToContent()
         resultsStore.setResults(foundResults, purgeFirst: purgeBeforeSearchButton.state == .on)
         onResultsUpdated?()
 
@@ -543,6 +546,26 @@ extension Notification.Name {
     static let findInFilesOpenFile = Notification.Name("findInFilesOpenFile")
 }
 
+// MARK: - Layout helpers
+
+extension FindInFilesPanelController {
+    private func fitResultsColumnToContent() {
+        guard let column = resultsTable.tableColumns.first else { return }
+        let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        let attrs: [NSAttributedString.Key: Any] = [.font: font]
+        let padding: CGFloat = 12
+        let viewWidth = resultsScrollView.bounds.width
+        let minWidth = viewWidth > 0 ? viewWidth : 400
+        let contentWidth = results.reduce(CGFloat(0)) { maxW, result in
+            let displayName = (result.filePath as NSString).lastPathComponent
+            let text = "\(displayName):\(result.line): \(result.lineText)"
+            let w = (text as NSString).size(withAttributes: attrs).width + padding
+            return max(maxW, w)
+        }
+        column.width = max(minWidth, contentWidth)
+    }
+}
+
 // MARK: - NSTableView DataSource & Delegate
 
 extension FindInFilesPanelController: NSTableViewDataSource, NSTableViewDelegate {
@@ -562,7 +585,7 @@ extension FindInFilesPanelController: NSTableViewDataSource, NSTableViewDelegate
                     let newCell = NSTableCellView()
                     newCell.identifier = cellIdentifier
                     let textField = NSTextField(labelWithString: "")
-                    textField.lineBreakMode = .byTruncatingTail
+                    textField.lineBreakMode = .byClipping
                     textField.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
                     newCell.addSubview(textField)
                     textField.translatesAutoresizingMaskIntoConstraints = false
