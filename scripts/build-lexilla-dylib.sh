@@ -110,7 +110,7 @@ for arch in $REQUESTED_ARCHS; do
     ldflags+=(-arch "$arch")
 done
 
-base_flags+=(-fvisibility=hidden --std=c++17 -fPIC)
+base_flags+=(-fvisibility=hidden --std=c++17 -fPIC -mmacosx-version-min=13.0)
 if [[ -n "${DEBUG:-}" ]]; then
     base_flags+=(-g)
 else

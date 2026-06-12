@@ -16,7 +16,6 @@ let package = Package(
         .target(
             name: "CLexillaBridge",
             path: "Sources/CLexillaBridge",
-            exclude: ["module.modulemap"],
             sources: ["LexillaBridge.c"],
             publicHeadersPath: "include",
             cSettings: [

@@ -42,7 +42,7 @@ public final class BoostRegexEngine {
             )
         }
         guard let created else {
-            throw EngineError.invalidPattern(String(cString: errorBuffer))
+            throw EngineError.invalidPattern(String(decoding: errorBuffer.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, as: UTF8.self))
         }
         handle = created
     }
