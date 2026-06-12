@@ -9,6 +9,7 @@ public enum URLScanner {
         "mailto", "tel", "callto",
     ]
 
+    private static let cacheLock = NSLock()
     nonisolated(unsafe) private static var cachedPattern: (schemes: [String], regex: NSRegularExpression)?
 
     private static func makePattern(schemes: [String]) -> NSRegularExpression {
@@ -23,6 +24,8 @@ public enum URLScanner {
     }
 
     private static func pattern(for schemes: [String]) -> NSRegularExpression {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
         if let cached = cachedPattern, cached.schemes == schemes {
             return cached.regex
         }

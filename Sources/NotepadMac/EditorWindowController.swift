@@ -1135,8 +1135,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard enablesClickableLinks, editorSurface.supportsUrlHighlight else { return }
         let prefs = preferencesStore.load()
         let text = editorSurface.text
-        let ranges = URLScanner.findURLRanges(in: text, schemes: prefs.effectiveURLSchemes)
-        editorSurface.applyUrlHighlights(ranges: ranges, style: prefs.urlIndicatorStyle)
+        let schemes = prefs.effectiveURLSchemes
+        let style = prefs.urlIndicatorStyle
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let ranges = URLScanner.findURLRanges(in: text, schemes: schemes)
+            DispatchQueue.main.async { [weak self] in
+                self?.editorSurface.applyUrlHighlights(ranges: ranges, style: style)
+            }
+        }
     }
 
     private func openUrlInRange(_ range: NSRange) {
