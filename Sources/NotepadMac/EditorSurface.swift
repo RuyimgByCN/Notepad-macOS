@@ -1058,7 +1058,6 @@ final class ScintillaEditorSurface: EditorSurface {
         stylePreferences: StylePreferences,
         highlighter: SyntaxHighlighter
     ) {
-        Self.dbgWrite("[applyHighlight] lang=\(language.name) lexer=\(language.lexillaLexerName ?? "nil")")
         bridge.setFont(name: "Menlo", size: 13, bold: false, italic: false)
         bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
 
@@ -1097,30 +1096,8 @@ final class ScintillaEditorSurface: EditorSurface {
 
         applyStyles(language: language, styleCatalog: styleCatalog, stylePreferences: stylePreferences)
         applyGlobalStyles(styleCatalog: styleCatalog, stylePreferences: stylePreferences)
-        var preLines = "[readback-pre] styles after applyStyles:\n"
-        for sid in [1, 3, 9, 12, 17] {
-            let f = bridge.getGeneralProperty(ScintillaMessage.styleGetFore, parameter: CLong(sid)) ?? -1
-            preLines += "[readback-pre] style\(sid) fore=0x\(String(format:"%06X", f))\n"
-        }
-        Self.dbgWrite(preLines)
-        bridge.setGeneralProperty(ScintillaMessage.colourise, parameter: 0, value: -1)
-        var postLines = "[readback-post] styles after colourise:\n"
-        for sid in [1, 3, 9, 12, 17] {
-            let f = bridge.getGeneralProperty(ScintillaMessage.styleGetFore, parameter: CLong(sid)) ?? -1
-            postLines += "[readback-post] style\(sid) fore=0x\(String(format:"%06X", f))\n"
-        }
-        // Check style IDs assigned to first 20 positions
-        let docLen = bridge.getGeneralProperty(ScintillaMessage.getLength, parameter: 0) ?? 0
-        if docLen > 0 {
-            postLines += "[getstyle] doc len=\(docLen), styles at pos 0..19:\n"
-            var styleStr = ""
-            for pos in 0..<min(20, Int(docLen)) {
-                let s = bridge.getGeneralProperty(ScintillaMessage.getStyleAt, parameter: CLong(pos)) ?? -1
-                styleStr += "pos\(pos)=\(s) "
-            }
-            postLines += styleStr
-        }
-        Self.dbgWrite(postLines)
+        // Scintilla styles lazily on demand — no need to force SCI_COLOURISE(0,-1) here.
+        // Calling it upfront blocks the main thread for the entire document on large files.
     }
 
     func syncBookmarkMarkers(_ bookmarks: BookmarkSet) {
