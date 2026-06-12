@@ -18,14 +18,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract version from tag
+      - name: Extract version from upstream
         id: version
         run: |
-          # Strip leading 'v' from tag (e.g. v8.9.6 → 8.9.6)
-          TAG="${GITHUB_REF_NAME}"
-          VER="${TAG#v}"
-          echo "version=$VER" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          # Read version from upstream notepad-plus-plus resource.h
+          RESOURCE_H="upstream/notepad-plus-plus/PowerEditor/src/resource.h"
+          NPP_VER=$(grep 'VERSION_PRODUCT_VALUE' "$RESOURCE_H" \
+            | sed 's/.*L"\(.*\)\\0".*/\1/')
+          # Fall back to git tag if resource.h not found or unparseable
+          if [[ -z "$NPP_VER" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            NPP_VER="${TAG#v}"
+          fi
+          echo "version=$NPP_VER" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Build Scintilla framework
         run: scripts/build-scintilla-framework.sh
