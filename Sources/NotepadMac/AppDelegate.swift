@@ -1353,7 +1353,7 @@ private var appearanceObservation: NSKeyValueObservation?
         ) as? String, !fromInfo.trimmingCharacters(in: .whitespaces).isEmpty {
             return fromInfo
         }
-        return nil
+        return "RuyimgByCN/Notepad-macOS"
     }
 
     @objc func checkForUpdates(_ sender: Any?) {

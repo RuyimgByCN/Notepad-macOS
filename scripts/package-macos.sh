@@ -417,6 +417,8 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
     <string>$VERSION</string>
     <key>CFBundleVersion</key>
     <string>$VERSION</string>
+    <key>NotepadMacUpdateRepository</key>
+    <string>RuyimgByCN/Notepad-macOS</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>NSHighResolutionCapable</key>
