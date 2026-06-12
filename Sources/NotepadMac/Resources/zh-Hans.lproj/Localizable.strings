@@ -1180,9 +1180,9 @@
 "encoding.reloadFailed" = "重新加载失败";
 
 /* Find panel */
-"find.inSelection.smallWarning" = "警告：选区小于"仅在选区中"的阈值。";
+"find.inSelection.smallWarning" = "警告：选区小于「仅在选区中」的阈值。";
 "find.replaceAllInAll.confirmMessage" = "替换所有打开文档中的内容";
-"find.replaceAllInAll.confirmDetail" = "将所有打开文档中的"%@"替换为"%@"？";
+"find.replaceAllInAll.confirmDetail" = "将所有打开文档中的\"%@\"替换为\"%@\"？";
 "find.status.matchCount" = "%d 处匹配。";
 
 /* Language menu */

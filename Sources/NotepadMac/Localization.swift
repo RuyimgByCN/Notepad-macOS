@@ -1186,8 +1186,11 @@ enum Localization {
             return nativeLangLocalized
         }
 
-        let localized = bundle(for: currentLocalizationFileName).localizedString(forKey: key, value: fallback, table: nil)
-        return localized.isEmpty ? fallback : localized
+        if let table = stringsTable(for: currentLocalizationFileName),
+           let localized = table[key] {
+            return localized.isEmpty ? fallback : localized
+        }
+        return fallback
     }
 
     static func messageBox(tag: String, defaultTitle: String, defaultMessage: String) -> (title: String, message: String) {
@@ -1210,6 +1213,7 @@ enum Localization {
 
         guard currentLocalizationFileName != normalizedFileName else { return }
         currentLocalizationFileName = normalizedFileName
+        cachedStringsTable = nil
         currentNativeLangTranslations = bundleLocalizationIsBuiltIn(normalizedFileName)
             ? nil
             : NativeLangTranslations.load(fileName: normalizedFileName, bundle: resourceBundle)
@@ -1217,6 +1221,31 @@ enum Localization {
         if postNotification {
             NotificationCenter.default.post(name: localizationDidChangeNotification, object: nil)
         }
+    }
+
+    nonisolated(unsafe) private static var cachedStringsTable: (fileName: String, table: [String: String])?
+
+    private static func stringsTable(for localizationFileName: String) -> [String: String]? {
+        if let cached = cachedStringsTable, cached.fileName == localizationFileName {
+            return cached.table
+        }
+        let localeIdentifier: String
+        switch localizationFileName.lowercased() {
+        case "english.xml", "english_customizable.xml":
+            localeIdentifier = "en"
+        case "chinesesimplified.xml":
+            localeIdentifier = "zh-hans"
+        default:
+            return nil
+        }
+        let stringsURL = resourceBundle.bundleURL
+            .appending(path: "\(localeIdentifier).lproj")
+            .appending(path: "Localizable.strings")
+        guard let table = NSDictionary(contentsOfFile: stringsURL.path) as? [String: String] else {
+            return nil
+        }
+        cachedStringsTable = (fileName: localizationFileName, table: table)
+        return table
     }
 
     static func bundle(for localizationFileName: String) -> Bundle {

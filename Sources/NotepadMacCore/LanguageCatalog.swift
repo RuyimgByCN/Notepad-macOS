@@ -93,6 +93,92 @@ public struct LanguageDefinition: Equatable, Identifiable, Sendable {
             "JSON"
         case "xml":
             "XML"
+        case "escseq":
+            "Escape Sequence"
+        case "errorlist":
+            "Error List"
+        case "asn1":
+            "ASN.1"
+        case "avs":
+            "AviSynth"
+        case "baanc":
+            "BaanC"
+        case "blitzbasic":
+            "BlitzBasic"
+        case "coffeescript":
+            "CoffeeScript"
+        case "csound":
+            "CSound"
+        case "freebasic":
+            "FreeBasic"
+        case "gdscript":
+            "GDScript"
+        case "gui4cli":
+            "Gui4Cli"
+        case "ihex":
+            "Intel HEX"
+        case "javascript.js":
+            "JavaScript (ES6)"
+        case "mmixal":
+            "MMIXAL"
+        case "mssql":
+            "MS-SQL"
+        case "nfo":
+            "NFO"
+        case "nim":
+            "Nim"
+        case "nncrontab":
+            "NNCronTab"
+        case "nsis":
+            "NSIS"
+        case "objc":
+            "Objective-C"
+        case "oscript":
+            "OScript"
+        case "postscript":
+            "PostScript"
+        case "powershell":
+            "PowerShell"
+        case "purebasic":
+            "PureBasic"
+        case "r":
+            "R"
+        case "rc":
+            "Resource File"
+        case "rebol":
+            "REBOL"
+        case "sas":
+            "SAS"
+        case "searchResult":
+            "Search Result"
+        case "smalltalk":
+            "Smalltalk"
+        case "spice":
+            "SPICE"
+        case "sql":
+            "SQL"
+        case "srec":
+            "Motorola S-Record"
+        case "tcl":
+            "TCL"
+        case "tehex":
+            "TE HEX"
+        case "tex":
+            "TeX"
+        case "txt2tags":
+            "Txt2tags"
+        case "typescript":
+            "TypeScript"
+        case "vb":
+            "Visual Basic"
+        case "verilog":
+            "Verilog"
+        case "vhdl":
+            "VHDL"
+        case "visualprolog":
+            "Visual Prolog"
+        case "yaml":
+            "YAML"
         default:
             name
                 .split(separator: "_")

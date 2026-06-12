@@ -11,9 +11,10 @@ import Testing
 }
 
 @Test func localizationResolvesSimplifiedChineseBundle() {
-    let bundle = Localization.bundle(for: "chineseSimplified.xml")
-    let string = bundle.localizedString(forKey: "app.preferences", value: nil, table: nil)
-
+    let original = Localization.currentLocalizationFileName
+    defer { Localization.apply(localizationFileName: original, postNotification: false) }
+    Localization.apply(localizationFileName: "chineseSimplified.xml", postNotification: false)
+    let string = Localization.string("app.preferences", default: "Preferences...")
     #expect(string == "偏好设置...")
 }
 
