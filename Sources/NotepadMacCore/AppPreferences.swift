@@ -49,7 +49,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public static let maximumCaretWidth = 3
     public static let minimumLargeFileMB = 1
     public static let maximumLargeFileMB = 4096
-    public static let defaultLargeFileMB = 50
+    public static let defaultLargeFileMB = 2
 
     public static let defaultValue = AppPreferences(
         editorFontSize: 13,
