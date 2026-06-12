@@ -1140,3 +1140,77 @@
 "find.status.marksCleared" = "已清除标记。";
 "find.status.noMarks" = "没有标记。";
 "find.status.copiedMarks" = "已复制 %d 处标记文本。";
+
+/* App-level context menu editing */
+"app.editContextMenu" = "编辑右键菜单...";
+"app.editTabContextMenu" = "编辑标签页右键菜单...";
+"app.reloadContextMenus" = "重新加载右键菜单";
+
+/* Bookmark */
+"bookmark.bookmarkAllMatches" = "将所有匹配项加入书签...";
+
+/* Document List panel context menu */
+"documentList.close" = "关闭";
+"documentList.closeOthers" = "关闭其他";
+"documentList.closeSelected" = "关闭 (%d)";
+"documentList.copyFilename" = "复制文件名";
+"documentList.copyPath" = "复制完整路径";
+"documentList.pin" = "固定";
+"documentList.save" = "保存";
+"documentList.saveSelected" = "保存 (%d)";
+"documentList.unpin" = "取消固定";
+
+/* Edit menu */
+"edit.blockComment" = "块注释";
+"edit.blockUncomment" = "取消块注释";
+"edit.lineComment" = "切换行注释";
+"edit.findAll" = "在当前文档中查找全部";
+"edit.markAll" = "标记全部";
+"edit.pasteAsPlainText" = "粘贴为纯文本";
+"menu.edit.copySpecial" = "特殊复制";
+"edit.copyAsHTML" = "复制为 HTML";
+"edit.copyAsRTF" = "复制为 RTF";
+
+/* Editor status bar */
+"editor.status.selectionMultiLine" = "选：%d | %d 行";
+
+/* Encoding menu */
+"encoding.autoDetect" = "自动检测编码";
+"encoding.reloadAs" = "以编码重新加载";
+"encoding.reloadFailed" = "重新加载失败";
+
+/* Find panel */
+"find.inSelection.smallWarning" = "警告：选区小于"仅在选区中"的阈值。";
+"find.replaceAllInAll.confirmMessage" = "替换所有打开文档中的内容";
+"find.replaceAllInAll.confirmDetail" = "将所有打开文档中的"%@"替换为"%@"？";
+"find.status.matchCount" = "%d 处匹配。";
+
+/* Language menu */
+"language.openUDLDirectory" = "打开用户自定义语言目录...";
+
+/* Preferences — large file */
+"preferences.largeFileSuppressAutoComplete" = "大文件禁用自动补全";
+"preferences.largeFileSuppressBraceMatch" = "大文件禁用括号匹配";
+"preferences.largeFileSuppressSmartHighlight" = "大文件禁用智能高亮";
+"preferences.largeFileSuppressSyntaxHighlight" = "大文件禁用语法高亮";
+"preferences.largeFileSuppressWordWrap" = "大文件禁用自动换行";
+
+/* Task List panel */
+"taskList.panelTitle" = "任务列表";
+"taskList.goTo" = "跳转";
+"taskList.noTasks" = "未找到任务";
+"taskList.summary" = "%@    %d 个任务";
+"taskList.column.line" = "行号";
+"taskList.column.tag" = "标签";
+"taskList.column.message" = "内容";
+
+/* Theme menu */
+"theme.setAsDarkMode" = "将当前主题设为深色模式主题";
+"theme.clearDarkMode" = "清除深色模式主题";
+
+/* View menu */
+"view.showTabBar" = "显示标签栏";
+"view.showToolbar" = "显示工具栏";
+"view.showBookmarkMargin" = "显示书签边距";
+"view.taskList" = "任务列表...";
+"view.exportFunctionList" = "导出函数列表...";

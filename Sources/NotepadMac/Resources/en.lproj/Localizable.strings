@@ -1140,3 +1140,77 @@
 "find.status.marksCleared" = "Marks cleared.";
 "find.status.noMarks" = "No marks.";
 "find.status.copiedMarks" = "Copied %d marked item(s).";
+
+/* App-level context menu editing */
+"app.editContextMenu" = "Edit Context Menu...";
+"app.editTabContextMenu" = "Edit Tab Context Menu...";
+"app.reloadContextMenus" = "Reload Context Menus";
+
+/* Bookmark */
+"bookmark.bookmarkAllMatches" = "Bookmark All Matches...";
+
+/* Document List panel context menu */
+"documentList.close" = "Close";
+"documentList.closeOthers" = "Close Others";
+"documentList.closeSelected" = "Close (%d)";
+"documentList.copyFilename" = "Copy Filename";
+"documentList.copyPath" = "Copy Full Path";
+"documentList.pin" = "Pin";
+"documentList.save" = "Save";
+"documentList.saveSelected" = "Save (%d)";
+"documentList.unpin" = "Unpin";
+
+/* Edit menu */
+"edit.blockComment" = "Block Comment";
+"edit.blockUncomment" = "Block Uncomment";
+"edit.lineComment" = "Toggle Line Comment";
+"edit.findAll" = "Find All in Current Document";
+"edit.markAll" = "Mark All";
+"edit.pasteAsPlainText" = "Paste as Plain Text";
+"menu.edit.copySpecial" = "Copy Special";
+"edit.copyAsHTML" = "Copy as HTML";
+"edit.copyAsRTF" = "Copy as RTF";
+
+/* Editor status bar */
+"editor.status.selectionMultiLine" = "Sel: %d | %d lines";
+
+/* Encoding menu */
+"encoding.autoDetect" = "Auto-Detect Encoding";
+"encoding.reloadAs" = "Reload as Encoding";
+"encoding.reloadFailed" = "Reload failed";
+
+/* Find panel */
+"find.inSelection.smallWarning" = "Warning: Selection is smaller than the In Selection threshold.";
+"find.replaceAllInAll.confirmMessage" = "Replace All in Open Documents";
+"find.replaceAllInAll.confirmDetail" = "Replace all occurrences of \"%@\" with \"%@\" in all open documents?";
+"find.status.matchCount" = "%d match(es).";
+
+/* Language menu */
+"language.openUDLDirectory" = "Open UDL Directory...";
+
+/* Preferences — large file */
+"preferences.largeFileSuppressAutoComplete" = "Disable auto-complete for large files";
+"preferences.largeFileSuppressBraceMatch" = "Disable brace matching for large files";
+"preferences.largeFileSuppressSmartHighlight" = "Disable smart highlighting for large files";
+"preferences.largeFileSuppressSyntaxHighlight" = "Disable syntax highlighting for large files";
+"preferences.largeFileSuppressWordWrap" = "Disable word wrap for large files";
+
+/* Task List panel */
+"taskList.panelTitle" = "Task List";
+"taskList.goTo" = "Go To";
+"taskList.noTasks" = "No tasks found";
+"taskList.summary" = "%@    %d task(s)";
+"taskList.column.line" = "Line";
+"taskList.column.tag" = "Tag";
+"taskList.column.message" = "Message";
+
+/* Theme menu */
+"theme.setAsDarkMode" = "Set Current Theme as Dark Mode Theme";
+"theme.clearDarkMode" = "Clear Dark Mode Theme";
+
+/* View menu */
+"view.showTabBar" = "Show Tab Bar";
+"view.showToolbar" = "Show Toolbar";
+"view.showBookmarkMargin" = "Show Bookmark Margin";
+"view.taskList" = "Task List...";
+"view.exportFunctionList" = "Export Function List...";
