@@ -31,6 +31,49 @@ import Testing
 }
 
 @MainActor
+@Test func scintillaTextSetterReplacesTextThroughBytePath() throws {
+    let controller = EditorWindowController(
+        languageCatalog: try LanguageCatalog.load(from: upstreamLanguageModelURL()),
+        styleCatalog: try StyleCatalog.load(from: upstreamStyleModelURL())
+    )
+    defer { controller.editorSurface.teardown() }
+
+    controller.editorSurface.text = "before\0中间\nafter"
+
+    #expect(controller.editorSurface.text == "before\0中间\nafter")
+    #expect(controller.editorSurface.documentByteCount == "before\0中间\nafter".utf8.count)
+
+    controller.editorSurface.text = ""
+
+    #expect(controller.editorSurface.text == "")
+    #expect(controller.editorSurface.documentByteCount == 0)
+}
+
+@MainActor
+@Test func scintillaRawNativeTextChangeNotificationIsIgnored() throws {
+    let controller = EditorWindowController(
+        languageCatalog: try LanguageCatalog.load(from: upstreamLanguageModelURL()),
+        styleCatalog: try StyleCatalog.load(from: upstreamStyleModelURL())
+    )
+    defer { controller.editorSurface.teardown() }
+
+    NotificationCenter.default.post(
+        name: NSText.didChangeNotification,
+        object: controller.editorSurface.notificationObject
+    )
+
+    #expect(!controller.hasUnsavedChanges)
+
+    NotificationCenter.default.post(
+        name: NSText.didChangeNotification,
+        object: controller.editorSurface.notificationObject,
+        userInfo: [EditorSurfaceNotificationKey.programmaticTextChange: false]
+    )
+
+    #expect(controller.hasUnsavedChanges)
+}
+
+@MainActor
 @Test func fallbackXmlHighlightUsesUpstreamStringColor() throws {
     let languageCatalog = try LanguageCatalog.load(from: upstreamLanguageModelURL())
     let language = try #require(languageCatalog.language(named: "xml"))

@@ -87,6 +87,12 @@ protocol EditorSurface: AnyObject {
         stylePreferences: StylePreferences,
         highlighter: SyntaxHighlighter
     )
+    func clearLexer()
+    var documentByteCount: Int { get }
+    /// Caret line/column (1-based) computed natively when the surface can do
+    /// so in O(1); nil means the host must derive it from the text.
+    func caretLineAndColumn() -> (line: Int, column: Int)?
+    func shouldHandleTextChangeNotification(_ notification: Notification) -> Bool
     func syncBookmarkMarkers(_ bookmarks: BookmarkSet)
     func setMarginClickHandler(_ handler: ((EditorMarginClick) -> Void)?)
     func toggleFoldAtCurrentLine()
@@ -386,6 +392,14 @@ final class TextViewEditorSurface: EditorSurface {
         highlighter.apply(language: language, to: textView)
     }
 
+    func clearLexer() {}
+
+    var documentByteCount: Int { textView.string.utf8.count }
+
+    func caretLineAndColumn() -> (line: Int, column: Int)? { nil }
+
+    func shouldHandleTextChangeNotification(_ notification: Notification) -> Bool { true }
+
     func syncBookmarkMarkers(_ bookmarks: BookmarkSet) {}
 
     func setMarginClickHandler(_ handler: ((EditorMarginClick) -> Void)?) {}
@@ -550,27 +564,80 @@ final class ScintillaEditorSurface: EditorSurface {
     /// the deferred NSText.didChange post can carry this as metadata.
     private var isProgrammaticTextSet = false
 
+    /// Cached full-document copy. Reading the buffer out of Scintilla and
+    /// decoding it is O(document); selection/scroll handlers ask for `text`
+    /// several times per event, so reuse one copy until SCN_MODIFIED
+    /// invalidates it. Only safe once the notification delegate is wired up.
+    private var cachedDocumentText: String?
+
     var text: String {
         get {
-            let selector = NSSelectorFromString("string")
-            guard scintillaView.responds(to: selector),
-                  let imp = scintillaView.method(for: selector) else { return "" }
-            typealias Fn = @convention(c) (AnyObject, Selector) -> Unmanaged<NSString>
-            return unsafeBitCast(imp, to: Fn.self)(scintillaView, selector).takeUnretainedValue() as String
+            documentText()
         }
         set {
-            let selector = NSSelectorFromString("setString:")
-            guard scintillaView.responds(to: selector),
-                  let imp = scintillaView.method(for: selector) else { return }
             isProgrammaticTextSet = true
             defer { isProgrammaticTextSet = false }
-            typealias Fn = @convention(c) (AnyObject, Selector, NSString) -> Void
-            unsafeBitCast(imp, to: Fn.self)(scintillaView, selector, newValue as NSString)
+            replaceDocumentText(newValue)
         }
     }
 
     var selectedRange: NSRange {
         bridge.selectedRange()
+    }
+
+    private func documentText() -> String {
+        if let cachedDocumentText, didConfigureNotificationDelegate {
+            return cachedDocumentText
+        }
+        let length = Int(bridge.getGeneralProperty(ScintillaMessage.getLength, parameter: 0) ?? 0)
+        guard length > 0 else { return "" }
+
+        let bufferSize = length + 1
+        var bytes = [UInt8](repeating: 0, count: bufferSize)
+        bytes.withUnsafeMutableBytes { rawBuffer in
+            bridge.setReferenceProperty(
+                ScintillaMessage.getText,
+                parameter: CLong(bufferSize),
+                value: UnsafeRawPointer(rawBuffer.baseAddress)
+            )
+        }
+        let result = String(decoding: bytes.prefix(length), as: UTF8.self)
+        if didConfigureNotificationDelegate {
+            cachedDocumentText = result
+        }
+        return result
+    }
+
+    private func replaceDocumentText(_ newValue: String) {
+        let wasReadOnly = isReadOnly
+        if wasReadOnly {
+            isReadOnly = false
+        }
+        defer {
+            if wasReadOnly {
+                isReadOnly = true
+            }
+        }
+
+        bridge.setGeneralProperty(ScintillaMessage.setUndoCollection, parameter: 0, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.clearAll, parameter: 0, value: 0)
+
+        let bytes = Array(newValue.utf8)
+        if !bytes.isEmpty {
+            bridge.setGeneralProperty(ScintillaMessage.allocate, parameter: CLong(bytes.count), value: 0)
+            bytes.withUnsafeBytes { rawBuffer in
+                bridge.setReferenceProperty(
+                    ScintillaMessage.appendText,
+                    parameter: CLong(bytes.count),
+                    value: rawBuffer.baseAddress
+                )
+            }
+        }
+
+        bridge.setGeneralProperty(ScintillaMessage.setUndoCollection, parameter: 1, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.emptyUndoBuffer, parameter: 0, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.setSavePoint, parameter: 0, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.gotoPos, parameter: 0, value: 0)
     }
 
     var liveRectangularSelection: RectangularSelectionLiveMetadata? {
@@ -723,6 +790,10 @@ final class ScintillaEditorSurface: EditorSurface {
 
     func teardown() {
         _ = bridge.setDelegate(nil)
+    }
+
+    func shouldHandleTextChangeNotification(_ notification: Notification) -> Bool {
+        notification.userInfo?[EditorSurfaceNotificationKey.programmaticTextChange] != nil
     }
 
     private static func dbgWrite(_ s: String) {
@@ -1100,6 +1171,23 @@ final class ScintillaEditorSurface: EditorSurface {
         // Calling it upfront blocks the main thread for the entire document on large files.
     }
 
+    func clearLexer() {
+        bridge.setReferenceProperty(ScintillaMessage.setILexer, parameter: 0, value: nil)
+        bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
+    }
+
+    var documentByteCount: Int {
+        Int(bridge.getGeneralProperty(ScintillaMessage.getLength, parameter: 0) ?? 0)
+    }
+
+    func caretLineAndColumn() -> (line: Int, column: Int)? {
+        guard let pos = bridge.getGeneralProperty(ScintillaMessage.getCurrentPos, parameter: 0),
+              let line = bridge.getGeneralProperty(ScintillaMessage.lineFromPosition, parameter: pos),
+              let column = bridge.getGeneralProperty(ScintillaMessage.getColumn, parameter: pos)
+        else { return nil }
+        return (Int(line) + 1, Int(column) + 1)
+    }
+
     func syncBookmarkMarkers(_ bookmarks: BookmarkSet) {
         bridge.setGeneralProperty(
             ScintillaMessage.markerDeleteAll,
@@ -1332,7 +1420,7 @@ final class ScintillaEditorSurface: EditorSurface {
     func clearSearchIndicator(_ style: SearchMarkStyle) {
         let indicator = CLong(style.rawValue)
         bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
-        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(text.utf16.count))
+        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(documentByteCount))
     }
 
     func clearAllSearchIndicators() {
@@ -1672,11 +1760,19 @@ final class ScintillaEditorSurface: EditorSurface {
 
     private static let smartHighlightIndicator: CLong = 10 // INDICATOR_CONTAINER + custom
 
+    /// Last applied smart-highlight request; repeated identical requests
+    /// (selection drags fire several SCIUpdateUI events per gesture) must be
+    /// no-ops, otherwise the clear-and-repaint cycle makes the visible lines
+    /// flicker.
+    private var appliedSmartHighlight: (word: String, matchCase: Bool, wholeWord: Bool, start: CLong, end: CLong)?
+
     var supportsSmartHighlight: Bool { true }
 
     func applySmartHighlight(_ word: String, matchCase: Bool, wholeWord: Bool) {
-        clearSmartHighlight()
-        guard !word.isEmpty else { return }
+        guard !word.isEmpty else {
+            clearSmartHighlight()
+            return
+        }
 
         // Configure the indicator style
         let indicator = Self.smartHighlightIndicator
@@ -1689,25 +1785,70 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.indicSetOutlineAlpha, parameter: indicator, value: 255)
         bridge.setGeneralProperty(ScintillaMessage.indicSetUnder, parameter: indicator, value: 1)
 
-        // Find all occurrences and mark them
-        let currentText = text
-        let options = TextSearch.Options(matchCase: matchCase, wholeWord: wholeWord, wraps: false, direction: .down)
-        let matches = TextSearch.findAll(word, in: currentText, options: options)
-        guard !matches.isEmpty else { return }
+        // Mark occurrences in the visible lines only (upstream SmartHighlighter
+        // behavior) using Scintilla's native target search, so the cost stays
+        // O(visible area) regardless of document size.
+        let firstVisible = bridge.getGeneralProperty(ScintillaMessage.getFirstVisibleLine, parameter: 0) ?? 0
+        let linesOnScreen = bridge.getGeneralProperty(ScintillaMessage.linesOnScreen, parameter: 0) ?? 0
+        let firstLine = bridge.getGeneralProperty(ScintillaMessage.docLineFromVisible, parameter: firstVisible) ?? 0
+        let lastLine = bridge.getGeneralProperty(ScintillaMessage.docLineFromVisible, parameter: firstVisible + linesOnScreen) ?? 0
+        let rangeStart = bridge.getGeneralProperty(ScintillaMessage.positionFromLine, parameter: firstLine) ?? 0
+        let rangeEnd = bridge.getGeneralProperty(ScintillaMessage.getLineEndPosition, parameter: lastLine)
+            ?? CLong(documentByteCount)
 
+        if let applied = appliedSmartHighlight,
+           applied.word == word, applied.matchCase == matchCase, applied.wholeWord == wholeWord,
+           applied.start == rangeStart, applied.end == rangeEnd {
+            return
+        }
+        // Clear only what the previous application painted; clearing the
+        // whole document would force a repaint of every visible line.
+        if let applied = appliedSmartHighlight {
+            bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
+            bridge.setGeneralProperty(
+                ScintillaMessage.indicatorClearRange,
+                parameter: applied.start,
+                value: applied.end - applied.start
+            )
+        } else {
+            clearSmartHighlight()
+        }
+        appliedSmartHighlight = (word, matchCase, wholeWord, rangeStart, rangeEnd)
+
+        bridge.setGeneralProperty(
+            ScintillaMessage.setSearchFlags,
+            parameter: buildSearchFlags(matchCase: matchCase, wholeWord: wholeWord),
+            value: 0
+        )
         bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
-        for range in matches {
-            guard let sciStart = scintillaPosition(in: currentText, utf16Location: range.location),
-                  let sciEnd = scintillaPosition(in: currentText, utf16Location: NSMaxRange(range))
-            else { continue }
-            bridge.setGeneralProperty(ScintillaMessage.indicatorFillRange, parameter: sciStart, value: sciEnd - sciStart)
+
+        let wordBytes = Array(word.utf8)
+        var searchStart = rangeStart
+        while searchStart < rangeEnd {
+            bridge.setGeneralProperty(ScintillaMessage.setTargetStart, parameter: searchStart, value: 0)
+            bridge.setGeneralProperty(ScintillaMessage.setTargetEnd, parameter: rangeEnd, value: 0)
+            let found = wordBytes.withUnsafeBytes { rawBuffer in
+                bridge.message(
+                    ScintillaMessage.searchInTarget,
+                    wParam: CLong(wordBytes.count),
+                    lParam: rawBuffer.baseAddress
+                )
+            }
+            guard let found, found >= 0,
+                  let matchStart = bridge.getGeneralProperty(ScintillaMessage.getTargetStart, parameter: 0),
+                  let matchEnd = bridge.getGeneralProperty(ScintillaMessage.getTargetEnd, parameter: 0),
+                  matchEnd > matchStart
+            else { break }
+            bridge.setGeneralProperty(ScintillaMessage.indicatorFillRange, parameter: matchStart, value: matchEnd - matchStart)
+            searchStart = matchEnd
         }
     }
 
     func clearSmartHighlight() {
+        appliedSmartHighlight = nil
         let indicator = Self.smartHighlightIndicator
         bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
-        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(text.utf16.count))
+        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(documentByteCount))
     }
 
     // MARK: - XML tag matching
@@ -1739,7 +1880,7 @@ final class ScintillaEditorSurface: EditorSurface {
     func clearXmlTagHighlight() {
         let indicator = Self.xmlTagMatchIndicator
         bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
-        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(text.utf16.count))
+        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(documentByteCount))
     }
 
     // XML tag attribute highlight uses indicator 12 (distinct from tag-name indicator 11)
@@ -1766,7 +1907,7 @@ final class ScintillaEditorSurface: EditorSurface {
     func clearXmlAttributeHighlight() {
         let indicator = Self.xmlTagAttributeIndicator
         bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
-        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(text.utf16.count))
+        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(documentByteCount))
     }
 
     // MARK: - Auto-indent
@@ -1927,7 +2068,7 @@ final class ScintillaEditorSurface: EditorSurface {
     func clearUrlHighlights() {
         let indicator = Self.urlIndicator
         bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
-        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(text.utf16.count))
+        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(documentByteCount))
     }
 
     func urlIndicatorRange(at position: Int) -> NSRange? {
@@ -1986,8 +2127,16 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func updateBraceHighlightAtUtf16Location(_ location: Int) {
-        let currentText = text
-        guard let sciPos = scintillaPosition(in: currentText, utf16Location: location) else {
+        // Fast path: callers almost always pass the selection start, whose
+        // byte position Scintilla can report directly — avoids an O(document)
+        // UTF-16 → UTF-8 conversion on every caret move.
+        let sciPos: CLong
+        if location == bridge.selectedRange().location,
+           let selectionStart = bridge.getGeneralProperty(ScintillaMessage.getSelectionStart, parameter: 0) {
+            sciPos = selectionStart
+        } else if let converted = scintillaPosition(in: text, utf16Location: location) {
+            sciPos = converted
+        } else {
             clearBraceHighlight()
             return
         }
@@ -2202,6 +2351,10 @@ final class ScintillaEditorSurface: EditorSurface {
             as: Int32.self
         )
         guard modificationType & ScintillaModificationType.textChanged != 0 else { return }
+        cachedDocumentText = nil
+        // Positions shift with the edit; force the next smart-highlight
+        // application to repaint instead of being deduplicated away.
+        appliedSmartHighlight = nil
         // Defer to next run-loop iteration to avoid re-entering Swift Observation tracking
         // while Scintilla is in the middle of a drawRect/paint cycle (macOS 26+ SIGSEGV fix).
         // Capture whether this modification came from the host's `text` setter
@@ -2683,6 +2836,17 @@ private final class ScintillaDynamicBridge {
         function(target, selector, name as NSString, value as NSString)
     }
 
+    /// Send a raw Scintilla message with a pointer lParam and return the
+    /// result — needed for messages like SCI_SEARCHINTARGET whose return
+    /// value the property-style accessors discard.
+    func message(_ message: Int32, wParam: CLong, lParam: UnsafeRawPointer?) -> CLong? {
+        let selector = NSSelectorFromString("message:wParam:lParam:")
+        guard target.responds(to: selector), let method = target.method(for: selector) else { return nil }
+        typealias Function = @convention(c) (AnyObject, Selector, UInt32, UInt, Int) -> Int
+        let function = unsafeBitCast(method, to: Function.self)
+        return function(target, selector, UInt32(bitPattern: message), UInt(bitPattern: wParam), Int(bitPattern: lParam))
+    }
+
     func setDelegate(_ delegate: AnyObject?) -> Bool {
         let selector = NSSelectorFromString("setDelegate:")
         guard target.responds(to: selector), let method = target.method(for: selector) else {
@@ -2748,6 +2912,7 @@ private enum ScintillaNotificationLayout {
 }
 
 private enum ScintillaMessage {
+    static let clearAll: Int32 = 2004
     static let getCurrentPos: Int32 = 2008
     static let gotoLine: Int32 = 2024
     static let getLineCount: Int32 = 2154
@@ -2883,9 +3048,19 @@ private enum ScintillaMessage {
     static let replaceTarget: Int32 = 2194
     static let getLineEndPosition: Int32 = 2136
     static let positionFromLine: Int32 = 2167
+    static let getColumn: Int32 = 2129
+    static let getFirstVisibleLine: Int32 = 2152
+    static let docLineFromVisible: Int32 = 2221
+    static let linesOnScreen: Int32 = 2370
     static let getSelText: Int32 = 2161
     static let getTextRange: Int32 = 2162
     static let annotationClearAll: Int32 = 2547
+    static let setUndoCollection: Int32 = 2012
+    static let setSavePoint: Int32 = 2014
+    static let emptyUndoBuffer: Int32 = 2175
+    static let getText: Int32 = 2182
+    static let appendText: Int32 = 2282
+    static let allocate: Int32 = 2446
     static let insertText: Int32 = 2003
     static let getCharAt: Int32 = 2007
     static let getLength: Int32 = 2006

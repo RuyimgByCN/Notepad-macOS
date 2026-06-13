@@ -290,6 +290,25 @@ final class PreferencesEnhancementTests: XCTestCase {
         XCTAssertFalse(store.load().largeFileSuppressSyntaxHighlight)
     }
 
+    func testDefaultLargeFileThresholdMatchesUpstream() {
+        XCTAssertEqual(AppPreferences.defaultLargeFileMB, 200)
+    }
+
+    func testReportedXmlFixtureStaysBelowDefaultLargeFileMode() {
+        let preferences = AppPreferences()
+        XCTAssertFalse(preferences.shouldUseLargeFileMode(byteCount: 8_043_650, languageName: "xml"))
+    }
+
+    func testXmlFixtureRespectsConfiguredLargeFileThreshold() {
+        let preferences = AppPreferences(largeFileSizeMB: 50)
+        XCTAssertFalse(preferences.shouldUseLargeFileMode(byteCount: 8_043_650, languageName: "xml"))
+    }
+
+    func testNonMarkupFilesStillRespectConfiguredLargeFileThreshold() {
+        let preferences = AppPreferences(largeFileSizeMB: 50)
+        XCTAssertFalse(preferences.shouldUseLargeFileMode(byteCount: 8_043_650, languageName: "swift"))
+    }
+
     // MARK: - Tab Bar Hide
 
     func testTabbarHideDefault() {

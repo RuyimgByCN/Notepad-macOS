@@ -541,6 +541,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     @objc private func editorTextDidChange(_ notification: Notification) {
+        guard editorSurface.shouldHandleTextChangeNotification(notification) else { return }
         recordMacroTextChangeIfNeeded(to: editorSurface.text)
         bookmarks = bookmarks.clamped(toLineCount: documentLineCount())
         editorSurface.syncBookmarkMarkers(bookmarks)
@@ -560,9 +561,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         updateTitle()
         highlight()
         updateStatus()
-        updateXmlTagHighlight()
+        if !isLargeFile { updateXmlTagHighlight() }
         updateSmartHighlight()
-        scheduleUrlHighlightUpdate()
+        if !isLargeFile { scheduleUrlHighlightUpdate() }
         scheduleDocumentMapUpdate()
         onContentChange?()
     }
@@ -589,9 +590,25 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
+    // SCIUpdateUI also fires for pure scrolling; remember the last selection
+    // state so scroll-only events skip the caret-dependent work entirely.
+    private var lastObservedSelection: NSRange?
+    private var lastObservedByteCount = -1
+
     @objc private func editorSelectionDidChange(_ notification: Notification) {
+        let selection = editorSurface.selectedRange
+        let byteCount = editorSurface.documentByteCount
+        if selection == lastObservedSelection, byteCount == lastObservedByteCount {
+            // Scroll-only update: caret didn't move. Smart highlight is the
+            // one thing tied to the visible range, and it is O(visible).
+            updateSmartHighlight()
+            return
+        }
+        lastObservedSelection = selection
+        lastObservedByteCount = byteCount
+
         updateStatus()
-        updateXmlTagHighlight()
+        if !isLargeFile { updateXmlTagHighlight() }
         updateSmartHighlight()
         updateBraceHighlight()
         if documentMapPanel.isVisible {
@@ -1064,8 +1081,19 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.updateBraceHighlightAtUtf16Location(editorSurface.selectedRange.location)
     }
 
+    // Tag matching scans character-by-character from the cursor's tag to its
+    // partner — for a data XML whose root tag wraps the whole file that means
+    // reaching the end of the document, so cap it well below the large-file
+    // threshold to keep caret movement responsive.
+    private static let xmlTagMatchMaxBytes = 2 * 1024 * 1024
+
     private func updateXmlTagHighlight() {
         guard enablesXmlTagMatch, editorSurface.supportsXmlTagMatch else { return }
+        guard editorSurface.documentByteCount <= Self.xmlTagMatchMaxBytes else {
+            editorSurface.clearXmlTagHighlight()
+            editorSurface.clearXmlAttributeHighlight()
+            return
+        }
         let text = editorSurface.text
         let nsLen = (text as NSString).length
         let cursorPos = min(editorSurface.selectedRange.location, nsLen)
@@ -5045,20 +5073,25 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
-    // Files larger than this are treated as "large files" with reduced features
-    private var largeFileSizeThreshold: Int { preferencesStore.load().largeFileSizeMB * 1024 * 1024 }
     private var isLargeFile = false
 
     private func load(_ url: URL) throws {
-        let loaded = try TextFileCodec.read(url, openAnsiAsUtf8: preferencesStore.load().openAnsiAsUtf8)
+        let preferences = preferencesStore.load()
+        let loaded = try TextFileCodec.read(url, openAnsiAsUtf8: preferences.openAnsiAsUtf8)
         fileURL = url
         snapshotID = nil
         encoding = loaded.encoding
         savePolicy = TextFileSavePolicy.loaded(loaded)
         lineEnding = loaded.lineEnding
         language = LanguageDetector.detect(url: url, content: loaded.text, in: languageCatalog)
-        isLargeFile = loaded.text.utf8.count > largeFileSizeThreshold
-        if isLargeFile && preferencesStore.load().largeFileSuppressWordWrap {
+        isLargeFile = preferences.shouldUseLargeFileMode(
+            byteCount: loaded.text.utf8.count,
+            languageName: language.name
+        )
+        if isLargeFile {
+            editorSurface.clearLexer()
+        }
+        if isLargeFile && preferences.largeFileSuppressWordWrap {
             editorSurface.applyLineWrapping(false, width: window?.contentView?.bounds.width ?? 0)
         }
         editorSurface.text = loaded.text
@@ -5459,7 +5492,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             String(
                 format: Localization.string(.editorStatusCharacterCount, default: "%d chars"),
                 locale: Locale.current,
-                editorSurface.text.count
+                statusCharacterCount()
             ),
         ]
         let selLen = editorSurface.selectedRange.length
@@ -5521,8 +5554,19 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         statusField.stringValue = parts.joined(separator: "    ")
     }
 
+    // Counting grapheme clusters is O(document) on every status refresh;
+    // above this size report the byte count instead, like upstream's
+    // "length" status field.
+    private static let preciseCharCountMaxBytes = 1024 * 1024
+
+    private func statusCharacterCount() -> Int {
+        let byteCount = editorSurface.documentByteCount
+        return byteCount > Self.preciseCharCountMaxBytes ? byteCount : editorSurface.text.count
+    }
+
     private func caretLocation() -> (line: Int, column: Int) {
-        lineAndColumn(at: editorSurface.selectedRange.location)
+        editorSurface.caretLineAndColumn()
+            ?? lineAndColumn(at: editorSurface.selectedRange.location)
     }
 
     private func lineAndColumn(at utf16Location: Int) -> (line: Int, column: Int) {

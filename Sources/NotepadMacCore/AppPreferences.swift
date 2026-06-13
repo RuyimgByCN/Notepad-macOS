@@ -49,7 +49,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public static let maximumCaretWidth = 3
     public static let minimumLargeFileMB = 1
     public static let maximumLargeFileMB = 4096
-    public static let defaultLargeFileMB = 2
+    public static let defaultLargeFileMB = 200
 
     public static let defaultValue = AppPreferences(
         editorFontSize: 13,
@@ -709,6 +709,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.foldCompact = foldCompact
         self.showDocSwitcher = showDocSwitcher
         self.perLineResultInFind = perLineResultInFind
+    }
+
+    public func shouldUseLargeFileMode(byteCount: Int, languageName: String? = nil) -> Bool {
+        guard byteCount > 0 else { return false }
+        return byteCount > largeFileSizeMB * 1024 * 1024
     }
 
     /// Parse languageTabOverrides string into a dictionary.
