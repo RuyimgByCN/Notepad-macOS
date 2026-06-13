@@ -3,3 +3,9 @@
 
 .build/
 dist/
+
+# Upstream Notepad++ source tree — fetched fresh at build/CI time
+# (see .github/workflows/release.yml). Only the placeholder markers
+# (upstream/notepad--, upstream/NotepadNext) are tracked.
+upstream/notepad-plus-plus/
+
