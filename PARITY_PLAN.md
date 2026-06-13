@@ -314,7 +314,7 @@ swift test 490 项全过。
 
 ## 全量对等审计 + Mac Cyrillic 编码补齐（2026-06-13）✅ 已完成
 
-以本地 `upstream/notepad-plus-plus/`（v8.9.6.4, pinned `75186d9`）为基准，逐域
+以本地 `upstream/notepad-plus-plus/`（v8.9.6.4, pinned `6ab5c211`）为基准，逐域
 核对了 `menuCmdID.h` 的 567 个命令 ID 与本地实现：
 
 - **语言**（95 `IDM_LANG_*`）：`ScintillaLexilla.lexerNames` 覆盖全部命名语言，
