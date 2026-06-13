@@ -885,6 +885,11 @@ final class ScintillaEditorSurface: EditorSurface {
     func applyScrollBeyondLastLine(_ enabled: Bool) {
         // SCI_SETENDATLASTLINE: 1 = end at last line (default), 0 = can scroll past
         bridge.setGeneralProperty(ScintillaMessage.setEndAtLastLine, parameter: enabled ? 0 : 1, value: 0)
+        // Scintilla defaults scrollWidth to 2000px, so a brand-new/empty document
+        // shows a horizontal scrollbar on any window narrower than ~2000px. Override
+        // to 1px (matching upstream ScintillaEditView.cpp); tracking grows it to fit
+        // the longest line so the bar only appears when content actually overflows.
+        bridge.setGeneralProperty(ScintillaMessage.setScrollWidth, parameter: 1, value: 0)
         bridge.setGeneralProperty(ScintillaMessage.setScrollWidthTracking, parameter: 1, value: 0)
     }
 
@@ -3083,6 +3088,7 @@ private enum ScintillaMessage {
     static let getUseTabs: Int32 = 2125
     static let getTabWidth: Int32 = 2121
     static let setEndAtLastLine: Int32 = 2277
+    static let setScrollWidth: Int32 = 2274
     static let setScrollWidthTracking: Int32 = 2516
     static let autoCSetFore: Int32 = 2237
     static let autoCSetBack: Int32 = 2238
