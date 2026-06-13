@@ -99,7 +99,7 @@ import Testing
         "visualprolog": "visualprolog", "typescript": "cpp",
         "json5": "json", "mssql": "mssql", "gdscript": "gdscript",
         "hollywood": "hollywood", "go": "cpp", "raku": "raku",
-        "toml": "toml", "sas": "sas"
+        "toml": "toml", "sas": "sas", "escseq": "escseq"
     ]
 
     for (languageName, lexerName) in upstreamMappings {

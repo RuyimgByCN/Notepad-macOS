@@ -212,6 +212,7 @@ public enum NotepadPlusLexillaMapping {
         "latex": "latex",
         "postscript": "ps",
         "txt2tags": "txt2tags",
+        "escseq": "escseq", // ANSI escape sequence — upstream v8.9.6.4
         // Statistics / math
         "matlab": "matlab",
         "r": "r",
