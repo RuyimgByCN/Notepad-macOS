@@ -904,17 +904,6 @@ enum AppMenu {
             action: #selector(AppDelegate.openPluginsFolder(_:)),
             keyEquivalent: ""
         ).target = delegate
-        pluginsMenu.addItem(
-            withTitle: Localization.string(.pluginsImport, default: "Import Plugin..."),
-            action: #selector(AppDelegate.importPlugin(_:)),
-            keyEquivalent: ""
-        ).target = delegate
-        pluginsMenu.addItem(
-            withTitle: Localization.string(.settingsImportTheme, default: "Import Style Theme..."),
-            action: #selector(AppDelegate.importStyleTheme(_:)),
-            keyEquivalent: ""
-        ).target = delegate
-
         let viewMenuItem = NSMenuItem()
         mainMenu.addItem(viewMenuItem)
         let viewMenu = NSMenu(title: Localization.string(.viewMenu, default: "View"))
@@ -1446,6 +1435,8 @@ enum AppMenu {
         menu.addItem(charSetsItem)
     }
 
+    // Upstream Settings menu: Preferences... / Style Configurator... /
+    // Shortcut Mapper... / ─ / Import ▸ / ─ / Edit Popup ContextMenu
     private static func installSettingsMenuItems(in menu: NSMenu, delegate: AppDelegate) {
         menu.addItem(
             withTitle: Localization.string(.appPreferences, default: "Preferences..."),
@@ -1462,25 +1453,28 @@ enum AppMenu {
             action: #selector(AppDelegate.showShortcutMapper(_:)),
             keyEquivalent: ""
         ).target = delegate
-        menu.addItem(
-            withTitle: Localization.string(.appValidateShortcutsXML, default: "Validate shortcuts.xml..."),
-            action: #selector(AppDelegate.validateShortcutsXML(_:)),
+        menu.addItem(NSMenuItem.separator())
+
+        let importItem = NSMenuItem()
+        importItem.title = Localization.string(.settingsImport, default: "Import")
+        let importMenu = NSMenu(title: importItem.title)
+        importItem.submenu = importMenu
+        menu.addItem(importItem)
+        importMenu.addItem(
+            withTitle: Localization.string(.pluginsImport, default: "Import Plugin(s)..."),
+            action: #selector(AppDelegate.importPlugin(_:)),
             keyEquivalent: ""
         ).target = delegate
+        importMenu.addItem(
+            withTitle: Localization.string(.settingsImportTheme, default: "Import Style Theme(s)..."),
+            action: #selector(AppDelegate.importStyleTheme(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+
         menu.addItem(NSMenuItem.separator())
         menu.addItem(
-            withTitle: Localization.string(.appEditContextMenu, default: "Edit Context Menu..."),
+            withTitle: Localization.string(.appEditContextMenu, default: "Edit Popup ContextMenu"),
             action: #selector(AppDelegate.editContextMenuXML(_:)),
-            keyEquivalent: ""
-        ).target = delegate
-        menu.addItem(
-            withTitle: Localization.string(.appEditTabContextMenu, default: "Edit Tab Context Menu..."),
-            action: #selector(AppDelegate.editTabContextMenuXML(_:)),
-            keyEquivalent: ""
-        ).target = delegate
-        menu.addItem(
-            withTitle: Localization.string(.appReloadContextMenus, default: "Reload Context Menus"),
-            action: #selector(AppDelegate.reloadContextMenus(_:)),
             keyEquivalent: ""
         ).target = delegate
     }

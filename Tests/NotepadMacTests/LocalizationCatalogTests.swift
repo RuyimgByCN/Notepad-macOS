@@ -15,7 +15,8 @@ import Testing
     defer { Localization.apply(localizationFileName: original, postNotification: false) }
     Localization.apply(localizationFileName: "chineseSimplified.xml", postNotification: false)
     let string = Localization.string("app.preferences", default: "Preferences...")
-    #expect(string == "偏好设置...")
+    // Upstream zh-Hans wording for the Settings > Preferences menu item.
+    #expect(string == "首选项...")
 }
 
 @Test func nativeLangFallbackProvidesFrenchMenuTranslations() {
