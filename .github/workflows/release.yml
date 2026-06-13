@@ -33,6 +33,21 @@ jobs:
           echo "version=$NPP_VER" >> "$GITHUB_OUTPUT"
           echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
+      # upstream/notepad-plus-plus is not tracked in this repo (it is the full
+      # Notepad++ tree). Fetch it at the pinned commit the app is built against
+      # and re-apply our macOS LexUser patch so the build scripts find the
+      # Scintilla/Lexilla sources. Runs AFTER version extraction so the release
+      # version comes from the git tag, not upstream resource.h.
+      - name: Restore upstream Notepad++ source
+        run: |
+          NPP_COMMIT="75186d90307d033da95323f79ace87ff8d331a44"
+          git clone --filter=blob:none \
+            https://github.com/notepad-plus-plus/notepad-plus-plus.git \
+            upstream/notepad-plus-plus
+          git -C upstream/notepad-plus-plus checkout --detach "$NPP_COMMIT"
+          cp patches/lexilla/LexUser.cxx \
+            upstream/notepad-plus-plus/lexilla/lexers/LexUser.cxx
+
       - name: Build Scintilla framework
         run: scripts/build-scintilla-framework.sh
 
