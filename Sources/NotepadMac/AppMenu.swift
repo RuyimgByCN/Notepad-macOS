@@ -917,7 +917,18 @@ enum AppMenu {
         viewMenu.addItem(NSMenuItem.separator())
 
         // --- View Current File in Browser ---
-        viewMenu.addItem(withTitle: Localization.string(.viewLaunchInBrowser, default: "Launch in Browser"), action: #selector(EditorWindowController.launchInBrowser(_:)), keyEquivalent: "")
+        // Upstream offers specific browsers (Firefox/Chrome/Edge/IE); on macOS
+        // we surface a "Launch in Browser ▸" submenu with the default browser
+        // plus each installed browser discovered by bundle identifier.
+        let launchInBrowserItem = NSMenuItem(
+            title: Localization.string(.viewLaunchInBrowser, default: "Launch in Browser"),
+            action: nil,
+            keyEquivalent: ""
+        )
+        let launchInBrowserMenu = NSMenu(title: launchInBrowserItem.title)
+        launchInBrowserItem.submenu = launchInBrowserMenu
+        viewMenu.addItem(launchInBrowserItem)
+        populateLaunchInBrowserMenu(launchInBrowserMenu)
         viewMenu.addItem(NSMenuItem.separator())
 
         // --- Show Symbol submenu ---
@@ -1777,6 +1788,36 @@ enum AppMenu {
             action: selectionAction,
             keyEquivalent: ""
         )
+    }
+
+    @MainActor
+    /// Fills the "Launch in Browser" submenu with a "Default Browser" entry
+    /// followed by one item per installed browser, discovered by bundle
+    /// identifier through `NSWorkspace`. The detection logic itself lives in
+    /// `BrowserLauncher` so it can be unit-tested without AppKit.
+    private static func populateLaunchInBrowserMenu(_ menu: NSMenu) {
+        let defaultItem = NSMenuItem(
+            title: Localization.string(.viewLaunchInDefaultBrowser, default: "Default Browser"),
+            action: #selector(EditorWindowController.launchInBrowser(_:)),
+            keyEquivalent: ""
+        )
+        menu.addItem(defaultItem)
+
+        let installed = BrowserLauncher.installedBrowsers { bundleID in
+            NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) != nil
+        }
+        guard !installed.isEmpty else { return }
+
+        menu.addItem(NSMenuItem.separator())
+        for browser in installed {
+            let item = NSMenuItem(
+                title: browser.displayName,
+                action: #selector(EditorWindowController.launchInSpecificBrowser(_:)),
+                keyEquivalent: ""
+            )
+            item.representedObject = browser.bundleIdentifier
+            menu.addItem(item)
+        }
     }
 
     @MainActor

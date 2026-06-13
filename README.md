@@ -223,6 +223,10 @@ Verified as buildable and intended for the next reuse step:
   and Settings > Validate shortcuts.xml diagnostics
 - Native Go To Line, Go to Matching Brace, brace/XML-tag highlighting, smart
   highlighting, change-history navigation, and Hide Lines
+- View > Launch in Browser submenu (upstream Firefox/Chrome/Edge parity)
+  offering the system default browser plus each installed browser discovered
+  by bundle identifier (Safari, Chrome, Firefox, Edge, Brave, Arc, Opera,
+  Chromium, Vivaldi); unsaved documents preview from a temporary HTML file
 - Full Encoding menu with upstream-style "Character sets" region grouping
   covering UTF-8/UTF-16 plus ~45 legacy codepages (ISO 8859-x, Windows-125x,
   KOI8-R/U, CJK, TIS-620, OEM/DOS pages) across the convert / encode-in /

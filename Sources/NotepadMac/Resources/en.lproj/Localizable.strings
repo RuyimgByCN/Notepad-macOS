@@ -615,6 +615,7 @@
 "view.documentStatistics" = "Document Statistics...";
 "view.monitoring" = "Monitoring (tail -f)";
 "view.launchInBrowser" = "Launch in Browser";
+"view.launchInDefaultBrowser" = "Default Browser";
 "view.hideLines" = "Hide Lines";
 "view.showAllHiddenLines" = "Show All Hidden Lines";
 "view.changeHistory" = "Change History";

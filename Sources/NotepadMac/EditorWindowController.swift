@@ -2685,16 +2685,37 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     @objc func launchInBrowser(_ sender: Any?) {
-        if let url = fileURL {
+        guard let url = previewURLForBrowserLaunch() else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    /// Opens the current document in the browser chosen from the
+    /// "Launch in Browser ▸" submenu. The sender's `representedObject` carries
+    /// the target browser's bundle identifier. Falls back to the default
+    /// browser when the bundle can no longer be resolved.
+    @objc func launchInSpecificBrowser(_ sender: Any?) {
+        guard let url = previewURLForBrowserLaunch() else { return }
+        let bundleID = (sender as? NSMenuItem)?.representedObject as? String
+        guard let bundleID,
+              let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
             NSWorkspace.shared.open(url)
-        } else {
-            // Unsaved file: write to a temp file and open
-            let tmpDir = FileManager.default.temporaryDirectory
-            let tmpURL = tmpDir.appendingPathComponent("NotepadPreview.html")
-            let content = editorSurface.text
-            try? content.write(to: tmpURL, atomically: true, encoding: .utf8)
-            NSWorkspace.shared.open(tmpURL)
+            return
         }
+        NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration())
+    }
+
+    /// Returns the URL to preview: the document's file URL when it is backed by
+    /// a file, otherwise a freshly written temporary HTML file for unsaved
+    /// documents. Mirrors upstream "View current file in browser".
+    private func previewURLForBrowserLaunch() -> URL? {
+        if let url = fileURL {
+            return url
+        }
+        let tmpURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("NotepadPreview.html")
+        let content = editorSurface.text
+        try? content.write(to: tmpURL, atomically: true, encoding: .utf8)
+        return tmpURL
     }
 
     @objc func setSyntaxLanguage(_ sender: Any?) {

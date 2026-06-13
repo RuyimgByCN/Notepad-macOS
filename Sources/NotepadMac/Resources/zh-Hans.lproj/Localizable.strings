@@ -615,6 +615,7 @@
 "view.documentStatistics" = "文档统计...";
 "view.monitoring" = "监控 (tail -f)";
 "view.launchInBrowser" = "在浏览器中打开";
+"view.launchInDefaultBrowser" = "默认浏览器";
 "view.hideLines" = "隐藏行";
 "view.showAllHiddenLines" = "显示所有隐藏行";
 "view.changeHistory" = "更改历史";

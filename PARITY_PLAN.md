@@ -288,6 +288,30 @@ swift test 490 项全过。
 
 注：`errorlist`/`searchresult` 为上游内部视图，保持 intentionally unmapped。
 
+## View 菜单「在浏览器中打开」子菜单化（2026-06-13）✅ 已完成
+
+上游 View 菜单直接列出 `IDM_VIEW_IN_FIREFOX / _CHROME / _EDGE / _IE`
+四个具体浏览器命令，本项目此前只有单个「Launch in Browser」走系统默认
+浏览器。本轮把该项改为「Launch in Browser ▸」子菜单：
+
+- 新增 `BrowserLauncher`（NotepadMacCore，纯 Foundation）：维护
+  Firefox / Chrome / Edge / Safari / Brave / Arc / Opera / Chromium /
+  Vivaldi 的候选（显示名 + bundle id，顺序对齐上游 Firefox/Chrome/Edge
+  在前），`installedBrowsers(bundleExists:)` 经可注入谓词过滤，便于单测。
+- AppMenu 在构建菜单时经 `NSWorkspace.urlForApplication(withBundleIdentifier:)`
+  探测已安装浏览器，子菜单首项为「Default Browser」（保留原默认浏览器行为），
+  之后逐项列出已安装浏览器，`representedObject` 携带 bundle id。
+- `EditorWindowController` 抽出 `previewURLForBrowserLaunch()`（文件 URL 或
+  临时 HTML），新增 `launchInSpecificBrowser(_:)` 经
+  `NSWorkspace.open(_:withApplicationAt:configuration:)` 在指定浏览器打开。
+- IE 在 macOS 不存在，按平台差异省略。
+
+新增 `BrowserLauncherTests`（7 项：候选无重复 bundle id/显示名、覆盖上游
+三大浏览器目标、谓词过滤、空/全集、顺序保持）。`swift build` 通过；
+`swift test` 中 BrowserLauncherTests 全过，其余唯一失败
+`scintillaRawNativeTextChangeNotificationIsIgnored` 为既有环境性失败
+（dev 未打包 Scintilla framework），在 clean tree 上同样失败，与本次改动无关。
+
 ## 明确不做(Won't do)
 
 - Win32 DLL 插件加载 / Wine 桥接。

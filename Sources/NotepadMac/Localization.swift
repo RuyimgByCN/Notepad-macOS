@@ -511,6 +511,7 @@ enum Localization {
         case viewDocumentStatistics = "view.documentStatistics"
         case viewMonitoring = "view.monitoring"
         case viewLaunchInBrowser = "view.launchInBrowser"
+        case viewLaunchInDefaultBrowser = "view.launchInDefaultBrowser"
         case searchDeleteLinesNotContainingStyle = "search.deleteNotContainingStyle"
         case findHistoryClear = "find.historyClear"
         case searchGoToLineHint = "search.goToLineHint"
