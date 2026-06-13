@@ -312,6 +312,30 @@ swift test 490 项全过。
 `scintillaRawNativeTextChangeNotificationIsIgnored` 为既有环境性失败
 （dev 未打包 Scintilla framework），在 clean tree 上同样失败，与本次改动无关。
 
+## 全量对等审计 + Mac Cyrillic 编码补齐（2026-06-13）✅ 已完成
+
+以本地 `upstream/notepad-plus-plus/`（v8.9.6.4, pinned `75186d9`）为基准，逐域
+核对了 `menuCmdID.h` 的 567 个命令 ID 与本地实现：
+
+- **语言**（95 `IDM_LANG_*`）：`ScintillaLexilla.lexerNames` 覆盖全部命名语言，
+  另含 dart/markdown/zig 额外项；`errorlist/searchresult` 按设计故意不映射。✅
+- **编辑**（48 `IDM_EDIT_*`）：大小写 6 变体、16 种排序+随机+反序、行操作、
+  空白↔制表符双向、注释三式、书签、多选、复制路径/文件名、二进制剪贴板、
+  日期时间、双向 RTL/LTR 均在。✅
+- **查看/查找/偏好/上下文菜单**：完整（标签栏锁定/压缩、更改历史边距等以
+  偏好项形式落地）。✅
+- **编码**（`IDM_FORMAT_*`）：发现 **1 个真实缺口**——Mac Cyrillic
+  （`IDM_FORMAT_MAC_CYRILLIC`，codepage 10007 / `x-mac-cyrillic`）此前缺失。
+  注：ISO 8859-16 上游本身就禁用（`Parameters.cpp` 注释、`EncodingMapper`
+  codepage `-1`），本地不提供**正确对齐**了实际可见菜单，不算缺口。
+
+**补齐**：`TextEncodingOption` 新增 `macCyrillic` case，经 `cfEncoding(0x07)`
+（`kCFStringEncodingMacCyrillic`，CF 合成 NSStringEncoding `0x80000007`）桥接，
+加入 `characterSetMenuSections` 的 Cyrillic 分组；西里尔字母 А→0x80 字节回归。
+`TextFileCodecTests`（round-trip + 字节值）、`CoreBehaviorTests`（全量显示名
+快照 + init 往返）全过；`swift test` 489/490，唯一失败为既有环境性
+`scintillaRawNativeTextChangeNotificationIsIgnored`，与本次改动无关。
+
 ## 明确不做(Won't do)
 
 - Win32 DLL 插件加载 / Wine 桥接。

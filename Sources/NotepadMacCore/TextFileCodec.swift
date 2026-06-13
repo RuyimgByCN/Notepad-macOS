@@ -59,6 +59,7 @@ public enum TextEncodingOption: String, CaseIterable, Equatable, Sendable {
     case isoLatin1
     case windowsCP1252
     case macOSRoman
+    case macCyrillic     // Mac OS Cyrillic (x-mac-cyrillic, upstream IDM_FORMAT_MAC_CYRILLIC)
     // CJK encodings
     case gbk            // Simplified Chinese (GBK / GB2312)
     case big5           // Traditional Chinese
@@ -139,6 +140,8 @@ public enum TextEncodingOption: String, CaseIterable, Equatable, Sendable {
             self = .eucJP
         case .macOSRoman:
             self = .macOSRoman
+        case String.Encoding.macCyrillicEncoding:
+            self = .macCyrillic
         case .windowsCP1250:
             self = .windowsCP1250
         case .windowsCP1251:
@@ -234,6 +237,7 @@ public enum TextEncodingOption: String, CaseIterable, Equatable, Sendable {
         case .isoLatin1: .isoLatin1
         case .windowsCP1252: .windowsCP1252
         case .macOSRoman: .macOSRoman
+        case .macCyrillic: .macCyrillicEncoding
         case .gbk: .gbkEncoding
         case .big5: .big5
         case .shiftJIS: .shiftJIS
@@ -292,6 +296,7 @@ public enum TextEncodingOption: String, CaseIterable, Equatable, Sendable {
         case .isoLatin1: "ISO Latin-1"
         case .windowsCP1252: "Windows CP1252"
         case .macOSRoman: "Mac OS Roman"
+        case .macCyrillic: "Mac Cyrillic"
         case .gbk: "GBK (Simplified Chinese)"
         case .big5: "Big5 (Traditional Chinese)"
         case .shiftJIS: "Shift-JIS (Japanese)"
@@ -355,7 +360,7 @@ public enum TextEncodingOption: String, CaseIterable, Equatable, Sendable {
             ("Celtic", [.isoLatin8]),
             ("Central European", [.windowsCP1250, .isoLatin2, .dosCP852]),
             ("Chinese", [.gbk, .big5]),
-            ("Cyrillic", [.windowsCP1251, .isoLatinCyrillic, .koi8r, .koi8u, .dosCP855, .dosCP866]),
+            ("Cyrillic", [.windowsCP1251, .isoLatinCyrillic, .koi8r, .koi8u, .dosCP855, .dosCP866, .macCyrillic]),
             ("Greek", [.windowsCP1253, .isoLatinGreek, .dosCP737, .dosCP869]),
             ("Hebrew", [.windowsCP1255, .isoLatinHebrew, .dosCP862]),
             ("Japanese", [.shiftJIS, .eucJP]),
@@ -410,6 +415,7 @@ public extension String.Encoding {
     // Other
     static let koi8rEncoding = cfEncoding(0x0A02) // KOI8-R
     static let koi8uEncoding = cfEncoding(0x0A08) // KOI8-U
+    static let macCyrillicEncoding = cfEncoding(0x07) // kCFStringEncodingMacCyrillic
     // OEM/DOS codepages via CFStringEncoding (kCFStringEncodingDOS*)
     static let dosCP437Encoding = cfEncoding(0x0400) // DOSLatinUS
     static let dosCP737Encoding = cfEncoding(0x0405) // DOSGreek

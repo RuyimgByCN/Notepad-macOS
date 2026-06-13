@@ -108,6 +108,7 @@ import Testing
         .isoLatin3: "ĝĥĵŝŭ",                 // Esperanto letters
         .isoLatin4: "āēģķļņū",               // Latvian letters
         .isoLatinCyrillic: "Привет мир",
+        .macCyrillic: "Привет мир №125",
         .isoLatinArabic: "مرحبا",
         .isoLatinGreek: "Καλημέρα",
         .isoLatinHebrew: "שלום",
@@ -150,6 +151,8 @@ import Testing
     #expect("é".data(using: .dosCP850Encoding) == Data([0x82]))
     // OEM 866: Cyrillic А at 0x80.
     #expect("А".data(using: .dosCP866Encoding) == Data([0x80]))
+    // Mac Cyrillic: Cyrillic А at 0x80 (x-mac-cyrillic layout).
+    #expect("А".data(using: .macCyrillicEncoding) == Data([0x80]))
     // Windows-1255: Hebrew aleph at 0xE0.
     #expect("א".data(using: .windowsCP1255Encoding) == Data([0xE0]))
     // Windows-1256: Arabic alef at 0xC7.

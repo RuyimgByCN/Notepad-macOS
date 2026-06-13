@@ -506,6 +506,7 @@ import Testing
         "ISO Latin-1",
         "Windows CP1252",
         "Mac OS Roman",
+        "Mac Cyrillic",
         "GBK (Simplified Chinese)",
         "Big5 (Traditional Chinese)",
         "Shift-JIS (Japanese)",
@@ -557,6 +558,7 @@ import Testing
     #expect(TextEncodingOption(encoding: .isoLatin1)?.displayName == "ISO Latin-1")
     #expect(TextEncodingOption(encoding: .windowsCP1252)?.displayName == "Windows CP1252")
     #expect(TextEncodingOption(encoding: .macOSRoman)?.displayName == "Mac OS Roman")
+    #expect(TextEncodingOption(encoding: .macCyrillicEncoding)?.displayName == "Mac Cyrillic")
 
     let directory = URL(filePath: NSTemporaryDirectory()).appending(path: UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
