@@ -486,7 +486,7 @@ import Testing
         try ColumnEdit.insertText("x", into: "one\n", lineRange: 0...1, column: 1)
     }
     #expect(throws: ColumnEditError.lineRangeOutsideDocument) {
-        try ColumnEdit.insertText("x", into: "one\n", lineRange: 1...3, column: 1)
+        try ColumnEdit.insertText("x", into: "one\n", lineRange: 5...6, column: 1)
     }
     #expect(throws: ColumnEditError.invalidRepeatCount) {
         try ColumnEdit.insertNumberSequence(
@@ -496,6 +496,14 @@ import Testing
             options: ColumnNumberOptions(initial: 1, increment: 1, repeatCount: 0)
         )
     }
+}
+
+@Test func columnEditClampsTrailingNewlinePhantomLine() throws {
+    // Select All on a document ending with a newline reports a line one past the
+    // last content line (the empty "phantom" trailing line). The column editor
+    // clamps that single overhang instead of failing.
+    let result = try ColumnEdit.insertText("x", into: "one\ntwo\n", lineRange: 1...3, column: 1)
+    #expect(result.text == "xone\nxtwo\n")
 }
 
 @Test func writesAndReadsUtf8TextWithRequestedLineEndings() throws {

@@ -68,12 +68,18 @@ public enum ColumnEdit {
         }
 
         var lines = splitLinesPreservingEndings(text)
-        guard lineRange.upperBound <= lines.count else {
+        // A selection ending past the document's final newline reports a line
+        // one beyond the last content line (the empty "phantom" line that
+        // follows a trailing newline). Clamp to the real line count instead of
+        // rejecting an otherwise-valid Select All → Column Edit.
+        let clampedUpper = min(lineRange.upperBound, lines.count)
+        guard lineRange.lowerBound <= clampedUpper else {
             throw ColumnEditError.lineRangeOutsideDocument
         }
+        let effectiveRange = lineRange.lowerBound...clampedUpper
 
         var insertedRanges: [NSRange] = []
-        for lineNumber in lineRange {
+        for lineNumber in effectiveRange {
             let index = lineNumber - 1
             let line = lines[index]
             let targetOffset = column - 1
@@ -91,7 +97,7 @@ public enum ColumnEdit {
         var utf16Location = 0
         for (lineIndex, line) in lines.enumerated() {
             let lineNumber = lineIndex + 1
-            if lineRange.contains(lineNumber) {
+            if effectiveRange.contains(lineNumber) {
                 let insertedLocation = utf16Location + min(column - 1, line.body.utf16.count)
                 insertedRanges.append(NSRange(location: insertedLocation, length: insertion.utf16.count))
             }
@@ -120,12 +126,18 @@ public enum ColumnEdit {
         }
 
         var lines = splitLinesPreservingEndings(text)
-        guard lineRange.upperBound <= lines.count else {
+        // A selection ending past the document's final newline reports a line
+        // one beyond the last content line (the empty "phantom" line that
+        // follows a trailing newline). Clamp to the real line count instead of
+        // rejecting an otherwise-valid Select All → Column Edit.
+        let clampedUpper = min(lineRange.upperBound, lines.count)
+        guard lineRange.lowerBound <= clampedUpper else {
             throw ColumnEditError.lineRangeOutsideDocument
         }
+        let effectiveRange = lineRange.lowerBound...clampedUpper
 
         var insertedRanges: [NSRange] = []
-        for lineNumber in lineRange {
+        for lineNumber in effectiveRange {
             let sequenceIndex = (lineNumber - lineRange.lowerBound) / options.repeatCount
             let value = try sequenceValue(at: sequenceIndex, options: options)
             let insertion = format(value, options: options)
@@ -147,7 +159,7 @@ public enum ColumnEdit {
         var utf16Location = 0
         for (lineIndex, line) in lines.enumerated() {
             let lineNumber = lineIndex + 1
-            if lineRange.contains(lineNumber) {
+            if effectiveRange.contains(lineNumber) {
                 let sequenceIndex = (lineNumber - lineRange.lowerBound) / options.repeatCount
                 let value = try sequenceValue(at: sequenceIndex, options: options)
                 let insertion = format(value, options: options)
