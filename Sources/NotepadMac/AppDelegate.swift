@@ -12,6 +12,11 @@ private struct ThemeResourceLoadResult: Sendable {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windows: [EditorWindowController] = []
+    /// True once termination has begun. Set in `applicationShouldTerminate`
+    /// after the terminal session snapshot is taken, so teardown-driven
+    /// `saveSession()` calls (each document window closing during quit) don't
+    /// re-derive the session from an empty `windows` array and wipe it.
+    private var isTerminating = false
     private var newDocumentCounter = 0
     private var windowSortMode = AppMenu.WindowSortMode.none
     private var tabState = EditorTabState()
@@ -245,7 +250,10 @@ private var appearanceObservation: NSKeyValueObservation?
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let dirtyWindows = windows.filter { $0.hasUnsavedChanges }
-        guard !dirtyWindows.isEmpty else { return .terminateNow }
+        guard !dirtyWindows.isEmpty else {
+            beginTermination()
+            return .terminateNow
+        }
 
         // Ask user to save each dirty document
         for controller in dirtyWindows {
@@ -272,7 +280,18 @@ private var appearanceObservation: NSKeyValueObservation?
                 return .terminateCancel
             }
         }
+        beginTermination()
         return .terminateNow
+    }
+
+    /// Captures the terminal session snapshot while document windows are still
+    /// alive, then arms ``isTerminating`` so teardown-driven ``saveSession()``
+    /// calls (as AppKit closes each window during quit) don't overwrite it.
+    /// `applicationShouldTerminate(_:)` is the first termination hook and runs
+    /// before any window teardown, unlike `applicationWillTerminate(_:)`.
+    private func beginTermination() {
+        saveSession()
+        isTerminating = true
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -2947,6 +2966,11 @@ private var appearanceObservation: NSKeyValueObservation?
     }
 
     private func saveSession() {
+        // During termination, document windows close one by one (each firing
+        // its onClose → saveSession). The terminal snapshot is already taken in
+        // beginTermination() while windows were still alive, so skip here to
+        // avoid re-deriving an empty session and wiping it.
+        guard !isTerminating else { return }
         snapshotSaveTimer?.invalidate()
         snapshotSaveTimer = nil
 
