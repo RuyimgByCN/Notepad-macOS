@@ -405,6 +405,29 @@ public struct LanguageCatalog: Sendable {
         return LanguageCatalog(languages: merged)
     }
 
+    /// Folds in built-in languages declared in ``fallback`` that the bundled
+    /// ``langs.model.xml`` does not provide. Upstream Notepad++ ships some
+    /// languages (e.g. Markdown) as user-defined languages rather than entries
+    /// in `langs.model.xml`, so they never reach the runtime catalog loaded
+    /// from that file; this keeps them available without patching the
+    /// upstream-sourced model. Languages already present are left untouched.
+    public func appendingFallbackLanguages() -> LanguageCatalog {
+        var merged = languages
+        var known = Set(merged.map { Self.normalizedNameKey($0.name) })
+        for language in LanguageCatalog.fallback.languages {
+            let key = Self.normalizedNameKey(language.name)
+            guard !known.contains(key) else { continue }
+            // Only restore languages whose Lexilla lexer is resolvable. A few
+            // `fallback` entries (e.g. Groovy, Dockerfile) name languages for
+            // which no Lexilla lexer is built, so listing them would add menu
+            // items and detection labels with no syntax highlighting.
+            guard language.lexillaLexerName != nil else { continue }
+            merged.append(language)
+            known.insert(key)
+        }
+        return LanguageCatalog(languages: merged)
+    }
+
     public static func load(from url: URL) throws -> LanguageCatalog {
         let parser = XMLParser(contentsOf: url)
         guard let parser else {
@@ -425,7 +448,7 @@ public struct LanguageCatalog: Sendable {
     public static func loadDefault() -> LanguageCatalog {
         for url in defaultLanguageModelCandidates() where FileManager.default.fileExists(atPath: url.path) {
             if let catalog = try? load(from: url) {
-                return catalog
+                return catalog.appendingFallbackLanguages()
             }
         }
         return fallback

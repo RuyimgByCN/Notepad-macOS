@@ -26,6 +26,25 @@ import Testing
     #expect(LanguageDetector.detect(url: nil, in: catalog).name == "normal")
 }
 
+@Test func appendingFallbackLanguagesRestoresOnlyLexerableLanguages() {
+    // The bundled langs.model.xml omits some languages the built-in fallback
+    // catalog defines (Markdown, Lua, Groovy, Dockerfile). loadDefault() merges
+    // the missing ones in, but only those with a real Lexilla lexer — Groovy and
+    // Dockerfile have no lexer built, so exposing them would add non-highlighting
+    // menu entries. Start from a minimal catalog (plain text only) so every
+    // fallback language is "missing" and exercises the merge.
+    let merged = LanguageCatalog(languages: [.plainText]).appendingFallbackLanguages()
+    let names = Set(merged.languages.map { $0.name.lowercased() })
+
+    #expect(names.contains("markdown"))    // Lexilla lexer (lmMarkdown) is built
+    #expect(names.contains("lua"))         // Lexilla lexer (lmLua) is built
+    #expect(!names.contains("groovy"))     // no Lexilla lexer built upstream
+    #expect(!names.contains("dockerfile")) // no Lexilla lexer built upstream
+
+    // .md now resolves to Markdown through the merged catalog.
+    #expect(LanguageDetector.detect(url: URL(filePath: "/tmp/notes.md"), in: merged).name == "markdown")
+}
+
 @Test func parsesUpstreamNotepadPlusLanguageModel() throws {
     let catalog = try LanguageCatalog.load(from: upstreamLanguageModelURL())
     let rust = try #require(catalog.language(named: "rust"))
