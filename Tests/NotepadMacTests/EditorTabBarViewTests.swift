@@ -234,3 +234,40 @@ import Testing
     #expect(reorderRequest?.0 == first.identity)
     #expect(reorderRequest?.1 == 2)
 }
+
+@MainActor
+private func tabButtonTitleText(isDirty: Bool, title: String = "notes.md") -> String {
+    let item = EditorTabItem(
+        identity: .file(URL(fileURLWithPath: "/tmp/project/\(title)")),
+        title: title,
+        isDirty: isDirty,
+        isPinned: false
+    )
+    let button = EditorTabButton(
+        item: item,
+        isActive: true,
+        onSelect: {},
+        onClose: {},
+        onContextAction: { _ in }
+    )
+    button.frame = CGRect(x: 0, y: 0, width: 160, height: EditorTabBarView.barHeight)
+    button.layoutSubtreeIfNeeded()
+    return button.subviews
+        .compactMap { $0 as? NSTextField }
+        .first?
+        .stringValue ?? ""
+}
+
+@MainActor
+@Test func editorTabButtonOmitsDirtyDotPrefix() {
+    // Upstream Notepad++ signals a dirty tab only by switching the document
+    // icon (saved.ico -> unsaved.ico), never by inserting a "•" prefix that
+    // would shift the filename. The clean and dirty titles must therefore be
+    // identical and contain no "•".
+    let clean = tabButtonTitleText(isDirty: false)
+    let dirty = tabButtonTitleText(isDirty: true)
+
+    #expect(clean == "notes.md")
+    #expect(dirty == "notes.md")
+    #expect(clean == dirty)
+}

@@ -180,7 +180,9 @@ final class EditorTabBarView: NSView {
         guard !state.items.isEmpty else { return }
         let menu = NSMenu(title: "")
         for (index, item) in state.items.enumerated() {
-            let statusPrefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
+            // Dirty state is shown only by the document icon (saved.ico ->
+            // unsaved.ico), never by a "•" prefix that would shift the title.
+            let statusPrefix = item.isMonitoring ? "⟳ " : ""
             let indexPrefix = (showIndexNumbers && index < 9) ? "\(index + 1): " : ""
             let prefix = indexPrefix + statusPrefix
             let it = ClosureMenuItem(title: prefix + item.title) { [weak self] in
@@ -489,7 +491,9 @@ final class EditorTabButton: NSView {
         documentIconView.setAccessibilityLabel("Document")
         addSubview(documentIconView)
 
-        let statusPrefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
+        // Dirty state is shown only by the document icon (saved.ico ->
+        // unsaved.ico), never by a "•" prefix that would shift the title.
+        let statusPrefix = item.isMonitoring ? "⟳ " : ""
         let indexPrefix: String
         if let idx = tabIndex, idx <= 9 {
             indexPrefix = "\(idx): "
@@ -537,7 +541,10 @@ final class EditorTabButton: NSView {
     }
 
     var preferredWidth: CGFloat {
-        let statusPrefix = item.isMonitoring ? "⟳ " : (item.isDirty ? "• " : "")
+        // Dirty state is shown only by the document icon (saved.ico ->
+        // unsaved.ico), never by a "•" prefix; keep this in sync with
+        // setupViews() so the title width doesn't change on dirty toggles.
+        let statusPrefix = item.isMonitoring ? "⟳ " : ""
         let indexPrefix: String
         if let idx = tabIndex, idx <= 9 { indexPrefix = "\(idx): " } else { indexPrefix = "" }
         let text = indexPrefix + statusPrefix + item.title
