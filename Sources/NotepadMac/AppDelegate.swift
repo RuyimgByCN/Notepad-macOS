@@ -184,6 +184,10 @@ private var appearanceObservation: NSKeyValueObservation?
             themeCatalog: themeCatalog,
             selectedThemeName: nil
         )
+        // Rebuild the system recent-documents record from our custom backup if
+        // macOS cleared it during an upgrade (signature/location change).
+        restoreRecentFilesFromBackup()
+        refreshRecentFilesMenu()
         installTerminationHandlers()
         installCtrlTabMonitor()
         installWorkspaceFindInFiles()
@@ -621,6 +625,7 @@ private var appearanceObservation: NSKeyValueObservation?
 
     @objc func clearRecentFiles(_ sender: Any?) {
         NSDocumentController.shared.clearRecentDocuments(sender)
+        UserDefaults.standard.removeObject(forKey: Self.recentFilesBackupKey)
         refreshRecentFilesMenu()
     }
 
@@ -795,8 +800,40 @@ private var appearanceObservation: NSKeyValueObservation?
     private func registerRecentDocument(_ url: URL) {
         let standardizedURL = url.standardizedFileURL
         NSDocumentController.shared.noteNewRecentDocumentURL(standardizedURL)
+        saveRecentFileToBackup(standardizedURL)
         refreshRecentFilesMenu()
     }
+
+    /// Persists a recently opened file URL to a custom UserDefaults array, so
+    /// the recent-files menu can be rebuilt after macOS clears the system-level
+    /// `NSRecentDocumentRecords` (which happens when the app's code signature
+    /// or install location changes, e.g. a DMG upgrade replaces the bundle).
+    private func saveRecentFileToBackup(_ url: URL) {
+        let path = url.path
+        var urls = UserDefaults.standard.stringArray(forKey: Self.recentFilesBackupKey) ?? []
+        urls.removeAll { $0 == path }
+        urls.insert(path, at: 0)
+        let maxCount = max(1, preferencesStore.load().recentFilesMaxCount)
+        if urls.count > maxCount { urls.removeLast(urls.count - maxCount) }
+        UserDefaults.standard.set(urls, forKey: Self.recentFilesBackupKey)
+    }
+
+    /// Re-feeds the backed-up recent file URLs into NSDocumentController when the
+    /// system record is empty (e.g. after an upgrade). Called once at launch.
+    private func restoreRecentFilesFromBackup() {
+        let systemURLs = NSDocumentController.shared.recentDocumentURLs
+        guard systemURLs.isEmpty else { return }
+        let paths = UserDefaults.standard.stringArray(forKey: Self.recentFilesBackupKey) ?? []
+        // noteNewRecentDocumentURL inserts at the front, so feed oldest-first
+        // to preserve the backed-up ordering (most recent at top).
+        for path in paths.reversed() {
+            let url = URL(fileURLWithPath: path)
+            guard FileManager.default.fileExists(atPath: path) else { continue }
+            NSDocumentController.shared.noteNewRecentDocumentURL(url)
+        }
+    }
+
+    private static let recentFilesBackupKey = "notepadMac.recentFiles.urls"
 
     private func rememberClosedDocument(_ controller: EditorWindowController) {
         guard let fileURL = controller.sessionFileURL else { return }
@@ -2996,7 +3033,16 @@ private var appearanceObservation: NSKeyValueObservation?
         }
 
         if state.session.openFiles.isEmpty && state.session.snapshots.isEmpty {
-            sessionStore.clear()
+            // Don't wipe the persisted session when the live state is empty.
+            // buildSessionState() yields an empty result when every open
+            // document is a clean untitled file (no sessionFileURL, not dirty)
+            // — clearing here would permanently discard the user's last
+            // restored file session on the next save trigger. Only clear when
+            // there are genuinely no windows left (user closed everything),
+            // so an explicit "close all" still resets the session.
+            if windows.isEmpty {
+                sessionStore.clear()
+            }
         } else {
             sessionStore.save(state.session)
         }
