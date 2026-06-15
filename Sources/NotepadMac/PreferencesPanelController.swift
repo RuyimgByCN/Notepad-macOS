@@ -772,6 +772,11 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         sectionDetailScrollView.hasVerticalScroller = true
         sectionDetailScrollView.borderType = .noBorder
         sectionDetailScrollView.drawsBackground = false
+        // The section stacks are intrinsic-sized. The default NSClipView is
+        // not flipped (origin bottom-left), so short content docks at the
+        // bottom of the visible area instead of flowing from the top. A
+        // flipped clip view gives the panel the expected top-down layout.
+        sectionDetailScrollView.contentView = FlippedClipView()
 
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         closeButton.bezelStyle = .rounded
@@ -969,6 +974,12 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
 
     @objc private func closePreferences(_ sender: Any?) {
         window?.close()
+    }
+
+    /// Top-left-origin clip view so intrinsic-sized section stacks align to
+    /// the top of the scroll area instead of floating at the bottom.
+    private final class FlippedClipView: NSClipView {
+        override var isFlipped: Bool { true }
     }
 
     private func showSection(_ section: PreferenceSection) {
