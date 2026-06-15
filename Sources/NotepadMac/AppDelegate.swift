@@ -17,6 +17,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `saveSession()` calls (each document window closing during quit) don't
     /// re-derive the session from an empty `windows` array and wipe it.
     private var isTerminating = false
+
+    /// True once the app has committed to terminating. Window close delegates
+    /// consult this to avoid re-triggering termination while AppKit tears down
+    /// each window during the quit sequence.
+    var applicationIsTerminating: Bool { isTerminating }
     private var newDocumentCounter = 0
     private var windowSortMode = AppMenu.WindowSortMode.none
     private var tabState = EditorTabState()
@@ -891,7 +896,12 @@ private var appearanceObservation: NSKeyValueObservation?
         case .save:
             controllers.forEach { $0.saveDocument(nil) }
         case .close:
-            controllers.forEach { $0.window?.performClose(nil) }
+            // Closing a specific document from the windows dialog targets
+            // individual tabs, not the whole app.
+            controllers.forEach {
+                $0.isClosingSingleTab = true
+                $0.window?.performClose(nil)
+            }
         case .copyFilename:
             let names = controllers.map(\.windowListSortName).joined(separator: "\n")
             NSPasteboard.general.clearContents()
@@ -1806,14 +1816,15 @@ private var appearanceObservation: NSKeyValueObservation?
                     // Last tab closed
                     if self.preferencesStore.load().tabbarExitOnLastTab {
                         NSApp.terminate(nil)
-                    } else if controller.isClosingFromTabBarAction {
+                    } else if controller.isClosingSingleTab {
                         // Tab bar close button → create new untitled document (classic Notepad++ behavior)
                         self.newDocument(nil)
                     }
-                    // else: system close (red X) → window closes, app terminates via applicationShouldTerminateAfterLastWindowClosed
+                    // Note: red X / ⌘W / toolbar close no longer reach here —
+                    // windowShouldClose intercepts them and terminates the app.
                 }
             }
-            controller.isClosingFromTabBarAction = false
+            controller.isClosingSingleTab = false
         }
         controller.onContentChange = { [weak self] in
             self?.scheduleSnapshotSave()
@@ -1963,7 +1974,7 @@ private var appearanceObservation: NSKeyValueObservation?
 
     private func closeTab(identity: EditorTabIdentity) {
         guard let controller = windows.first(where: { $0.tabIdentity == identity }) else { return }
-        controller.isClosingFromTabBarAction = true
+        controller.isClosingSingleTab = true
         controller.window?.performClose(nil)
     }
 
@@ -2203,6 +2214,8 @@ private var appearanceObservation: NSKeyValueObservation?
         case .activate:
             activate(controller)
         case .close:
+            // Closing from the document list targets a single tab.
+            controller.isClosingSingleTab = true
             controller.window?.performClose(nil)
         case .closeOthers:
             closeDocumentControllers(windows.filter { $0 !== controller })
