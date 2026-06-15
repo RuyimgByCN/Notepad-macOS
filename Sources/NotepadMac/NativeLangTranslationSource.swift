@@ -110,6 +110,12 @@ struct NativeLangTranslations: Sendable {
         merge(english.commands, target.commands)
         merge(english.dialogTitles, target.dialogTitles)
         merge(english.preferenceGlobalItems, target.preferenceGlobalItems)
+        // Merge all Dialog/<name>/Item entries (Find, Column Editor, UDL StylerDialog,
+        // Plugins, Preference sub-items, etc.) so that non-builtin languages translate
+        // panel/control strings by matching their English default value. Without this,
+        // ~1000 Mac-native UI strings fall back to English for every language besides
+        // English/Chinese.
+        merge(english.translationEntries, target.translationEntries)
         if let englishPreferenceTitle = english.preferenceTitle,
            let localizedPreferenceTitle = target.preferenceTitle {
             translations[NativeLangLookup.sanitized(englishPreferenceTitle)] = NativeLangLookup.sanitized(localizedPreferenceTitle)

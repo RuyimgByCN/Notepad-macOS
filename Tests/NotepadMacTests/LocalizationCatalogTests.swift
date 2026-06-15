@@ -55,6 +55,38 @@ import Testing
     #expect(translations?.localizedValue(for: "udl.edit.structuredNesting") == "Héberge :")
 }
 
+@Test func nativeLangProvidesDialogItemTranslationsByDefaultValue() {
+    // Regression test: Dialog/<name>/Item entries (Find panel, Column Editor, UDL
+    // StylerDialog, Preference sub-items, etc.) must be reachable via
+    // localizedValue(forDefaultValue:) for non-builtin languages. Before the fix,
+    // buildDefaultValueTranslations did not merge translationEntries, so ~1000
+    // Mac-native UI strings fell back to English.
+    let translations = NativeLangTranslations.load(fileName: "french.xml", bundle: Localization.resourceBundle)
+
+    // Find panel labels/options — driven by their English default values.
+    // The same English text may recur across dialogs (Find/Mark/Preference) with
+    // synonym phrasings per language, so we assert that a non-empty translation was
+    // produced rather than a fixed wording. The crucial property under test is that
+    // these Dialog/Item entries are reachable at all via forDefaultValue (before the
+    // fix they always returned nil and the UI showed English).
+    func translated(_ key: String) -> String? {
+        translations?.localizedValue(forDefaultValue: key)
+    }
+    for english in ["Match case", "Wrap around", "Match whole word only",
+                    "In selection", "Find Next", "Count", "Replace",
+                    "Replace All", "Find what:"] {
+        let result = translated(english)
+        #expect(result != nil, "“\(english)” should be translated, got nil")
+        #expect(result != english, "“\(english)” should be translated, still English")
+    }
+    // A couple of unambiguous spot-checks with known stable French wording.
+    #expect(translated("Wrap around") == "Boucler")
+    #expect(translated("Match whole word only") == "Mot entier uniquement")
+    #expect(translated("In selection") == "Dans la sélection")
+    #expect(translated("Count") == "Compter")
+    #expect(translated("Replace") == "Remplacer")
+}
+
 @Test func localizationProvidesFrenchMessageBoxFallbacks() {
     let translations = NativeLangTranslations.load(fileName: "french.xml", bundle: Localization.resourceBundle)
     let importMessage = translations?.messageBox(tag: "UDL_importSuccessful")
