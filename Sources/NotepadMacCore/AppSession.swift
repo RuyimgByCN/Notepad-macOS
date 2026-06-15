@@ -178,6 +178,8 @@ extension AppSession {
         case activeSnapshotID
         case bookmarks
         case folds
+        case tabStates
+        case caretPositions
     }
 
     public init(from decoder: Decoder) throws {
@@ -188,7 +190,9 @@ extension AppSession {
             snapshots: try container.decodeIfPresent([DocumentSnapshot].self, forKey: .snapshots) ?? [],
             activeSnapshotID: try container.decodeIfPresent(String.self, forKey: .activeSnapshotID),
             bookmarks: try container.decodeIfPresent([SessionBookmarkRecord].self, forKey: .bookmarks) ?? [],
-            folds: try container.decodeIfPresent([SessionFoldRecord].self, forKey: .folds) ?? []
+            folds: try container.decodeIfPresent([SessionFoldRecord].self, forKey: .folds) ?? [],
+            tabStates: try container.decodeIfPresent([SessionTabStateRecord].self, forKey: .tabStates) ?? [],
+            caretPositions: try container.decodeIfPresent([SessionCaretRecord].self, forKey: .caretPositions) ?? []
         )
     }
 
@@ -200,6 +204,8 @@ extension AppSession {
         try container.encodeIfPresent(activeSnapshotID, forKey: .activeSnapshotID)
         try container.encode(bookmarks, forKey: .bookmarks)
         try container.encode(folds, forKey: .folds)
+        try container.encode(tabStates, forKey: .tabStates)
+        try container.encode(caretPositions, forKey: .caretPositions)
     }
 }
 
@@ -211,6 +217,8 @@ public final class SessionStore {
         static let activeSnapshotID = "notepadMac.session.activeSnapshotID"
         static let bookmarks = "notepadMac.session.bookmarks"
         static let folds = "notepadMac.session.folds"
+        static let tabStates = "notepadMac.session.tabStates"
+        static let caretPositions = "notepadMac.session.caretPositions"
     }
 
     private let defaults: UserDefaults
@@ -231,6 +239,10 @@ public final class SessionStore {
             .flatMap { try? JSONDecoder().decode([SessionBookmarkRecord].self, from: $0) } ?? []
         let folds = (defaults.data(forKey: Key.folds))
             .flatMap { try? JSONDecoder().decode([SessionFoldRecord].self, from: $0) } ?? []
+        let tabStates = (defaults.data(forKey: Key.tabStates))
+            .flatMap { try? JSONDecoder().decode([SessionTabStateRecord].self, from: $0) } ?? []
+        let caretPositions = (defaults.data(forKey: Key.caretPositions))
+            .flatMap { try? JSONDecoder().decode([SessionCaretRecord].self, from: $0) } ?? []
 
         return AppSession(
             openFiles: openFiles,
@@ -238,7 +250,9 @@ public final class SessionStore {
             snapshots: snapshots,
             activeSnapshotID: activeSnapshotID,
             bookmarks: bookmarks,
-            folds: folds
+            folds: folds,
+            tabStates: tabStates,
+            caretPositions: caretPositions
         )
     }
 
@@ -265,6 +279,18 @@ public final class SessionStore {
             defaults.set(data, forKey: Key.folds)
         }
 
+        if session.tabStates.isEmpty {
+            defaults.removeObject(forKey: Key.tabStates)
+        } else if let data = try? JSONEncoder().encode(session.tabStates) {
+            defaults.set(data, forKey: Key.tabStates)
+        }
+
+        if session.caretPositions.isEmpty {
+            defaults.removeObject(forKey: Key.caretPositions)
+        } else if let data = try? JSONEncoder().encode(session.caretPositions) {
+            defaults.set(data, forKey: Key.caretPositions)
+        }
+
         defaults.synchronize()
     }
 
@@ -275,6 +301,8 @@ public final class SessionStore {
         defaults.removeObject(forKey: Key.activeSnapshotID)
         defaults.removeObject(forKey: Key.bookmarks)
         defaults.removeObject(forKey: Key.folds)
+        defaults.removeObject(forKey: Key.tabStates)
+        defaults.removeObject(forKey: Key.caretPositions)
         defaults.synchronize()
     }
 }

@@ -1414,6 +1414,34 @@ import Testing
     #expect(store.load() == .empty)
 }
 
+@Test func storesAndLoadsAppSessionTabStateAndCaretPositions() throws {
+    // tabStates and caretPositions were declared on AppSession but omitted
+    // from Codable, so they were silently dropped on every restart. Verify
+    // they now round-trip through SessionStore.
+    let suiteName = "NotepadMacCoreTests.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let file = URL(filePath: "/tmp/one.txt")
+    let store = SessionStore(defaults: defaults)
+
+    let saved = AppSession(
+        openFiles: [file],
+        activeFile: file,
+        tabStates: [
+            SessionTabStateRecord(identity: .file(file), isPinned: true, tabColorIndex: 2)
+        ],
+        caretPositions: [
+            SessionCaretRecord(identity: .file(file), caretLocation: 42)
+        ]
+    )
+    store.save(saved)
+    let loaded = store.load()
+
+    #expect(loaded.tabStates == saved.tabStates)
+    #expect(loaded.caretPositions == saved.caretPositions)
+}
+
 @Test func appSessionKeepsActiveSnapshotSeparateFromActiveFile() {
     let savedFile = URL(filePath: "/tmp/saved.txt")
     let snapshot = DocumentSnapshot(
