@@ -1094,14 +1094,31 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setUseTabs, parameter: insertSpaces ? 0 : 1, value: 0)
     }
 
-    func applyLineNumberMargin(_ visible: Bool) {
+    /// Line-number margin width, mirroring upstream ScintillaEditView::
+    /// updateLineNumberWidth (non-dynamic mode): pixel width is measured from
+    /// the actual line-number font via SCI_TEXTWIDTH rather than a hardcoded
+    /// per-digit constant, and reserves at least 4 digits so the margin
+    /// doesn't visibly grow on the first edits of a fresh document.
+    private func lineNumberMarginWidth() -> Int {
         let lineCount = bridge.getGeneralProperty(ScintillaMessage.getLineCount, parameter: 0) ?? 1
-        let digits = max(3, String(lineCount).count)
-        let width = digits * 8 + 8   // ~8px per digit + padding
+        var digits = String(lineCount).count
+        if digits < 4 { digits = 4 }
+        let digitBytes = Array("8".utf8)
+        let digitWidth = digitBytes.withUnsafeBytes { rawBuffer -> CLong in
+            bridge.message(
+                ScintillaMessage.textWidth,
+                wParam: CLong(33), // STYLE_LINENUMBER
+                lParam: rawBuffer.baseAddress
+            ) ?? 8
+        }
+        return 8 + digits * Int(digitWidth)
+    }
+
+    func applyLineNumberMargin(_ visible: Bool) {
         bridge.setGeneralProperty(
             ScintillaMessage.setMarginWidth,
             parameter: ScintillaMargin.lineNumber,
-            value: visible ? CLong(width) : 0
+            value: visible ? CLong(lineNumberMarginWidth()) : 0
         )
     }
 
@@ -2513,10 +2530,13 @@ final class ScintillaEditorSurface: EditorSurface {
             parameter: ScintillaMargin.lineNumber,
             value: ScintillaMarginType.number
         )
+        // Use the same width calculation as applyLineNumberMargin so the
+        // initial value matches what later edits compute, avoiding a visible
+        // jump on the first keystroke.
         bridge.setGeneralProperty(
             ScintillaMessage.setMarginWidth,
             parameter: ScintillaMargin.lineNumber,
-            value: 44
+            value: CLong(lineNumberMarginWidth())
         )
 
         bridge.setGeneralProperty(
@@ -3062,6 +3082,7 @@ private enum ScintillaMessage {
     static let getFirstVisibleLine: Int32 = 2152
     static let docLineFromVisible: Int32 = 2221
     static let linesOnScreen: Int32 = 2370
+    static let textWidth: Int32 = 2276
     static let getSelText: Int32 = 2161
     static let getTextRange: Int32 = 2162
     static let annotationClearAll: Int32 = 2547
