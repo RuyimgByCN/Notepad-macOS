@@ -138,3 +138,44 @@ private func foldMarginSymbols(for style: Int) -> [Int: Int] {
             .map { (Int($0.markerNumber), Int($0.symbol)) }
     )
 }
+
+// MARK: - Smart highlight trigger conditions
+
+/// Drives the controller's private selection-changed path by posting the same
+/// SCIUpdateUI notification Scintilla emits on selection change.
+@MainActor
+private func postSCIUpdateUI(on controller: EditorWindowController) {
+    NotificationCenter.default.post(
+        name: Notification.Name("SCIUpdateUI"),
+        object: controller.editorSurface.notificationObject
+    )
+}
+
+@MainActor
+@Test func smartHighlightOnlyAppliesWhenSelectionExists() throws {
+    let controller = EditorWindowController(
+        languageCatalog: try LanguageCatalog.load(from: upstreamLanguageModelURL()),
+        styleCatalog: try StyleCatalog.load(from: upstreamStyleModelURL())
+    )
+    defer { controller.editorSurface.teardown() }
+
+    // Document with the token "foo" appearing twice.
+    controller.editorSurface.text = "foo bar foo"
+
+    // 1) Bare caret move (no selection) must NOT highlight the word under the
+    //    caret — mirrors upstream SmartHighlighter::highlightView, which clears
+    //    and returns when SCI_GETSELECTIONEMPTY.
+    controller.editorSurface.setSelectedRange(NSRange(location: 0, length: 0))
+    postSCIUpdateUI(on: controller)
+    #expect(controller.editorSurface.hasSmartHighlightApplied == false)
+
+    // 2) Double-click-style selection of the first "foo" highlights occurrences.
+    controller.editorSurface.setSelectedRange(NSRange(location: 0, length: 3))
+    postSCIUpdateUI(on: controller)
+    #expect(controller.editorSurface.hasSmartHighlightApplied == true)
+
+    // 3) Collapsing the selection back to a caret clears the highlight again.
+    controller.editorSurface.setSelectedRange(NSRange(location: 0, length: 0))
+    postSCIUpdateUI(on: controller)
+    #expect(controller.editorSurface.hasSmartHighlightApplied == false)
+}

@@ -75,9 +75,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private lazy var editorToolbar = EditorWindowToolbar(controller: self)
 
     /// Whether the current window close was initiated from the tab bar close button.
-    /// When true, closing the last tab creates a new untitled document (Notepad++ behavior).
-    /// When false (system close button / red X), closes the window without auto-creating.
-    var isClosingFromTabBarAction = false
+    /// True when the current close request targets a single tab (tab bar close
+    /// button, tab context menu, or a document-list close action). Such closes
+    /// only remove that one document. When false (red traffic-light button,
+    /// ⌘W/File→Close, or toolbar close), the close is treated as "quit the
+    /// app" — `windowShouldClose` intercepts it and terminates instead of
+    /// dismissing just the active document. Mirrors classic Notepad++ where the
+    /// window close button exits and only the per-tab X closes a file.
+    var isClosingSingleTab = false
 
     private var fileURL: URL?
     private var encoding: String.Encoding = .utf8
@@ -523,6 +528,32 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not supported")
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        shouldAllowWindowClose {
+            NSApp.terminate(nil)
+        }
+    }
+
+    /// Decides whether a `performClose`/red-X request should actually close the
+    /// window. Returns `true` for tab-targeted closes and during termination;
+    /// otherwise returns `false` and invokes `quitTrigger` to quit the app
+    /// (classic Notepad++ semantics: the window close button exits, only the
+    /// per-tab X closes a file). `quitTrigger` is a parameter so tests can
+    /// verify the decision without actually terminating the process.
+    @discardableResult
+    func shouldAllowWindowClose(quitTrigger: () -> Void) -> Bool {
+        // During app termination AppKit closes each window; let those proceed
+        // without re-entering terminate (which would recurse).
+        if (NSApp.delegate as? AppDelegate)?.applicationIsTerminating == true {
+            return true
+        }
+        if isClosingSingleTab {
+            return true
+        }
+        quitTrigger()
+        return false
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -1328,27 +1359,20 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let nsText = editorSurface.text as NSString
         let selection = editorSurface.selectedRange
 
-        // Resolve the token: the selection when present, otherwise the word
-        // under the caret — upstream SmartHighlighter highlights both.
-        let token: String
-        if selection.length > 0 {
-            guard NSMaxRange(selection) <= nsText.length else {
-                editorSurface.clearSmartHighlight()
-                return
-            }
-            token = nsText.substring(with: selection)
-        } else {
-            let location = min(selection.location, nsText.length)
-            var start = location
-            var end = location
-            while start > 0, isWordCharacter(nsText.character(at: start - 1)) { start -= 1 }
-            while end < nsText.length, isWordCharacter(nsText.character(at: end)) { end += 1 }
-            guard end > start else {
-                editorSurface.clearSmartHighlight()
-                return
-            }
-            token = nsText.substring(with: NSRange(location: start, length: end - start))
+        // Upstream SmartHighlighter (SmartHighlighter::highlightView) only marks
+        // occurrences when there is an actual selection (SCI_GETSELECTIONEMPTY
+        // != 1); with an empty caret it clears and returns. Mirror that: a bare
+        // caret move must NOT highlight the word under the caret — only a
+        // selection (typically produced by double-clicking a word) does.
+        guard selection.length > 0 else {
+            editorSurface.clearSmartHighlight()
+            return
         }
+        guard NSMaxRange(selection) <= nsText.length else {
+            editorSurface.clearSmartHighlight()
+            return
+        }
+        let token = nsText.substring(with: selection)
 
         // Upstream only highlights a usable token: single-line, not overly
         // long, and not just whitespace.
@@ -1360,11 +1384,6 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return
         }
         editorSurface.applySmartHighlight(token, matchCase: smartHighlightMatchCase, wholeWord: smartHighlightWholeWord)
-    }
-
-    private func isWordCharacter(_ ch: unichar) -> Bool {
-        guard let scalar = Unicode.Scalar(ch) else { return false }
-        return CharacterSet.alphanumerics.contains(scalar) || scalar == Unicode.Scalar("_")
     }
 
     @objc func toggleLineNumberMargin(_ sender: Any?) {

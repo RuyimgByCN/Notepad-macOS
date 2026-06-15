@@ -152,6 +152,8 @@ protocol EditorSurface: AnyObject {
     var supportsSmartHighlight: Bool { get }
     func applySmartHighlight(_ word: String, matchCase: Bool, wholeWord: Bool)
     func clearSmartHighlight()
+    /// Whether smart-highlight indicators are currently applied (testing/observability).
+    var hasSmartHighlightApplied: Bool { get }
 
     // MARK: - Insert/Overtype mode
     var isOvertype: Bool { get }
@@ -468,6 +470,7 @@ final class TextViewEditorSurface: EditorSurface {
     var supportsSmartHighlight: Bool { false }
     func applySmartHighlight(_ word: String, matchCase: Bool, wholeWord: Bool) {}
     func clearSmartHighlight() {}
+    var hasSmartHighlightApplied: Bool { false }
 
     var supportsXmlTagMatch: Bool { false }
     func applyXmlTagHighlight(openRange: NSRange, closeRange: NSRange) {}
@@ -1772,6 +1775,8 @@ final class ScintillaEditorSurface: EditorSurface {
     private var appliedSmartHighlight: (word: String, matchCase: Bool, wholeWord: Bool, start: CLong, end: CLong)?
 
     var supportsSmartHighlight: Bool { true }
+
+    var hasSmartHighlightApplied: Bool { appliedSmartHighlight != nil }
 
     func applySmartHighlight(_ word: String, matchCase: Bool, wholeWord: Bool) {
         guard !word.isEmpty else {
