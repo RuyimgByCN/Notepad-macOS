@@ -5,6 +5,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="Notepad++ Mac"
 EXECUTABLE_NAME="NotepadMac"
 BUNDLE_ID="org.notepad-plus-plus.macnative"
+# ⚠️ 版本号必须跟随上游 Notepad++ 的 VERSION_PRODUCT_VALUE（resource.h），禁止随意追加小版本号。
+#    上游版本号决定了 lexer 映射、功能对齐和发行说明的基准。
+#    CI 发布时通过 MACOS_APP_VERSION 环境变量注入；此处的默认值仅用于本地打包。
+#    变更此值前请确认 upstream/notepad-plus-plus/PowerEditor/src/resource.h 中的版本号已同步。
 VERSION="${MACOS_APP_VERSION:-8.9.6.4}"
 DIST_DIR="$ROOT_DIR/dist"
 APP_PATH="$DIST_DIR/$APP_NAME.app"

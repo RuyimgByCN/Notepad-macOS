@@ -1,3 +1,6 @@
+# ⚠️ 版本号规则：必须跟随上游 Notepad++ 的 VERSION_PRODUCT_VALUE（resource.h）。
+#    禁止随意追加小版本号（如 8.9.6.5/6/7）。发版前确认 resource.h 中的版本号即为目标版本。
+#    标签名 vX.Y.Z 与上游版本号必须一致。
 name: Release
 
 on:
