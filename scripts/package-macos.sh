@@ -454,6 +454,11 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
                 <string>public.comma-separated-values-text</string>
                 <string>public.tab-separated-values-text</string>
                 <string>public.log</string>
+                <!-- macOS resolves .log files to com.apple.log (apple-internal UTI), not
+                     public.log. Without this explicit claim, Launch Services does not
+                     route .log files to the app via Finder double-click or Dock drag,
+                     even though com.apple.log conforms to public.plain-text. -->
+                <string>com.apple.log</string>
             </array>
             <key>CFBundleTypeExtensions</key>
             <array>
