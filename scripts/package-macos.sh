@@ -459,6 +459,11 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
                      route .log files to the app via Finder double-click or Dock drag,
                      even though com.apple.log conforms to public.plain-text. -->
                 <string>com.apple.log</string>
+                <!-- Our custom UTI for .log files/bundles, declared above in
+                     UTImportedTypeDeclarations. Covers both regular .log files
+                     (via public.plain-text conformance) and .log directories
+                     (via com.apple.package conformance). -->
+                <string>app.notepadplusplusmac.log</string>
             </array>
             <key>CFBundleTypeExtensions</key>
             <array>
@@ -598,7 +603,32 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
         </dict>
     </array>
     <key>UTImportedTypeDeclarations</key>
-    <array/>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>app.notepadplusplusmac.log</string>
+            <key>UTTypeDescription</key>
+            <string>Log File</string>
+            <!-- Conform to both public.plain-text (for regular .log files) and
+                 com.apple.package (for .log directories/bundles). Without the
+                 com.apple.package conformance, macOS resolves .log directories
+                 to a dynamic UTI (dyn.*) that doesn't match any of our claimed
+                 types, and the app won't appear in Finder's Open With menu for
+                 .log bundles. -->
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.plain-text</string>
+                <string>com.apple.package</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>log</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST
