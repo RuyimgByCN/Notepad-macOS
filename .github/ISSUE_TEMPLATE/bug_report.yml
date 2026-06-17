@@ -1,0 +1,105 @@
+name: 🐛 Bug report
+description: Report something that is broken or behaves incorrectly.
+title: "[Bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report for **Notepad++ Mac Native**.
+
+        A few things to keep in mind:
+        - This is an **independent** native macOS port. It is **not** the official
+          Notepad++ project. Upstream-Windows-only issues (Wine, Win32 DLL plugins,
+          registry, etc.) are out of scope here.
+        - Please search existing issues first to avoid duplicates.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug. What did you expect, and what actually happened?
+      placeholder: |
+        Steps to reproduce:
+        1. Open '...'
+        2. Click on '...'
+        3. ...
+
+        Expected: ...
+        Actual: ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: |
+        The app version (visible in **Notepad++ Mac → About**), e.g. `8.9.6`.
+        This tracks upstream Notepad++'s version number.
+      placeholder: "8.9.6"
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "macOS 15.5 (24F74)"
+    validations:
+      required: true
+
+  - type: input
+    id: arch
+    attributes:
+      label: Mac chip
+      description: Apple Silicon (arm64) or Intel (x86_64).
+      placeholder: "Apple Silicon / arm64"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How did you get the app?
+      options:
+        - Downloaded DMG (.dmg) from GitHub Releases
+        - Built from source (swift build)
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: editor-surface
+    attributes:
+      label: Editor surface
+      description: |
+        Bundled (Scintilla) or fallback (NSTextView)? If unsure, check the About
+        box or whether the line-number/fold margin is visible.
+      options:
+        - Scintilla (bundled, has line-number & fold margins)
+        - NSTextView fallback
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / crash details
+      description: |
+        Paste any relevant output from Console.app, the Terminal, or a crash
+        report. If attaching a file, drag it in. Optional but very helpful.
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: This is about the native macOS app, not upstream Windows Notepad++.
+          required: true

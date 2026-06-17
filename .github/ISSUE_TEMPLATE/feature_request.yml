@@ -1,0 +1,65 @@
+name: ✨ Feature request
+description: Suggest a feature or a parity improvement against upstream Notepad++.
+title: "[Feature] "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature for **Notepad++ Mac Native**!
+
+        - This is the **native macOS port**. Feature requests should be about the
+          macOS app, not upstream Windows Notepad++.
+        - Many Notepad++ features are still being ported — check
+          [PARITY_PLAN.md](https://github.com/RuyimgByCN/Notepad-macOS/blob/main/PARITY_PLAN.md)
+          first; your request may already be tracked there.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What are you trying to do, and what gets in the way today?
+      placeholder: |
+        I'm trying to ..., but currently ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like?
+      description: Describe the feature or behavior you want, as specifically as you can.
+      placeholder: |
+        It would be great if the app could ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: parity
+    attributes:
+      label: Is this a Notepad++ parity feature?
+      description: Does this exist in upstream Windows Notepad++ that you'd like on macOS?
+      options:
+        - "Yes — exists in upstream Notepad++ (parity gap)"
+        - "No — new feature / macOS-specific"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds you've tried or other apps you'd otherwise use. Optional.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and checked PARITY_PLAN.md — this is not already covered.
+          required: true
+        - label: This is about the native macOS app, not upstream Windows Notepad++.
+          required: true

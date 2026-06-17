@@ -1,0 +1,17 @@
+# Issue template configuration
+# Docs: https://docs.github.com/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository
+
+# Hide the "Open a blank issue" button so users pick a template
+# (keeps bug/feature reports structured). Flip to false if you want
+# plain issues back.
+blank_issues_enabled: false
+
+contact_links:
+  - name: 📖 README & build guide
+    url: https://github.com/RuyimgByCN/Notepad-macOS#readme
+    about: How to build, package, and run the app from source.
+  - name: 🔼 Upstream Notepad++ issue
+    url: https://github.com/notepad-plus-plus/notepad-plus-plus/issues
+    about: |
+      Bug in the official Windows Notepad++? That's a different project.
+      Report it upstream instead.

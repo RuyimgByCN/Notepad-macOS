@@ -39,6 +39,9 @@ Like Notepad++, it is free software: you can redistribute it and/or modify it
 under the terms of the GPL-3.0, and it comes with **NO WARRANTY**. See the
 [GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.html) for details.
 
+The project copyright notice and the derivative-work attribution (Notepad++,
+Scintilla, Lexilla, Boost.Regex) live in [NOTICE](NOTICE).
+
 ### Third-party components
 
 The packaged application bundles several third-party components, each under its

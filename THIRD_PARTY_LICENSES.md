@@ -5,10 +5,11 @@ components. This file reproduces the copyright and license notices for each of
 them, as required by their respective licenses.
 
 The project itself is licensed under the GNU General Public License v3.0 — see
-[LICENSE](./LICENSE). Where a component below carries a copyleft license (GPL),
-that license applies to that component's code; permissive licenses (Boost) and
-attribution licenses (Scintilla/Lexilla HPND-style) apply to their respective
-components as stated.
+[LICENSE](./LICENSE) for the full license text and [NOTICE](./NOTICE) for the
+project's own copyright and derivative-work attribution. Where a component
+below carries a copyleft license (GPL), that license applies to that
+component's code; permissive licenses (Boost) and attribution licenses
+(Scintilla/Lexilla HPND-style) apply to their respective components as stated.
 
 | Component | Upstream | License |
 |---|---|---|
