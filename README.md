@@ -1,14 +1,67 @@
 # Notepad++ Mac Native
 
-This directory contains a native macOS implementation layer for the copied
-Notepad++ source tree. It does not use Wine.
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey.svg)](https://www.apple.com/macos)
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://www.swift.org/)
+[![Upstream Notepad++](https://img.shields.io/badge/upstream-Notepad%2B%2B-90E59A.svg)](https://notepad-plus-plus.org/)
 
-The upstream Windows source is preserved under `../notepad-plus-plus`. Reusable
-Notepad++ data is consumed directly where it is platform-neutral. macOS-specific
-UI and application lifecycle code is rewritten with AppKit because the original
-`PowerEditor` application is a Win32 GUI program. Scintilla has Cocoa code, but
-Notepad++'s main windowing, dialogs, menu commands, registry integration, and
-plugin host are Windows-specific.
+**Notepad++ Mac Native** is a free (free as in both "free speech" and "free
+beer") source code editor and Notepad replacement for **macOS**, built natively
+with Swift / AppKit. It is **not** a Wine wrapper — the Win32 GUI layer of
+Notepad++ is rewritten in native macOS code, while platform-neutral upstream
+resources (language models, themes, API tables, icons) and the upstream
+Scintilla / Lexilla editors are reused directly.
+
+This is an independent macOS implementation of Notepad++. It is **not** the
+official Notepad++ project and is not affiliated with or endorsed by Don HO or
+the Notepad++ team. The official Windows project lives at
+<https://github.com/notepad-plus-plus/notepad-plus-plus>.
+
+## Relationship to Upstream Notepad++
+
+The original Notepad++ source is preserved under `upstream/notepad-plus-plus/`
+(for local development and build reference; it is `.gitignore`d and re-cloned at
+a pinned commit by CI). Reusable Notepad++ data is consumed directly where it is
+platform-neutral. macOS-specific UI and application lifecycle code is rewritten
+with AppKit because the original `PowerEditor` application is a Win32 GUI
+program. Scintilla has Cocoa code, but Notepad++'s main windowing, dialogs, menu
+commands, registry integration, and plugin host are Windows-specific.
+
+Feature-parity progress against upstream Notepad++ is tracked in
+[PARITY_PLAN.md](PARITY_PLAN.md).
+
+## License
+
+This project is distributed under the **GNU General Public License v3.0**
+([LICENSE](LICENSE)), inherited from Notepad++, of which it is a derivative work.
+
+Like Notepad++, it is free software: you can redistribute it and/or modify it
+under the terms of the GPL-3.0, and it comes with **NO WARRANTY**. See the
+[GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.html) for details.
+
+### Third-party components
+
+The packaged application bundles several third-party components, each under its
+own license. Their copyright and license notices are reproduced in the
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) file and summarized here:
+
+| Component | Source | License |
+|---|---|---|
+| **Notepad++** (language models, themes, API/functionList XML, icons, boostregex bridge) | [`upstream/notepad-plus-plus`](https://github.com/notepad-plus-plus/notepad-plus-plus) — © Don HO | [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html) |
+| **Scintilla** (Cocoa editing framework) | [`scintilla`](https://www.scintilla.org/) — © Neil Hodgson | Historical Permission Notice and Disclaimer (HPND-like) |
+| **Lexilla** (lexer library) | [`lexilla`](https://www.scintilla.org/Lexilla.html) — © Neil Hodgson | Historical Permission Notice and Disclaimer (HPND-like) |
+| **Boost.Regex** (regex engine, via boostregex bridge) | [boost.org](https://www.boost.org/) | [Boost Software License 1.0](https://www.boost.org/LICENSE_1_0.txt) |
+
+All bundled assets (Notepad++ `langs.model.xml`, `stylers.model.xml`, API XML,
+function-list XML, theme XML, the chameleon icon) are GPL-3.0 material from the
+upstream project and are redistributed under the same terms.
+
+### Trademarks
+
+"Notepad++" and the Notepad++ name and logo are trademarks of their respective
+owners, used here only to identify the upstream project this editor is derived
+from. This project is an independent derivative and does not imply endorsement
+by the Notepad++ trademark holders.
 
 ## Build and Test
 
@@ -245,9 +298,6 @@ Verified as buildable and intended for the next reuse step:
   validated JSON edit script through `NOTEPAD_MAC_EDIT_SCRIPT_FILE` that the
   host applies to the active buffer
 
-Feature-parity progress against upstream Notepad++ is tracked in
-[PARITY_PLAN.md](PARITY_PLAN.md).
-
 ## Porting Boundary
 
 This is a native macOS app, not a full Notepad++ Win32 port. The copied upstream
@@ -476,3 +526,22 @@ Swift adapter is intentionally thin:
   configurator currently covers foreground/background/font/bold/italic per
   style ID
 - development runs without the bundled framework fall back to `NSTextView`
+
+## Contributing
+
+Contributions are welcome. For build instructions and the rules this project
+follows (version numbers must match upstream Notepad++, the `upstream/` tree is
+`.gitignore`d and re-cloned by CI, and the build-order constraints), please read
+[CLAUDE.md](CLAUDE.md) and [PARITY_PLAN.md](PARITY_PLAN.md) before opening a pull
+request.
+
+Please follow the [Conventional Commits](https://www.conventionalcommits.org/)
+format (`feat:`, `fix:`, `docs:`, …) so release notes generate cleanly from the
+commit log.
+
+## Disclaimer
+
+This is an independent, community macOS port derived from Notepad++. It is not
+affiliated with, sponsored by, or endorsed by the official Notepad++ project or
+its maintainers. "Notepad++" is a trademark of its respective owner. All
+trademarks and registered trademarks are the property of their respective owners.
