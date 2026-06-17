@@ -1117,7 +1117,7 @@ enum AppMenu {
         let languageMenu = NSMenu(title: Localization.string(.languageMenu, default: "Language"))
         languageMenuItem.submenu = languageMenu
         installedLanguageMenu = languageMenu
-        populateLanguages(menu: languageMenu, delegate: delegate, catalog: catalog)
+        populateLanguages(menu: languageMenu, delegate: delegate, catalog: catalog, compact: true)
 
         let settingsMenuItem = NSMenuItem()
         mainMenu.addItem(settingsMenuItem)
