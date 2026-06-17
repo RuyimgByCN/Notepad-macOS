@@ -1,3 +1,5 @@
+[English](README.md) | [中文](README_zh.md)
+
 # Notepad++ Mac Native
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
@@ -5,17 +7,31 @@
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://www.swift.org/)
 [![Upstream Notepad++](https://img.shields.io/badge/upstream-Notepad%2B%2B-90E59A.svg)](https://notepad-plus-plus.org/)
 
-**Notepad++ Mac Native** is a free (free as in both "free speech" and "free
-beer") source code editor and Notepad replacement for **macOS**, built natively
-with Swift / AppKit. It is **not** a Wine wrapper — the Win32 GUI layer of
-Notepad++ is rewritten in native macOS code, while platform-neutral upstream
-resources (language models, themes, API tables, icons) and the upstream
-Scintilla / Lexilla editors are reused directly.
+**Notepad++ Mac Native** is a free and open-source code editor and Notepad
+replacement for **macOS**, built natively with Swift / AppKit. It is **not**
+a Wine wrapper — the Win32 GUI layer of Notepad++ is rewritten in native
+macOS code, while platform-neutral upstream resources (language models, themes,
+API tables, icons) and the upstream Scintilla / Lexilla editors are reused
+directly.
 
 This is an independent macOS implementation of Notepad++. It is **not** the
 official Notepad++ project and is not affiliated with or endorsed by Don HO or
 the Notepad++ team. The official Windows project lives at
 <https://github.com/notepad-plus-plus/notepad-plus-plus>.
+
+## Product Screenshots
+
+| Editor | Find and Replace |
+|---|---|
+| ![Notepad++ Mac Native editing a Rust file](docs/images/screenshots/editor-rust.png) | ![Find and Replace panel](docs/images/screenshots/find-replace.png) |
+
+| Preferences | Style Configurator |
+|---|---|
+| ![Preferences panel](docs/images/screenshots/preferences.png) | ![Style Configurator panel](docs/images/screenshots/style-configurator.png) |
+
+| Function List |
+|---|
+| ![Function List panel](docs/images/screenshots/function-list.png) |
 
 ## Relationship to Upstream Notepad++
 
@@ -90,9 +106,9 @@ Scintilla and Lexilla runtimes, rather than a development-tree or system copy.
 
 For static package validation before smoke testing, run
 `scripts/verify-package.sh` to check the app bundle, bundled runtimes, signing,
-DMG checksum, and quarantine attributes. The verify and smoke scripts now give
-stricter evidence that the packaged app is using the bundled Scintilla framework
-and Lexilla dylib.
+DMG checksum, and quarantine attributes. The verify and smoke scripts provide
+evidence that the packaged app is using the bundled Scintilla framework and
+Lexilla dylib.
 
 The script attempts to package the main `NotepadMac` executable as universal
 `arm64` + `x86_64`. It first uses SwiftPM's one-step architecture support when
@@ -109,8 +125,8 @@ still single-architecture. Set `MACOS_SCINTILLA_ARCHS`,
 `MACOS_SCINTILLA_CONFIGURATION`, or `MACOS_SCINTILLA_DERIVED_DATA` to override
 the Scintilla Xcode build inputs and packaged framework path.
 
-Lexilla packaging is now explicit and verified instead of relying on the
-upstream makefile's default macOS flags. By default `scripts/package-macos.sh`
+Lexilla packaging is explicit and verified, not relying on the upstream
+makefile's default macOS flags. By default `scripts/package-macos.sh`
 requests a universal `liblexilla.dylib` build with `arm64 x86_64`, verifies
 that the built dylib contains both requested slices, and falls back to the
 active architecture only when the universal request fails. To control that
@@ -164,7 +180,7 @@ Already wired into the native app:
 - `../notepad-plus-plus/PowerEditor/misc/chameleon/chameleon-pencil-1000.png`
   - converted into the macOS app icon
 
-Verified as buildable and intended for the next reuse step:
+Also built and packaged:
 
 - `../notepad-plus-plus/scintilla/cocoa/Scintilla/Scintilla.xcodeproj`
   - build with `scripts/build-scintilla-framework.sh`
@@ -233,7 +249,7 @@ Verified as buildable and intended for the next reuse step:
 - Native Scintilla line-number, bookmark-marker, and fold margins when the
   bundled Scintilla framework is active
 - Packaged Scintilla editor surface handles bookmark and fold margin clicks;
-  packaged-build hand-click behavior was manually confirmed on June 2, 2026
+  verified on a packaged build on June 2, 2026
 - Native Scintilla folding commands for toggling the current fold, folding all,
   and unfolding all through View > Folding
 - UTF-8 and UTF-16 text loading, BOM detection, and native Encoding menu
@@ -262,7 +278,7 @@ Verified as buildable and intended for the next reuse step:
   no-wrap scans, with Find Previous (Cmd+Shift+G) in the Search menu and
   direction/wrap controls in the panel
 - Localized app menus and editor toolbar backed by SwiftPM-bundled English and
-  Simplified Chinese strings; broader panel/view copy is still being migrated
+  Simplified Chinese strings; broader panel/view localization is partial
 - Lightweight native syntax highlighting driven by that upstream language model
   as the fallback when no Lexilla lexer is mapped; the Lexilla mapping now
   mirrors upstream `ScintillaEditView::_langNameInfoArray` (~95 languages,
@@ -304,9 +320,9 @@ Verified as buildable and intended for the next reuse step:
 ## Porting Boundary
 
 This is a native macOS app, not a full Notepad++ Win32 port. The copied upstream
-source remains available as the reference baseline for future feature parity
-work. Full parity would require replacing Win32 window/dialog/plugin APIs with
-AppKit equivalents module by module.
+source is the reference baseline for feature parity. Full parity requires
+replacing Win32 window/dialog/plugin APIs with AppKit equivalents module by
+module.
 
 Notepad++ plugins are Win32 DLLs and are not loaded by this native macOS host.
 The app exposes a native manifest-based plugin discovery layer instead, and the
@@ -480,20 +496,19 @@ transport and cannot safely preserve embedded NUL bytes.
   `SCI_SETRECTANGULARSELECTION*`.
 - Localization: English and Simplified Chinese `Localizable.strings` resources
   are bundled through SwiftPM and copied into the packaged app. App menus and
-  the editor toolbar consume the localization helper; broader panel/view copy is
-  still pending.
-- Remaining Notepad++ parity areas (see PARITY_PLAN.md): the previously
-  deferred items are now implemented — GitHub Releases update checker with
-  updater proxy, the boost::regex C++ bridge (full upstream regex syntax,
+  the editor toolbar consume the localization helper; broader panel/view
+  localization is partial.
+- Notepad++ parity areas (see PARITY_PLAN.md): GitHub Releases update checker
+  with updater proxy, the boost::regex C++ bridge (full upstream regex syntax,
   including \K, recursion, conditionals, and atomic groups), OEM 720/858/861
   codepages via built-in byte tables, plugin install from .zip archives and
   URLs with version-aware updates, the legacy hardcoded panel strings
   migration (en + zh-Hans), upstream-style Move to Other View (a second
   split pane hosting another document's shared buffer), and a Document
   Peeker tab-hover preview. Win32 DLL plugin loading and Windows-only OS
-  integrations remain intentionally out of scope. Live rectangular
-  multi-caret editing is wired through Scintilla multiple-selection settings
-  (Alt+drag switches to rectangular mode; typing applies to every caret).
+  integrations are out of scope. Live rectangular multi-caret editing is
+  wired through Scintilla multiple-selection settings (Alt+drag switches to
+  rectangular mode; typing applies to every caret).
 
 ## Reuse Policy
 
@@ -503,20 +518,18 @@ transport and cannot safely preserve embedded NUL bytes.
   macOS. Scintilla Cocoa is used as the packaged editor surface because it
   already produces a native framework from the copied upstream source.
 - Rewrite Win32-only UI/application behavior in native macOS code.
-- Keep the reuse boundary explicit so later porting work can replace more
-  hardcoded native behavior with upstream-compatible data or libraries when that
-  code is genuinely portable.
+- Keep the reuse boundary explicit.
 
 ## Current Scintilla Limitations
 
-The app now uses the upstream Scintilla Cocoa framework when packaged, but the
-Swift adapter is intentionally thin:
+The app uses the upstream Scintilla Cocoa framework when packaged. The Swift
+adapter is thin:
 
 - packaging attempts a universal Scintilla framework build and reports the
   bundled framework architecture. If Scintilla remains single-architecture, the
   Scintilla-backed editor path is limited to that slice even when the main
-  executable is universal; the package should not be described as a fully
-  universal app bundle until Scintilla and Lexilla both include x86_64 and arm64
+  executable is universal; the package is not a fully universal app bundle
+  unless Scintilla and Lexilla both include x86_64 and arm64
 - text get/set, edit notifications, selection range, font selection, wrap mode,
   and keyword set forwarding are wired through typed Objective-C calls
 - Scintilla rectangular and multi-selection messages are reachable through the
@@ -526,8 +539,7 @@ Swift adapter is intentionally thin:
 - Lexilla lexer creation is wired through the shared library's C ABI and passed
   to Scintilla with `SCI_SETILEXER`
 - lexer-specific style colors are loaded from `stylers.model.xml`; the native
-  configurator currently covers foreground/background/font/bold/italic per
-  style ID
+  configurator covers foreground/background/font/bold/italic per style ID
 - development runs without the bundled framework fall back to `NSTextView`
 
 ## Contributing
