@@ -1821,14 +1821,6 @@ enum AppMenu {
     }
 
     @MainActor
-    // Languages shown in the top-level menu when compact mode is on
-    private static let commonLanguageNames: Set<String> = [
-        "normal", "c", "cpp", "csharp", "java", "javascript", "typescript",
-        "python", "ruby", "php", "swift", "go", "rust", "bash", "html",
-        "xml", "json", "yaml", "toml", "css", "sql", "markdown"
-    ]
-
-    @MainActor
     private static func populateLanguages(
         menu: NSMenu,
         delegate: AppDelegate,
@@ -1849,24 +1841,36 @@ enum AppMenu {
 
         let sorted = catalog.languages.sorted(by: { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending })
         if compact {
-            let common = sorted.filter { commonLanguageNames.contains($0.name) }
-            let rare = sorted.filter { !commonLanguageNames.contains($0.name) }
-            for language in common {
-                let item = NSMenuItem(title: language.displayName, action: #selector(EditorWindowController.setSyntaxLanguage(_:)), keyEquivalent: "")
-                item.representedObject = language.name
-                menu.addItem(item)
+            // Upstream-style compact menu: group languages by first letter.
+            // Letters with 2+ languages get a submenu; single-language letters
+            // stay as direct menu items (matching upstream Notepad++ behaviour).
+            var groups: [Character: [LanguageDefinition]] = [:]
+            for language in sorted {
+                let firstChar = language.displayName.first ?? "?"
+                let key = Character(firstChar.uppercased())
+                groups[key, default: []].append(language)
             }
-            if !rare.isEmpty {
-                menu.addItem(NSMenuItem.separator())
-                let othersMenu = NSMenu(title: "")
-                for language in rare {
+
+            let sortedKeys = groups.keys.sorted {
+                String($0).localizedCaseInsensitiveCompare(String($1)) == .orderedAscending
+            }
+            for key in sortedKeys {
+                guard let languages = groups[key] else { continue }
+                if languages.count == 1, let language = languages.first {
                     let item = NSMenuItem(title: language.displayName, action: #selector(EditorWindowController.setSyntaxLanguage(_:)), keyEquivalent: "")
                     item.representedObject = language.name
-                    othersMenu.addItem(item)
+                    menu.addItem(item)
+                } else {
+                    let submenu = NSMenu(title: String(key))
+                    for language in languages {
+                        let item = NSMenuItem(title: language.displayName, action: #selector(EditorWindowController.setSyntaxLanguage(_:)), keyEquivalent: "")
+                        item.representedObject = language.name
+                        submenu.addItem(item)
+                    }
+                    let groupItem = NSMenuItem(title: String(key), action: nil, keyEquivalent: "")
+                    groupItem.submenu = submenu
+                    menu.addItem(groupItem)
                 }
-                let othersItem = NSMenuItem(title: Localization.string(.languageMenuOthers, default: "Others"), action: nil, keyEquivalent: "")
-                othersItem.submenu = othersMenu
-                menu.addItem(othersItem)
             }
         } else {
             for language in sorted {
