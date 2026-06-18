@@ -1168,6 +1168,12 @@ final class ScintillaEditorSurface: EditorSurface {
             bridge.setGeneralProperty(ScintillaMessage.clearDocumentStyle, parameter: 0, value: 0)
             configureFoldingProperties()
             configureLexillaProperties(for: language)
+            // Force initial colorization to build fold levels BEFORE enabling
+            // SC_AUTOMATICFOLD_CHANGE. Without this, AUTOMATICFOLD_CHANGE treats
+            // the initial fold-level construction as "fold level changed" and
+            // auto-collapses every fold point on document load.
+            bridge.setGeneralProperty(ScintillaMessage.colourise, parameter: -1, value: -1)
+            configureAutomaticFold()
         } else {
             bridge.setReferenceProperty(ScintillaMessage.setILexer, parameter: 0, value: nil)
         }
@@ -1192,8 +1198,6 @@ final class ScintillaEditorSurface: EditorSurface {
 
         applyStyles(language: language, styleCatalog: styleCatalog, stylePreferences: stylePreferences)
         applyGlobalStyles(styleCatalog: styleCatalog, stylePreferences: stylePreferences)
-        // Scintilla styles lazily on demand — no need to force SCI_COLOURISE(0,-1) here.
-        // Calling it upfront blocks the main thread for the entire document on large files.
     }
 
     func clearLexer() {
@@ -1283,7 +1287,7 @@ final class ScintillaEditorSurface: EditorSurface {
     func unfoldAll() {
         bridge.setGeneralProperty(
             ScintillaMessage.foldAll,
-            parameter: ScintillaFoldAction.expand,
+            parameter: ScintillaFoldAction.expandAllLevels,
             value: 0
         )
     }
@@ -2609,6 +2613,18 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setLexerProperty(name: "fold.html", value: "1")
     }
 
+    /// Set SC_AUTOMATICFOLD after fold levels have already been built by
+    /// SCI_COLOURISE, so that SC_AUTOMATICFOLD_CHANGE only applies to
+    /// *future* incremental fold-level changes — not to the initial pass
+    /// that creates every fold point from scratch (which would auto-collapse
+    /// the entire document on load).
+    private func configureAutomaticFold() {
+        // SCI_SETAUTOMATICFOLD(SC_AUTOMATICFOLD_SHOW | SC_AUTOMATICFOLD_CHANGE)
+        // SHOW: re-fold previously collapsed lines when they become visible
+        // CHANGE: re-fold after fold structure changes (e.g. lexer re-style)
+        bridge.setGeneralProperty(ScintillaMessage.setAutomaticFold, parameter: 0x0001 | 0x0004, value: 0)
+    }
+
     private func configureLexillaProperties(for language: LanguageDefinition) {
         for property in language.lexillaProperties {
             bridge.setLexerProperty(name: property.name, value: property.value)
@@ -3029,6 +3045,7 @@ private enum ScintillaMessage {
     static let callTipPosStart: Int32 = 2214
     static let setMultiPaste: Int32 = 2614
     static let foldAll: Int32 = 2662
+    static let setAutomaticFold: Int32 = 2663  // SCI_SETAUTOMATICFOLD
     static let assignCmdKey: Int32 = 2070
     static let clearCmdKey: Int32 = 2071
     static let clearAllCmdKeys: Int32 = 2072
@@ -3196,8 +3213,15 @@ private enum ScintillaHistoryMarker {
 }
 
 private enum ScintillaFoldAction {
-    static let contractAllLevels: CLong = 4
-    static let expand: CLong = 1
+    static let contract: CLong = 0      // SC_FOLDACTION_CONTRACT
+    static let expand: CLong = 1         // SC_FOLDACTION_EXPAND
+    static let toggle: CLong = 2         // SC_FOLDACTION_TOGGLE
+    static let contractEveryLevel: CLong = 4  // SC_FOLDACTION_CONTRACT_EVERY_LEVEL
+    // Expand all levels: SC_FOLDACTION_EXPAND | SC_FOLDACTION_CONTRACT_EVERY_LEVEL
+    // Contract all levels: SC_FOLDACTION_CONTRACT | SC_FOLDACTION_CONTRACT_EVERY_LEVEL
+    // Matches upstream Notepad++ Editor::foldAll() implementation
+    static let expandAllLevels: CLong = expand | contractEveryLevel
+    static let contractAllLevels: CLong = contract | contractEveryLevel
 }
 
 private enum ScintillaFoldLevel {
