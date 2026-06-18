@@ -489,6 +489,7 @@
 "plugins.installAvailable.message" = "从目录中选择一个插件安装。";
 "plugins.report.availableHeader" = "可用插件（未安装）：";
 "plugins.report.updatesHeader" = "可用更新：";
+"plugins.report.upstreamDLLs" = "上游 Windows DLL 插件（无法在 macOS 上加载，仅供参考）：";
 "plugins.installFromURL.message" = "输入插件 .zip 压缩包的 URL。";
 "plugins.remove" = "移除";
 "plugins.install.panelTitle" = "安装原生插件";

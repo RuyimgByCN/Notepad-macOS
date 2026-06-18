@@ -489,6 +489,7 @@
 "plugins.installAvailable.message" = "Select a plugin to install from the catalog.";
 "plugins.report.availableHeader" = "Available plugins (not installed):";
 "plugins.report.updatesHeader" = "Available updates:";
+"plugins.report.upstreamDLLs" = "Upstream Windows DLL plugins (not loadable on macOS, listed for reference):";
 "plugins.installFromURL.message" = "Enter the URL of a plugin .zip archive.";
 "plugins.remove" = "Remove";
 "plugins.install.panelTitle" = "Install Native Plugin";

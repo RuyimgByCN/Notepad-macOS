@@ -1164,6 +1164,26 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
                 appendStatus("  \(update.remote.name): installed \(update.installed.version ?? "?") → available \(update.remote.version ?? "?")")
             }
         }
+
+        // Show upstream Windows DLL reference info
+        if let remoteCatalog {
+            let upstreamDLLs = remoteCatalog.plugins.filter { $0.upstreamWindowsDLL == true }
+            if !upstreamDLLs.isEmpty {
+                appendStatus("")
+                appendStatus(Localization.string(
+                    .pluginsReportUpstreamDLLs,
+                    default: "Upstream Windows DLL plugins (not loadable on macOS, listed for reference):"
+                ))
+                for entry in upstreamDLLs {
+                    var line = "  \(entry.name) (\(entry.version ?? "?"))"
+                    if let desc = entry.description, !desc.isEmpty {
+                        let shortDesc = desc.count > 80 ? String(desc.prefix(77)) + "..." : desc
+                        line += " — \(shortDesc)"
+                    }
+                    appendStatus(line)
+                }
+            }
+        }
     }
 
     @objc private func runSelectedCommand(_ sender: Any?) {

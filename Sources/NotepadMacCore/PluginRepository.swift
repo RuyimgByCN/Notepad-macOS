@@ -11,6 +11,10 @@ public struct PluginRepositoryEntry: Codable, Equatable, Sendable {
     public let repository: String?
     /// Notepad-mac version compatibility range, e.g. "[8.9.6,]"
     public let nppMacCompatibleVersions: String?
+    /// Whether this entry references an upstream Windows DLL (not directly loadable on macOS).
+    public let upstreamWindowsDLL: Bool?
+    /// Original upstream folder name for cross-referencing.
+    public let upstreamFolderName: String?
 
     public init(
         identifier: String,
@@ -20,7 +24,9 @@ public struct PluginRepositoryEntry: Codable, Equatable, Sendable {
         author: String? = nil,
         homepage: String? = nil,
         repository: String? = nil,
-        nppMacCompatibleVersions: String? = nil
+        nppMacCompatibleVersions: String? = nil,
+        upstreamWindowsDLL: Bool? = nil,
+        upstreamFolderName: String? = nil
     ) {
         self.identifier = identifier
         self.name = name
@@ -30,6 +36,8 @@ public struct PluginRepositoryEntry: Codable, Equatable, Sendable {
         self.homepage = homepage
         self.repository = repository
         self.nppMacCompatibleVersions = nppMacCompatibleVersions
+        self.upstreamWindowsDLL = upstreamWindowsDLL
+        self.upstreamFolderName = upstreamFolderName
     }
 }
 
@@ -50,7 +58,7 @@ public enum PluginRepository {
 
     /// Default URL for the official Notepad-mac plugin catalog.
     public static var defaultCatalogURL: URL {
-        URL(string: "https://raw.githubusercontent.com/RuyimgByCN/Notepad-macOS/main/plugin-catalog.json")!
+        URL(string: "https://raw.githubusercontent.com/RuyimgByCN/Notepad-macOS-PluginList/main/mac-arm64.json")!
     }
 
     /// Cache file location.
@@ -102,6 +110,9 @@ public enum PluginRepository {
         )
 
         for entry in remote.plugins {
+            // Skip entries that are upstream Windows DLLs (not loadable on macOS)
+            if entry.upstreamWindowsDLL == true { continue }
+
             if let installedPlugin = installedByIdentifier[entry.identifier] {
                 // Check for update
                 if let remoteVersion = entry.version,
