@@ -3141,6 +3141,9 @@ private enum ScintillaMessage {
     static let styleGetBack: Int32 = 2482
     static let styleGetBold: Int32 = 2483
     static let styleGetItalic: Int32 = 2484
+    static let styleGetSize: Int32 = 2485
+    static let styleGetFont: Int32 = 2486
+    static let styleGetUnderline: Int32 = 2488
 }
 
 

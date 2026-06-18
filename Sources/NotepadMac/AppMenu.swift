@@ -189,6 +189,26 @@ enum AppMenu {
             keyEquivalent: ""
         )
         fileMenu.addItem(NSMenuItem.separator())
+
+        // Export submenu (HTML / RTF)
+        let exportMenu = NSMenu()
+        let exportSubmenuItem = fileMenu.addItem(
+            withTitle: Localization.string(.fileExport, default: "Export"),
+            action: nil,
+            keyEquivalent: ""
+        )
+        exportSubmenuItem.submenu = exportMenu
+        exportMenu.addItem(
+            withTitle: Localization.string(.fileExportAsHTML, default: "Export as HTML..."),
+            action: #selector(EditorWindowController.exportAsHTML(_:)),
+            keyEquivalent: ""
+        )
+        exportMenu.addItem(
+            withTitle: Localization.string(.fileExportAsRTF, default: "Export as RTF..."),
+            action: #selector(EditorWindowController.exportAsRTF(_:)),
+            keyEquivalent: ""
+        )
+
         fileMenu.addItem(withTitle: Localization.string(.filePrint, default: "Print..."), action: #selector(EditorWindowController.printDocument(_:)), keyEquivalent: "p")
         fileMenu.addItem(withTitle: Localization.string(.filePrintSelection, default: "Print Selection..."), action: #selector(EditorWindowController.printSelection(_:)), keyEquivalent: "")
         fileMenu.addItem(

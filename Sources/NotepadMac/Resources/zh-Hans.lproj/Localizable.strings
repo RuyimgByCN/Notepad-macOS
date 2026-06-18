@@ -28,6 +28,9 @@
 "file.noRecentFiles" = "无最近文件";
 "file.clearRecentFiles" = "清空最近文件";
 "file.print" = "打印...";
+"file.export" = "导出";
+"file.exportAsHTML" = "导出为 HTML...";
+"file.exportAsRTF" = "导出为 RTF...";
 "file.insertFile" = "插入文件...";
 "file.close" = "关闭";
 "file.closeAll" = "全部关闭";

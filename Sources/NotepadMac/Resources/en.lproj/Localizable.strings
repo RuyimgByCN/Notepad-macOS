@@ -28,6 +28,9 @@
 "file.noRecentFiles" = "No recent files";
 "file.clearRecentFiles" = "Clear Menu";
 "file.print" = "Print...";
+"file.export" = "Export";
+"file.exportAsHTML" = "Export as HTML...";
+"file.exportAsRTF" = "Export as RTF...";
 "file.insertFile" = "Insert File...";
 "file.close" = "Close";
 "file.closeAll" = "Close All";

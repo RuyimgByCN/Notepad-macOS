@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import NotepadMacCore
 
 enum WhitespaceDisplayMode: Int, CaseIterable {
@@ -685,6 +686,48 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         panel.beginSheetModal(for: window!) { [weak self] response in
             guard response == .OK, let self, let url = panel.url else { return }
             self.saveCopy(at: url)
+        }
+    }
+
+    @objc func exportAsHTML(_ sender: Any?) {
+        exportDocument(format: .html)
+    }
+
+    @objc func exportAsRTF(_ sender: Any?) {
+        exportDocument(format: .rtf)
+    }
+
+    private func exportDocument(format: DocumentExporter.Format) {
+        let title = displayName
+        let range = editorSurface.selectedRange.length > 0
+            ? editorSurface.selectedRange
+            : NSRange(location: 0, length: (editorSurface.text as NSString).length)
+        let segments = editorSurface.styledSegments(ofSelection: range)
+
+        guard let window else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = title.replacingOccurrences(of: ".", with: "_") + "." + format.rawValue
+        panel.allowedContentTypes = format == .html
+            ? [.html]
+            : [.rtf]
+        if let fileURL {
+            panel.directoryURL = fileURL.deletingLastPathComponent()
+        }
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try DocumentExporter.writeExport(
+                    segments: segments,
+                    format: format,
+                    title: title,
+                    to: url
+                )
+            } catch {
+                // Show error on the window after the panel closes
+                DispatchQueue.main.async {
+                    self.presentError(error)
+                }
+            }
         }
     }
 
