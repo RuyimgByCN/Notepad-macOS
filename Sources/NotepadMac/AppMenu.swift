@@ -82,6 +82,8 @@ enum AppMenu {
     @MainActor
     private static weak var installedWindowTabColorMenu: NSMenu?
     @MainActor
+    private static weak var installedPluginsMenu: NSMenu?
+    @MainActor
     private static weak var installedRunMenu: NSMenu?
     @MainActor
     private static weak var installedMacroMenu: NSMenu?
@@ -914,6 +916,9 @@ enum AppMenu {
         mainMenu.addItem(pluginsMenuItem)
         let pluginsMenu = NSMenu(title: Localization.string(.pluginsMenu, default: "Plugins"))
         pluginsMenuItem.submenu = pluginsMenu
+        installedPluginsMenu = pluginsMenu
+
+        // Fixed items (always present)
         pluginsMenu.addItem(
             withTitle: Localization.string(.pluginAdmin, default: "Plugin Admin..."),
             action: #selector(AppDelegate.showPluginAdmin(_:)),
@@ -924,6 +929,9 @@ enum AppMenu {
             action: #selector(AppDelegate.openPluginsFolder(_:)),
             keyEquivalent: ""
         ).target = delegate
+
+        // Dynamic plugin command sub-menus (populated by refreshPlugins)
+        refreshPlugins()
         let viewMenuItem = NSMenuItem()
         mainMenu.addItem(viewMenuItem)
         let viewMenu = NSMenu(title: Localization.string(.viewMenu, default: "View"))
@@ -1632,6 +1640,66 @@ enum AppMenu {
             clearItem.target = installedDelegate
             clearItem.tag = inlineRecentTag
             fileMenu.insertItem(clearItem, at: insertIdx)
+        }
+    }
+
+    @MainActor
+    static func refreshPlugins() {
+        guard let pluginsMenu = installedPluginsMenu else { return }
+
+        // Remove all dynamic items (keep first 2 fixed items: Plugin Admin, Open Folder)
+        let fixedItemCount = 2
+        while pluginsMenu.items.count > fixedItemCount {
+            pluginsMenu.removeItem(at: pluginsMenu.items.count - 1)
+        }
+
+        let directories = PluginCatalog.defaultPluginDirectories()
+        let disabledIdentifiers = PreferencesStore().loadDisabledNativePluginIdentifiers()
+        let catalog = PluginCatalog
+            .scan(directories: directories)
+            .withDisabledPlugins(disabledIdentifiers)
+
+        let compatiblePlugins = catalog.plugins.filter {
+            $0.kind == .nativeManifest && $0.compatibility == .nativeCompatible && !$0.commands.isEmpty
+        }
+
+        if !compatiblePlugins.isEmpty {
+            pluginsMenu.addItem(NSMenuItem.separator())
+
+            let shortcutStore = PluginCommandShortcutStore()
+            let shortcuts = shortcutStore.load()
+
+            for plugin in compatiblePlugins {
+                let pluginSubMenu = NSMenu(title: plugin.displayName)
+                let pluginSubmenuItem = pluginsMenu.addItem(
+                    withTitle: plugin.displayName,
+                    action: nil,
+                    keyEquivalent: ""
+                )
+                pluginSubmenuItem.submenu = pluginSubMenu
+
+                for command in plugin.commands {
+                    let menuItem = pluginSubMenu.addItem(
+                        withTitle: command.title,
+                        action: #selector(EditorWindowController.runPluginCommand(_:)),
+                        keyEquivalent: ""
+                    )
+                    menuItem.representedObject = [
+                        "pluginIdentifier": plugin.identifier,
+                        "commandIdentifier": command.identifier
+                    ] as [String: String]
+
+                    // Apply stored shortcut if available
+                    let shortcut = shortcuts.first {
+                        $0.pluginIdentifier == plugin.identifier
+                        && $0.commandIdentifier == command.identifier
+                    }
+                    if let shortcut, !shortcut.keyEquivalent.isEmpty {
+                        menuItem.keyEquivalent = shortcut.keyEquivalent
+                        menuItem.keyEquivalentModifierMask = NSEvent.ModifierFlags(rawValue: UInt(shortcut.modifierFlags))
+                    }
+                }
+            }
         }
     }
 

@@ -45,6 +45,21 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         target: nil,
         action: nil
     )
+    private let fetchAvailableButton = NSButton(
+        title: Localization.string(.pluginsFetchAvailable, default: "Fetch Available"),
+        target: nil,
+        action: nil
+    )
+    private let checkUpdatesButton = NSButton(
+        title: Localization.string(.pluginsCheckUpdates, default: "Check Updates"),
+        target: nil,
+        action: nil
+    )
+    private let installAvailableButton = NSButton(
+        title: Localization.string(.pluginsInstallSelected, default: "Install Selected"),
+        target: nil,
+        action: nil
+    )
     private let runButton = NSButton(
         title: Localization.string(.pluginsRun, default: "Run"),
         target: nil,
@@ -69,6 +84,9 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
     private var disabledNativePluginIdentifiers: Set<String> = []
     private var runningTask: Task<Void, Never>?
     private var stopRequested = false
+    private var remoteCatalog: PluginRepositoryCatalog?
+    private var availablePlugins: [PluginRepositoryEntry] = []
+    private var updatePlugins: [(remote: PluginRepositoryEntry, installed: PluginDescriptor)] = []
 
     init(
         preferencesStore: PreferencesStore = PreferencesStore(),
@@ -202,6 +220,21 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         openPluginFolderButton.target = self
         openPluginFolderButton.action = #selector(openUserPluginFolder(_:))
 
+        fetchAvailableButton.translatesAutoresizingMaskIntoConstraints = false
+        fetchAvailableButton.bezelStyle = .rounded
+        fetchAvailableButton.target = self
+        fetchAvailableButton.action = #selector(fetchAvailablePlugins(_:))
+
+        checkUpdatesButton.translatesAutoresizingMaskIntoConstraints = false
+        checkUpdatesButton.bezelStyle = .rounded
+        checkUpdatesButton.target = self
+        checkUpdatesButton.action = #selector(checkForUpdates(_:))
+
+        installAvailableButton.translatesAutoresizingMaskIntoConstraints = false
+        installAvailableButton.bezelStyle = .rounded
+        installAvailableButton.target = self
+        installAvailableButton.action = #selector(installSelectedAvailablePlugin(_:))
+
         runButton.translatesAutoresizingMaskIntoConstraints = false
         runButton.bezelStyle = .rounded
         runButton.target = self
@@ -255,6 +288,9 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         contentView.addSubview(installFromURLButton)
         contentView.addSubview(removePluginButton)
         contentView.addSubview(openPluginFolderButton)
+        contentView.addSubview(fetchAvailableButton)
+        contentView.addSubview(checkUpdatesButton)
+        contentView.addSubview(installAvailableButton)
         contentView.addSubview(runButton)
         contentView.addSubview(tableScrollView)
         contentView.addSubview(statusScrollView)
@@ -294,8 +330,17 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
             toggleNativePluginButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -14),
             toggleNativePluginButton.centerYAnchor.constraint(equalTo: nativePluginLabel.centerYAnchor),
 
+            fetchAvailableButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 14),
+            fetchAvailableButton.topAnchor.constraint(equalTo: nativePluginPopUpButton.bottomAnchor, constant: 10),
+
+            checkUpdatesButton.leadingAnchor.constraint(equalTo: fetchAvailableButton.trailingAnchor, constant: 8),
+            checkUpdatesButton.centerYAnchor.constraint(equalTo: fetchAvailableButton.centerYAnchor),
+
+            installAvailableButton.leadingAnchor.constraint(equalTo: checkUpdatesButton.trailingAnchor, constant: 8),
+            installAvailableButton.centerYAnchor.constraint(equalTo: fetchAvailableButton.centerYAnchor),
+
             argumentsLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 14),
-            argumentsLabel.topAnchor.constraint(equalTo: nativePluginPopUpButton.bottomAnchor, constant: 12),
+            argumentsLabel.topAnchor.constraint(equalTo: fetchAvailableButton.bottomAnchor, constant: 10),
 
             argumentsField.leadingAnchor.constraint(equalTo: argumentsLabel.trailingAnchor, constant: 8),
             argumentsField.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -14),
@@ -323,6 +368,9 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         installFromURLButton.title = Localization.string(.pluginsInstallFromURL, default: "Install from URL...")
         removePluginButton.title = Localization.string(.pluginsRemove, default: "Remove")
         openPluginFolderButton.title = Localization.string(.pluginsOpenUserPluginFolder, default: "Open Plugin Folder")
+        fetchAvailableButton.title = Localization.string(.pluginsFetchAvailable, default: "Fetch Available")
+        checkUpdatesButton.title = Localization.string(.pluginsCheckUpdates, default: "Check Updates")
+        installAvailableButton.title = Localization.string(.pluginsInstallSelected, default: "Install Selected")
         pluginColumn.title = Localization.string(.pluginsColumnPlugin, default: "Plugin")
         commandColumn.title = Localization.string(.pluginsColumnCommand, default: "Command")
         identifierColumn.title = Localization.string(.pluginsColumnIdentifier, default: "Identifier")
@@ -388,11 +436,11 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
             "",
             Localization.string(
                 .pluginsReportNativeManifests,
-                default: "Native plugin manifests: notepad-mac-plugin.json"
+                default: "Native plugins declare commands via notepad-mac-plugin.json and can be executed directly."
             ),
             Localization.string(
                 .pluginsReportWindowsDllCompatibility,
-                default: "Windows Notepad++ DLL plugins are reported for compatibility only and are not loaded."
+                default: "Windows Notepad++ DLL plugins are detected for compatibility reporting only; they cannot be loaded on macOS."
             ),
             "",
             Localization.string(.pluginsReportScanLocations, default: "Scan locations:")
@@ -421,6 +469,9 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
 
         for plugin in catalog.plugins {
             lines.append("\(plugin.displayName)\(plugin.version.map { " \($0)" } ?? "")")
+            if let desc = plugin.pluginDescription, !desc.isEmpty {
+                lines.append("  " + desc)
+            }
             lines.append("  " + String(
                 format: Localization.string(.pluginsReportKind, default: "Kind: %@"),
                 plugin.kind.displayName
@@ -429,6 +480,18 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
                 format: Localization.string(.pluginsReportStatus, default: "Status: %@"),
                 plugin.compatibility.displayText
             ))
+            if let author = plugin.author, !author.isEmpty {
+                lines.append("  " + String(
+                    format: Localization.string(.pluginsReportAuthor, default: "Author: %@"),
+                    author
+                ))
+            }
+            if let homepage = plugin.homepage, !homepage.isEmpty {
+                lines.append("  " + String(
+                    format: Localization.string(.pluginsReportHomepage, default: "Homepage: %@"),
+                    homepage
+                ))
+            }
             lines.append("  " + String(
                 format: Localization.string(.pluginsReportLocation, default: "Location: %@"),
                 plugin.directoryURL.path
@@ -543,6 +606,9 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
             && PluginCatalog.userPluginDirectory() != nil
             && selectedNativePluginIdentifier() != nil
         openPluginFolderButton.isEnabled = PluginCatalog.userPluginDirectory() != nil
+        fetchAvailableButton.isEnabled = runningTask == nil
+        checkUpdatesButton.isEnabled = runningTask == nil
+        installAvailableButton.isEnabled = runningTask == nil && !availablePlugins.isEmpty
         tableView.isEnabled = runningTask == nil
         nativePluginPopUpButton.isEnabled = runningTask == nil && selectedNativePluginIdentifier() != nil
         toggleNativePluginButton.isEnabled = runningTask == nil && selectedNativePluginIdentifier() != nil
@@ -936,6 +1002,167 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
                 ),
                 error.localizedDescription
             ))
+        }
+    }
+
+    @objc private func fetchAvailablePlugins(_ sender: Any?) {
+        guard runningTask == nil else {
+            appendStatus(Localization.string(.pluginsStatusBusy, default: "Action skipped: a plugin command is still running."))
+            return
+        }
+
+        appendStatus(Localization.string(.pluginsStatusFetchingAvailable, default: "Fetching available plugin catalog..."))
+        let task = Task { @MainActor in
+            let fetched = await PluginRepository.fetchCatalog()
+            self.remoteCatalog = fetched
+            if let fetched {
+                self.availablePlugins = PluginRepository.compare(
+                    remote: fetched,
+                    installed: self.catalog
+                ).available
+                self.updatePlugins = PluginRepository.compare(
+                    remote: fetched,
+                    installed: self.catalog
+                ).updates
+
+                self.appendStatus(String(
+                    format: Localization.string(
+                        .pluginsStatusFetchSuccess,
+                        default: "Catalog loaded: %d available, %d updates."
+                    ),
+                    self.availablePlugins.count,
+                    self.updatePlugins.count
+                ))
+                self.renderRemoteInfo()
+            } else {
+                self.appendStatus(Localization.string(
+                    .pluginsStatusFetchFailed,
+                    default: "Failed to fetch plugin catalog. Check network connection."
+                ))
+            }
+            self.updateControls()
+        }
+        runningTask = task
+        stopRequested = false
+        updateControls()
+    }
+
+    @objc private func checkForUpdates(_ sender: Any?) {
+        guard runningTask == nil else {
+            appendStatus(Localization.string(.pluginsStatusBusy, default: "Action skipped: a plugin command is still running."))
+            return
+        }
+
+        // If catalog hasn been fetched, fetch first
+        if remoteCatalog == nil {
+            fetchAvailablePlugins(sender)
+            return
+        }
+
+        if updatePlugins.isEmpty {
+            appendStatus(Localization.string(
+                .pluginsStatusNoUpdates,
+                default: "No plugin updates available."
+            ))
+            return
+        }
+
+        appendStatus(Localization.string(.pluginsReportUpdatesHeader, default: "Available updates:"))
+        for update in updatePlugins {
+            appendStatus("  \(update.remote.name) \(update.remote.version ?? "?") → \(update.installed.version ?? "?")")
+        }
+    }
+
+    @objc private func installSelectedAvailablePlugin(_ sender: Any?) {
+        guard runningTask == nil else {
+            appendStatus(Localization.string(.pluginsStatusBusy, default: "Action skipped: a plugin command is still running."))
+            return
+        }
+
+        guard !availablePlugins.isEmpty else {
+            appendStatus(Localization.string(
+                .pluginsStatusNoAvailable,
+                default: "No available plugins to install. Fetch the catalog first."
+            ))
+            return
+        }
+
+        // Show selection dialog
+        let alert = NSAlert()
+        alert.messageText = Localization.string(
+            .pluginsInstallAvailableTitle,
+            default: "Install Available Plugin"
+        )
+        alert.informativeText = Localization.string(
+            .pluginsInstallAvailableMessage,
+            default: "Select a plugin to install from the catalog."
+        )
+        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        for entry in availablePlugins {
+            popup.addItem(withTitle: "\(entry.name) (\(entry.version ?? "latest"))")
+            popup.lastItem?.representedObject = entry.identifier
+        }
+        alert.accessoryView = popup
+        alert.addButton(withTitle: Localization.string(.pluginsInstallPanelPrompt, default: "Install"))
+        alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        guard let selectedIdentifier = popup.selectedItem?.representedObject as? String,
+              let entry = availablePlugins.first(where: { $0.identifier == selectedIdentifier })
+        else { return }
+
+        appendStatus(String(
+            format: Localization.string(.pluginsStatusInstallingFromRepo, default: "Installing %@ from repository..."),
+            entry.name
+        ))
+
+        let task = Task { @MainActor in
+            do {
+                let result = try await PluginRepository.installFromRepository(entry: entry)
+                self.reload(preferredNativePluginIdentifier: result.plugin.identifier)
+                self.appendStatus(self.installationStatusText(for: result))
+                // Re-compare after install
+                if let remoteCatalog = self.remoteCatalog {
+                    let comparison = PluginRepository.compare(remote: remoteCatalog, installed: self.catalog)
+                    self.availablePlugins = comparison.available
+                    self.updatePlugins = comparison.updates
+                }
+            } catch {
+                self.appendStatus(String(
+                    format: Localization.string(.pluginsStatusInstallFailed, default: "Install/update failed: %@"),
+                    error.localizedDescription
+                ))
+            }
+            self.runningTask = nil
+            self.stopRequested = false
+            self.updateControls()
+        }
+        runningTask = task
+        stopRequested = false
+        updateControls()
+    }
+
+    private func renderRemoteInfo() {
+        if availablePlugins.isEmpty && updatePlugins.isEmpty { return }
+
+        if !availablePlugins.isEmpty {
+            appendStatus("")
+            appendStatus(Localization.string(.pluginsReportAvailableHeader, default: "Available plugins (not installed):"))
+            for entry in availablePlugins {
+                var line = "  \(entry.name) (\(entry.version ?? "latest"))"
+                if let desc = entry.description, !desc.isEmpty {
+                    line += " — \(desc)"
+                }
+                appendStatus(line)
+            }
+        }
+
+        if !updatePlugins.isEmpty {
+            appendStatus("")
+            appendStatus(Localization.string(.pluginsReportUpdatesHeader, default: "Available updates:"))
+            for update in updatePlugins {
+                appendStatus("  \(update.remote.name): installed \(update.installed.version ?? "?") → available \(update.remote.version ?? "?")")
+            }
         }
     }
 

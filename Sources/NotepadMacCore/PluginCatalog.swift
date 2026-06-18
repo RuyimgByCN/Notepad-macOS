@@ -16,19 +16,31 @@ public struct PluginManifest: Codable, Equatable, Sendable {
     public let version: String?
     public let entryPoint: String?
     public let commands: [PluginCommandDescriptor]
+    public let description: String?
+    public let author: String?
+    public let homepage: String?
+    public let repository: String?
 
     public init(
         identifier: String,
         name: String,
         version: String? = nil,
         entryPoint: String? = nil,
-        commands: [PluginCommandDescriptor] = []
+        commands: [PluginCommandDescriptor] = [],
+        description: String? = nil,
+        author: String? = nil,
+        homepage: String? = nil,
+        repository: String? = nil
     ) {
         self.identifier = identifier
         self.name = name
         self.version = version?.nilIfEmpty
         self.entryPoint = entryPoint?.nilIfEmpty
         self.commands = commands
+        self.description = description?.nilIfEmpty
+        self.author = author?.nilIfEmpty
+        self.homepage = homepage?.nilIfEmpty
+        self.repository = repository?.nilIfEmpty
     }
 }
 
@@ -41,6 +53,10 @@ public struct PluginDescriptor: Equatable, Identifiable, Sendable {
     public let directoryURL: URL
     public let entryURL: URL?
     public let commands: [PluginCommandDescriptor]
+    public let pluginDescription: String?
+    public let author: String?
+    public let homepage: String?
+    public let repository: String?
 
     public var id: String { identifier }
 
@@ -52,7 +68,11 @@ public struct PluginDescriptor: Equatable, Identifiable, Sendable {
         compatibility: PluginCompatibility,
         directoryURL: URL,
         entryURL: URL? = nil,
-        commands: [PluginCommandDescriptor] = []
+        commands: [PluginCommandDescriptor] = [],
+        pluginDescription: String? = nil,
+        author: String? = nil,
+        homepage: String? = nil,
+        repository: String? = nil
     ) {
         self.identifier = identifier
         self.displayName = displayName
@@ -62,6 +82,10 @@ public struct PluginDescriptor: Equatable, Identifiable, Sendable {
         self.directoryURL = directoryURL.standardizedFileURL
         self.entryURL = entryURL?.standardizedFileURL
         self.commands = commands
+        self.pluginDescription = pluginDescription
+        self.author = author
+        self.homepage = homepage
+        self.repository = repository
     }
 }
 
@@ -170,7 +194,11 @@ public struct PluginCatalog: Equatable, Sendable {
                 compatibility: .unsupported(reason: PluginCompatibility.disabledPluginReason),
                 directoryURL: plugin.directoryURL,
                 entryURL: plugin.entryURL,
-                commands: plugin.commands
+                commands: plugin.commands,
+                pluginDescription: plugin.pluginDescription,
+                author: plugin.author,
+                homepage: plugin.homepage,
+                repository: plugin.repository
             )
         })
     }
@@ -615,7 +643,11 @@ public struct PluginCatalog: Equatable, Sendable {
                 compatibility: .nativeCompatible,
                 directoryURL: directoryURL,
                 entryURL: entryURL,
-                commands: manifest.commands
+                commands: manifest.commands,
+                pluginDescription: manifest.description,
+                author: manifest.author,
+                homepage: manifest.homepage,
+                repository: manifest.repository
             )
         } catch {
             return PluginDescriptor(

@@ -3334,6 +3334,79 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         NSApp.sendAction(#selector(AppDelegate.showPreferences(_:)), to: nil, from: self)
     }
 
+    @objc func runPluginCommand(_ sender: Any?) {
+        guard let menuItem = sender as? NSMenuItem,
+              let info = menuItem.representedObject as? [String: String],
+              let pluginIdentifier = info["pluginIdentifier"],
+              let commandIdentifier = info["commandIdentifier"]
+        else { return }
+
+        let directories = PluginCatalog.defaultPluginDirectories()
+        let disabledIdentifiers = preferencesStore.loadDisabledNativePluginIdentifiers()
+        let catalog = PluginCatalog
+            .scan(directories: directories)
+            .withDisabledPlugins(disabledIdentifiers)
+
+        let invocation = PluginCommandInvocation(
+            pluginIdentifier: pluginIdentifier,
+            commandIdentifier: commandIdentifier,
+            documentURL: sessionFileURL,
+            selection: pluginSelectionContext,
+            editScriptFileURL: FileManager.default.temporaryDirectory
+                .appendingPathComponent("notepad-mac-edit-script-\(UUID().uuidString).json")
+        )
+
+        let runtime = PluginCommandRuntime()
+        do {
+            let planned = try runtime.planExecutableCommand(invocation, in: catalog)
+            let commandDescription = "\(planned.plugin.displayName) / \(planned.command.title)"
+
+            Task { @MainActor in
+                do {
+                    let result = try await runtime.executePlannedCommand(planned)
+                    if result.terminationReason == .exit && result.terminationStatus == 0 {
+                        // Process edit script if present
+                        if let editScriptURL = invocation.editScriptFileURL {
+                            processPluginEditScript(url: editScriptURL)
+                        }
+                    } else {
+                        // Command failed — log output
+                        if !result.standardError.isEmpty {
+                            appendPluginStatus("[stderr] \(result.standardError)")
+                        }
+                    }
+                } catch {
+                    appendPluginStatus("Plugin command failed: \(error.localizedDescription)")
+                }
+            }
+        } catch {
+            appendPluginStatus("Plugin command planning failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func processPluginEditScript(url: URL) {
+        defer { try? FileManager.default.removeItem(at: url) }
+        guard let data = try? Data(contentsOf: url), !data.isEmpty else { return }
+        let script: PluginEditScript
+        do {
+            script = try PluginEditScript.decode(data)
+        } catch {
+            appendPluginStatus("Edit script rejected: \(error)")
+            return
+        }
+        if let problem = applyPluginEditScript(script) {
+            appendPluginStatus("Edit script not applied: \(problem)")
+        } else {
+            appendPluginStatus("Applied \(script.edits.count) buffer edit(s) from plugin.")
+        }
+    }
+
+    private func appendPluginStatus(_ message: String) {
+        // Lightweight status feedback — could be enhanced with a dedicated
+        // status bar notification in future iterations.
+        NSLog("NotepadMac Plugin: \(message)")
+    }
+
     @objc func showCharacterPanel(_ sender: Any?) {
         EditMenuSupport.presentCharacterPanel(using: NSApp, sender: sender)
         NSApp.activate(ignoringOtherApps: true)
