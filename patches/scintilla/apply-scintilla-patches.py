@@ -3,7 +3,13 @@
 import sys
 
 def apply_display_layer_patch(filepath):
-    """Add displayLayer: method to SCIContentView for macOS 26+ layer-backed rendering."""
+    """Add displayLayer: method to SCIContentView for macOS 26+ layer-backed rendering.
+    
+    macOS 26 forces layer-backed rendering on all NSViews. SCIContentView's drawRect:
+    relies on CGContextCurrent() which returns NULL in displayLayer:. 
+    Instead of calling [self display] (which would recurse back into displayLayer:),
+    we create a bitmap CGContext and draw into it, then set the result as the layer contents.
+    """
     # The marker is the SCIContentView drawRect implementation
     marker = '''	if (!mOwner.backend->Draw(rect, context)) {
 		dispatch_async(dispatch_get_main_queue(), ^ {
@@ -12,22 +18,53 @@ def apply_display_layer_patch(filepath):
 	}
 }'''
     
-    # Code to insert AFTER the marker (no duplicate closing brace)
+    # Code to insert AFTER the marker
+    # NOTE: Must NOT call [self display] or [self setNeedsDisplay]+display
+    # because that would recurse back into displayLayer: and crash with stack overflow.
+    # Instead, create a bitmap context, call Draw(), and set the layer contents.
     insert_code = '''
 
 //--------------------------------------------------------------------------------------------------
 
 /**
  * macOS 26+ (Tahoe) forces layer-backed rendering on all NSViews.
- * When layer-backed, AppKit may call displayLayer: instead of drawRect:
- * to render the view's content. SCIContentView only implements drawRect:
- * which relies on CGContextCurrent() that returns NULL outside drawRect's
- * graphics context stack. This method forces the traditional drawRect:
- * path by calling display() which invokes drawRect with proper context.
+ * When layer-backed, AppKit calls displayLayer: instead of drawRect:
+ * to render. SCIContentView's drawRect: uses CGContextCurrent() which
+ * is NULL in displayLayer:. Calling [self display] would recurse into
+ * displayLayer: causing stack overflow (RECURSION LEVEL >12000).
+ *
+ * Instead: create a CGBitmapContext, call the backend Draw() method
+ * with it, and assign the resulting image as the layer contents.
  */
 - (void) displayLayer: (CALayer *) layer {
-	[self setNeedsDisplay: YES];
-	[self display];
+	NSRect bounds = self.bounds;
+	CGFloat scale = [self.window backingScaleFactor];
+	if (scale < 1.0) scale = 1.0;
+	int width = (int)(bounds.size.width * scale);
+	int height = (int)(bounds.size.height * scale);
+	if (width <= 0 || height <= 0) return;
+
+	CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+	CGContextRef ctx = CGBitmapContextCreate(NULL, width, height, 8, width * 4, colorSpace, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+	CGColorSpaceRelease(colorSpace);
+	if (!ctx) return;
+
+	CGContextScaleCTM(ctx, scale, scale);
+	// Scintilla uses flipped coordinates (+Y downward)
+	CGAffineTransform flip = CGAffineTransformMake(1, 0, 0, -1, 0, bounds.size.height);
+	CGContextConcatCTM(ctx, flip);
+
+	if (!mOwner.backend->Draw(bounds, ctx)) {
+		// Drawing failed; schedule a retry via setNeedsDisplayInRect:
+		// (which uses drawRect: path, NOT displayLayer:)
+		[self setNeedsDisplayInRect: bounds];
+	}
+
+	CGImageRef image = CGBitmapContextCreateImage(ctx);
+	CGContextRelease(ctx);
+	layer.contents = (__bridge id)image;
+	// layer.contents takes ownership via CA retention; release our reference
+	if (image) CGImageRelease(image);
 }'''
     
     with open(filepath, 'r') as f:
