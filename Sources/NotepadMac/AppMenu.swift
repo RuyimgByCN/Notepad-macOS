@@ -989,24 +989,27 @@ enum AppMenu {
         viewMenu.addItem(zoomItem)
         viewMenu.addItem(NSMenuItem.separator())
 
-        // --- Editor display toggles ---
-        viewMenu.addItem(withTitle: Localization.string(.viewToggleLineWrap, default: "Toggle Line Wrap"), action: #selector(EditorWindowController.toggleLineWrap(_:)), keyEquivalent: "l")
-        viewMenu.addItem(withTitle: Localization.string(.viewHighlightCurrentLine, default: "Highlight Current Line"), action: #selector(EditorWindowController.toggleCurrentLineHighlight(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewShowLineNumberMargin, default: "Show Line Number Margin"), action: #selector(EditorWindowController.toggleLineNumberMargin(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewShowBookmarkMargin, default: "Show Bookmark Margin"), action: #selector(EditorWindowController.toggleBookmarkMargin(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewShowEdgeLine, default: "Show Edge Line"), action: #selector(EditorWindowController.toggleEdgeLine(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewChangeHistory, default: "Change History"), action: #selector(EditorWindowController.toggleChangeHistory(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewSmartHighlight, default: "Smart Highlight"), action: #selector(EditorWindowController.toggleSmartHighlight(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewXmlTagMatch, default: "Highlight Matching XML Tags"), action: #selector(EditorWindowController.toggleXmlTagMatch(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewAutoPair, default: "Auto-Insert Matching Pairs"), action: #selector(EditorWindowController.toggleAutoPair(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewClickableLinks, default: "Clickable Links"), action: #selector(EditorWindowController.toggleClickableLinks(_:)), keyEquivalent: "")
+        // --- Display submenu (editor display toggles) ---
+        let displayItem = NSMenuItem(title: Localization.string(.viewDisplayMenu, default: "Display"), action: nil, keyEquivalent: "")
+        let displayMenu = NSMenu(title: Localization.string(.viewDisplayMenu, default: "Display"))
+        displayItem.submenu = displayMenu
+        displayMenu.addItem(withTitle: Localization.string(.viewToggleLineWrap, default: "Toggle Line Wrap"), action: #selector(EditorWindowController.toggleLineWrap(_:)), keyEquivalent: "l")
+        displayMenu.addItem(withTitle: Localization.string(.viewHighlightCurrentLine, default: "Highlight Current Line"), action: #selector(EditorWindowController.toggleCurrentLineHighlight(_:)), keyEquivalent: "")
+        displayMenu.addItem(withTitle: Localization.string(.viewShowLineNumberMargin, default: "Show Line Number Margin"), action: #selector(EditorWindowController.toggleLineNumberMargin(_:)), keyEquivalent: "")
+        displayMenu.addItem(withTitle: Localization.string(.viewShowBookmarkMargin, default: "Show Bookmark Margin"), action: #selector(EditorWindowController.toggleBookmarkMargin(_:)), keyEquivalent: "")
+        displayMenu.addItem(withTitle: Localization.string(.viewShowEdgeLine, default: "Show Edge Line"), action: #selector(EditorWindowController.toggleEdgeLine(_:)), keyEquivalent: "")
+        displayMenu.addItem(withTitle: Localization.string(.viewChangeHistory, default: "Change History"), action: #selector(EditorWindowController.toggleChangeHistory(_:)), keyEquivalent: "")
+        displayMenu.addItem(withTitle: Localization.string(.viewSmartHighlight, default: "Smart Highlight"), action: #selector(EditorWindowController.toggleSmartHighlight(_:)), keyEquivalent: "")
+        displayMenu.addItem(withTitle: Localization.string(.viewXmlTagMatch, default: "Highlight Matching XML Tags"), action: #selector(EditorWindowController.toggleXmlTagMatch(_:)), keyEquivalent: "")
+        displayMenu.addItem(withTitle: Localization.string(.viewAutoPair, default: "Auto-Insert Matching Pairs"), action: #selector(EditorWindowController.toggleAutoPair(_:)), keyEquivalent: "")
+        displayMenu.addItem(withTitle: Localization.string(.viewClickableLinks, default: "Clickable Links"), action: #selector(EditorWindowController.toggleClickableLinks(_:)), keyEquivalent: "")
+        viewMenu.addItem(displayItem)
         viewMenu.addItem(NSMenuItem.separator())
 
         // --- Folding submenu ---
         let foldingMenuItem = NSMenuItem(title: Localization.string(.foldingMenu, default: "Folding"), action: nil, keyEquivalent: "")
         let foldingMenu = NSMenu(title: Localization.string(.foldingMenu, default: "Folding"))
         foldingMenuItem.submenu = foldingMenu
-        viewMenu.addItem(foldingMenuItem)
         foldingMenu.addItem(withTitle: Localization.string(.foldingToggle, default: "Toggle Fold"), action: #selector(EditorWindowController.toggleFoldAtCurrentLine(_:)), keyEquivalent: "")
         foldingMenu.addItem(NSMenuItem.separator())
         foldingMenu.addItem(withTitle: Localization.string(.foldingFoldAll, default: "Fold All"), action: #selector(EditorWindowController.foldAll(_:)), keyEquivalent: "")
@@ -1034,70 +1037,83 @@ enum AppMenu {
             unfoldItem.representedObject = level
             unfoldLevelMenu.addItem(unfoldItem)
         }
-        viewMenu.addItem(withTitle: Localization.string(.viewHideLines, default: "Hide Lines"), action: #selector(EditorWindowController.hideSelectedLines(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewShowAllHiddenLines, default: "Show All Hidden Lines"), action: #selector(EditorWindowController.showAllHiddenLines(_:)), keyEquivalent: "")
+        foldingMenu.addItem(NSMenuItem.separator())
+        foldingMenu.addItem(withTitle: Localization.string(.viewHideLines, default: "Hide Lines"), action: #selector(EditorWindowController.hideSelectedLines(_:)), keyEquivalent: "")
+        foldingMenu.addItem(withTitle: Localization.string(.viewShowAllHiddenLines, default: "Show All Hidden Lines"), action: #selector(EditorWindowController.showAllHiddenLines(_:)), keyEquivalent: "")
+        viewMenu.addItem(foldingMenuItem)
         viewMenu.addItem(NSMenuItem.separator())
 
-        // --- Panels ---
-        viewMenu.addItem(withTitle: Localization.string(.viewDocumentList, default: "Document List..."), action: #selector(AppDelegate.showDocumentList(_:)), keyEquivalent: "").target = delegate
-        viewMenu.addItem(withTitle: Localization.string(.viewDocumentMap, default: "Document Map..."), action: #selector(EditorWindowController.showDocumentMap(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewTaskList, default: "Task List..."), action: #selector(EditorWindowController.showTaskList(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewFileBrowser, default: "File Browser..."), action: #selector(AppDelegate.showFileBrowser(_:)), keyEquivalent: "").target = delegate
-        viewMenu.addItem(withTitle: Localization.string(.viewLocateCurrentFile, default: "Locate Current File"), action: #selector(AppDelegate.locateCurrentFile(_:)), keyEquivalent: "").target = delegate
-        // Project Panel 2 and 3 (additional workspace panels)
-        viewMenu.addItem(
+        // --- Panels submenu ---
+        let panelsItem = NSMenuItem(title: Localization.string(.viewPanelsMenu, default: "Panels"), action: nil, keyEquivalent: "")
+        let panelsMenu = NSMenu(title: Localization.string(.viewPanelsMenu, default: "Panels"))
+        panelsItem.submenu = panelsMenu
+        panelsMenu.addItem(withTitle: Localization.string(.viewDocumentList, default: "Document List..."), action: #selector(AppDelegate.showDocumentList(_:)), keyEquivalent: "").target = delegate
+        panelsMenu.addItem(withTitle: Localization.string(.viewDocumentMap, default: "Document Map..."), action: #selector(EditorWindowController.showDocumentMap(_:)), keyEquivalent: "")
+        panelsMenu.addItem(withTitle: Localization.string(.viewTaskList, default: "Task List..."), action: #selector(EditorWindowController.showTaskList(_:)), keyEquivalent: "")
+        panelsMenu.addItem(withTitle: Localization.string(.viewFileBrowser, default: "File Browser..."), action: #selector(AppDelegate.showFileBrowser(_:)), keyEquivalent: "").target = delegate
+        panelsMenu.addItem(withTitle: Localization.string(.viewLocateCurrentFile, default: "Locate Current File"), action: #selector(AppDelegate.locateCurrentFile(_:)), keyEquivalent: "").target = delegate
+        panelsMenu.addItem(NSMenuItem.separator())
+        panelsMenu.addItem(
             withTitle: Localization.string(.viewProjectPanel2, default: "Project Panel 2..."),
             action: #selector(AppDelegate.showProjectPanel2(_:)),
             keyEquivalent: ""
         ).target = delegate
-        viewMenu.addItem(
+        panelsMenu.addItem(
             withTitle: Localization.string(.viewProjectPanel3, default: "Project Panel 3..."),
             action: #selector(AppDelegate.showProjectPanel3(_:)),
             keyEquivalent: ""
         ).target = delegate
-        viewMenu.addItem(withTitle: Localization.string(.viewFunctionList, default: "Function List..."), action: #selector(EditorWindowController.showFunctionList(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewExportFunctionList, default: "Export Function List..."), action: #selector(EditorWindowController.exportFunctionList(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewFoundResults, default: "Found Results..."), action: #selector(AppDelegate.showFoundResultsPanel(_:)), keyEquivalent: "").target = delegate
-        viewMenu.addItem(withTitle: Localization.string(.viewDocumentStatistics, default: "Document Statistics..."), action: #selector(EditorWindowController.showDocumentStatistics(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewMonitoring, default: "Monitoring (tail -f)"), action: #selector(EditorWindowController.toggleMonitoringMode(_:)), keyEquivalent: "")
+        panelsMenu.addItem(NSMenuItem.separator())
+        panelsMenu.addItem(withTitle: Localization.string(.viewFunctionList, default: "Function List..."), action: #selector(EditorWindowController.showFunctionList(_:)), keyEquivalent: "")
+        panelsMenu.addItem(withTitle: Localization.string(.viewExportFunctionList, default: "Export Function List..."), action: #selector(EditorWindowController.exportFunctionList(_:)), keyEquivalent: "")
+        panelsMenu.addItem(withTitle: Localization.string(.viewFoundResults, default: "Found Results..."), action: #selector(AppDelegate.showFoundResultsPanel(_:)), keyEquivalent: "").target = delegate
+        panelsMenu.addItem(withTitle: Localization.string(.viewDocumentStatistics, default: "Document Statistics..."), action: #selector(EditorWindowController.showDocumentStatistics(_:)), keyEquivalent: "")
+        panelsMenu.addItem(withTitle: Localization.string(.viewMonitoring, default: "Monitoring (tail -f)"), action: #selector(EditorWindowController.toggleMonitoringMode(_:)), keyEquivalent: "")
+        viewMenu.addItem(panelsItem)
         viewMenu.addItem(NSMenuItem.separator())
 
-        // --- Dual view (clone) ---
-        viewMenu.addItem(
+        // --- Split View submenu (dual view + scroll sync) ---
+        let splitViewItem = NSMenuItem(title: Localization.string(.viewSplitViewMenu, default: "Split View"), action: nil, keyEquivalent: "")
+        let splitViewMenu = NSMenu(title: Localization.string(.viewSplitViewMenu, default: "Split View"))
+        splitViewItem.submenu = splitViewMenu
+        splitViewMenu.addItem(
             withTitle: Localization.string(.viewMoveToOtherView, default: "Move to Other View"),
             action: #selector(AppDelegate.moveToOtherView(_:)),
             keyEquivalent: ""
         ).target = delegate
-        viewMenu.addItem(
+        splitViewMenu.addItem(
             withTitle: Localization.string(.viewCloneToOtherView, default: "Clone to Other View"),
             action: #selector(EditorWindowController.toggleCloneToOtherView(_:)),
             keyEquivalent: ""
         )
-        let focusOtherViewItem = viewMenu.addItem(
+        let focusOtherViewItem = splitViewMenu.addItem(
             withTitle: Localization.string(.viewFocusOtherView, default: "Focus on Another View"),
             action: #selector(EditorWindowController.focusOtherView(_:)),
             keyEquivalent: String(UnicodeScalar(UInt32(NSF8FunctionKey))!)
         )
         focusOtherViewItem.keyEquivalentModifierMask = []
-        viewMenu.addItem(NSMenuItem.separator())
-
-        // --- Scroll sync ---
-        viewMenu.addItem(
+        splitViewMenu.addItem(NSMenuItem.separator())
+        splitViewMenu.addItem(
             withTitle: Localization.string(.viewSyncVerticalScroll, default: "Synchronize Vertical Scrolling"),
             action: #selector(EditorWindowController.toggleSynchronizedVerticalScrolling(_:)),
             keyEquivalent: ""
         )
-        viewMenu.addItem(
+        splitViewMenu.addItem(
             withTitle: Localization.string(.viewSyncHorizontalScroll, default: "Synchronize Horizontal Scrolling"),
             action: #selector(EditorWindowController.toggleSynchronizedHorizontalScrolling(_:)),
             keyEquivalent: ""
         )
+        viewMenu.addItem(splitViewItem)
         viewMenu.addItem(NSMenuItem.separator())
 
-        // --- Window chrome ---
-        viewMenu.addItem(withTitle: Localization.string(.viewShowTabBar, default: "Show Tab Bar"), action: #selector(EditorWindowController.toggleTabBarVisibility(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewShowToolbar, default: "Show Toolbar"), action: #selector(EditorWindowController.toggleToolbarVisibility(_:)), keyEquivalent: "")
-        viewMenu.addItem(withTitle: Localization.string(.viewToggleStatusBar, default: "Show Status Bar"), action: #selector(EditorWindowController.toggleStatusBar(_:)), keyEquivalent: "")
+        // --- UI Elements submenu ---
+        let uiElementsItem = NSMenuItem(title: Localization.string(.viewUIElementsMenu, default: "UI Elements"), action: nil, keyEquivalent: "")
+        let uiElementsMenu = NSMenu(title: Localization.string(.viewUIElementsMenu, default: "UI Elements"))
+        uiElementsItem.submenu = uiElementsMenu
+        uiElementsMenu.addItem(withTitle: Localization.string(.viewShowTabBar, default: "Show Tab Bar"), action: #selector(EditorWindowController.toggleTabBarVisibility(_:)), keyEquivalent: "")
+        uiElementsMenu.addItem(withTitle: Localization.string(.viewShowToolbar, default: "Show Toolbar"), action: #selector(EditorWindowController.toggleToolbarVisibility(_:)), keyEquivalent: "")
+        uiElementsMenu.addItem(withTitle: Localization.string(.viewToggleStatusBar, default: "Show Status Bar"), action: #selector(EditorWindowController.toggleStatusBar(_:)), keyEquivalent: "")
+        viewMenu.addItem(uiElementsItem)
         viewMenu.addItem(NSMenuItem.separator())
 
         // --- Theme ---
@@ -1193,30 +1209,34 @@ enum AppMenu {
         )
         windowMenu.addItem(NSMenuItem.separator())
 
-        // Tab navigation
-        windowMenu.addItem(
+        // Tab Navigation submenu
+        let tabNavigationItem = NSMenuItem(title: Localization.string(.windowTabNavigationMenu, default: "Tab Navigation"), action: nil, keyEquivalent: "")
+        let tabNavigationMenu = NSMenu(title: Localization.string(.windowTabNavigationMenu, default: "Tab Navigation"))
+        tabNavigationItem.submenu = tabNavigationMenu
+        tabNavigationMenu.addItem(
             withTitle: Localization.string(.windowNextTab, default: "Next Tab"),
             action: #selector(AppDelegate.activateNextTab(_:)),
             keyEquivalent: ""
         ).target = delegate
-        windowMenu.addItem(
+        tabNavigationMenu.addItem(
             withTitle: Localization.string(.windowPreviousTab, default: "Previous Tab"),
             action: #selector(AppDelegate.activatePreviousTab(_:)),
             keyEquivalent: ""
         ).target = delegate
-        windowMenu.addItem(
+        tabNavigationMenu.addItem(
             withTitle: Localization.string(.windowFirstTab, default: "First Tab"),
             action: #selector(AppDelegate.activateFirstTab(_:)),
             keyEquivalent: ""
         ).target = delegate
-        windowMenu.addItem(
+        tabNavigationMenu.addItem(
             withTitle: Localization.string(.windowLastTab, default: "Last Tab"),
             action: #selector(AppDelegate.activateLastTab(_:)),
             keyEquivalent: ""
         ).target = delegate
+        tabNavigationMenu.addItem(NSMenuItem.separator())
         // 1st-9th tab
         for i in 1...9 {
-            let tabItem = windowMenu.addItem(
+            let tabItem = tabNavigationMenu.addItem(
                 withTitle: "\(i)\u{00B9}\(i == 1 ? "st" : i == 2 ? "nd" : i == 3 ? "rd" : "th") Tab",
                 action: #selector(AppDelegate.activateTabByIndex(_:)),
                 keyEquivalent: "\(i)"
@@ -1225,30 +1245,33 @@ enum AppMenu {
             tabItem.target = delegate
             tabItem.representedObject = i - 1
         }
+        windowMenu.addItem(tabNavigationItem)
 
-        windowMenu.addItem(NSMenuItem.separator())
-
-        // Tab reorder
-        windowMenu.addItem(
+        // Tab Reorder submenu
+        let tabReorderItem = NSMenuItem(title: Localization.string(.windowTabReorderMenu, default: "Tab Reorder"), action: nil, keyEquivalent: "")
+        let tabReorderMenu = NSMenu(title: Localization.string(.windowTabReorderMenu, default: "Tab Reorder"))
+        tabReorderItem.submenu = tabReorderMenu
+        tabReorderMenu.addItem(
             withTitle: Localization.string(.windowMoveTabForward, default: "Move Tab Forward"),
             action: #selector(AppDelegate.moveTabForward(_:)),
             keyEquivalent: ""
         ).target = delegate
-        windowMenu.addItem(
+        tabReorderMenu.addItem(
             withTitle: Localization.string(.windowMoveTabBackward, default: "Move Tab Backward"),
             action: #selector(AppDelegate.moveTabBackward(_:)),
             keyEquivalent: ""
         ).target = delegate
-        windowMenu.addItem(
+        tabReorderMenu.addItem(
             withTitle: Localization.string(.windowMoveTabToStart, default: "Move Tab to Start"),
             action: #selector(AppDelegate.moveTabToStart(_:)),
             keyEquivalent: ""
         ).target = delegate
-        windowMenu.addItem(
+        tabReorderMenu.addItem(
             withTitle: Localization.string(.windowMoveTabToEnd, default: "Move Tab to End"),
             action: #selector(AppDelegate.moveTabToEnd(_:)),
             keyEquivalent: ""
         ).target = delegate
+        windowMenu.addItem(tabReorderItem)
 
         windowMenu.addItem(NSMenuItem.separator())
 

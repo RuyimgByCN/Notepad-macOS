@@ -12,15 +12,15 @@ enum HelpSupport {
     static func url(for link: HelpLink) -> URL {
         switch link {
         case .home:
-            URL(string: "https://notepad-plus-plus.org/")!
+            URL(string: "https://github.com/RuyimgByCN/Notepad-macOS")!
         case .projectPage:
-            URL(string: "https://github.com/notepad-plus-plus/notepad-plus-plus")!
+            URL(string: "https://github.com/RuyimgByCN/Notepad-macOS")!
         case .userManual:
             URL(string: "https://npp-user-manual.org/")!
         case .forum:
             URL(string: "https://community.notepad-plus-plus.org/")!
         case .downloads:
-            URL(string: "https://notepad-plus-plus.org/downloads/")!
+            URL(string: "https://github.com/RuyimgByCN/Notepad-macOS/releases")!
         }
     }
 

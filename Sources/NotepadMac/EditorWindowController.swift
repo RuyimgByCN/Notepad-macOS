@@ -592,6 +592,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         updateFirstLineTabName()
         updateTitle()
         highlight()
+        // Programmatic text changes (file load/reload) trigger this handler
+        // asynchronously. The async highlight() computes fold levels, and
+        // on initial load we want all folds expanded — matching upstream
+        // Notepad++ behavior. For user edits, fold state is preserved.
+        if isProgrammaticChange {
+            editorSurface.unfoldAll()
+        }
         updateStatus()
         if !isLargeFile { updateXmlTagHighlight() }
         updateSmartHighlight()
@@ -5258,6 +5265,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if !isLargeFile {
             highlight()
         }
+        updateStatus()
         updateStatus()
         if !isLargeFile {
             scheduleUrlHighlightUpdate(preloadedText: loaded.text)
