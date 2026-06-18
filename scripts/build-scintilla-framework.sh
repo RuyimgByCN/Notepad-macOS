@@ -4,12 +4,30 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT_ROOT="$(cd "$ROOT_DIR/.." && pwd)"
 SCINTILLA_PROJECT="$ROOT_DIR/upstream/notepad-plus-plus/scintilla/cocoa/Scintilla/Scintilla.xcodeproj"
+SCINTILLA_SOURCE="$ROOT_DIR/upstream/notepad-plus-plus/scintilla/cocoa/ScintillaView.mm"
 DERIVED_DATA="${MACOS_SCINTILLA_DERIVED_DATA:-$ROOT_DIR/.build/scintilla-derived}"
 CONFIGURATION="${MACOS_SCINTILLA_CONFIGURATION:-Release}"
 SCINTILLA_ARCHS="${MACOS_SCINTILLA_ARCHS:-}"
 SCINTILLA_ONLY_ACTIVE_ARCH="${MACOS_SCINTILLA_ONLY_ACTIVE_ARCH:-}"
 SCINTILLA_DESTINATION="${MACOS_SCINTILLA_DESTINATION:-}"
 LIPO="$(xcrun --find lipo 2>/dev/null || true)"
+PATCHES_DIR="$ROOT_DIR/patches/scintilla"
+
+# Apply Scintilla patches before building.
+# upstream/ is gitignored so modifications persist only for the build;
+# the patches directory holds the permanent source of truth.
+apply_scintilla_patches() {
+    # Apply Scintilla source patches via Python script.
+    # upstream/ is gitignored so modifications persist only for the build;
+    # the patches directory holds the permanent source of truth.
+    local patch_script="$PATCHES_DIR/apply-scintilla-patches.py"
+    if [[ -f "$patch_script" ]]; then
+        echo "Applying Scintilla patches..."
+        python3 "$patch_script" "$SCINTILLA_SOURCE"
+    fi
+}
+
+apply_scintilla_patches
 
 archs_for_binary() {
     local binary="$1"
