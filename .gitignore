@@ -2,6 +2,7 @@
 *.zip
 
 .build/
+.swiftpm/
 dist/
 
 # Upstream Notepad++ source tree — fetched fresh at build/CI time
