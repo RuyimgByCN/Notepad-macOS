@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Apply Scintilla cocoa patches for macOS 26+ compatibility."""
+import re
 import sys
 
 # The complete patch code to insert after the SCIContentView drawRect marker
@@ -65,13 +66,20 @@ PATCH_CODE = '''
 	}
 }'''
 
-# The drawRect closing block we use as an insertion marker
-MARKER = '''	if (!mOwner.backend->Draw(rect, context)) {
-			dispatch_async(dispatch_get_main_queue(), ^ {
-				[self setNeedsDisplay: YES];
-			});
-		}
-	}'''
+# The drawRect closing block we use as an insertion marker.
+# Compiled as a regex so the match tolerates arbitrary leading whitespace per
+# line: upstream has reshuffled SCIContentView.drawRect's indentation between
+# commits (pinned 6ab5c211 vs newer eb17eab differ by a full indent level),
+# which broke the previous literal-text marker. The non-whitespace structure
+# below is stable.
+MARKER_RE = re.compile(
+    r'[ \t]*if \(!mOwner\.backend->Draw\(rect, context\)\) \{\n'
+    r'[ \t]*dispatch_async\(dispatch_get_main_queue\(\), \^ \{\n'
+    r'[ \t]*\[self setNeedsDisplay: YES\];\n'
+    r'[ \t]*\}\);\n'
+    r'[ \t]*\}\n'
+    r'[ \t]*\}'
+)
 
 # Key identifiers that confirm the patch is already correctly applied
 PATCH_SIGNATURES = [
@@ -176,18 +184,18 @@ def apply_display_layer_patch(filepath):
         with open(filepath, 'r') as f:
             content = f.read()
 
-    # Find the SCIContentView drawRect marker (second occurrence)
-    pos = content.find(MARKER)
-    if pos == -1:
+    # Find the SCIContentView drawRect marker. The marker text
+    # (mOwner.backend->Draw + setNeedsDisplay: YES) only appears in
+    # SCIContentView, not SCIMarginView, so the match is normally unique;
+    # if more than one matches, prefer the last (the deeper class).
+    matches = list(MARKER_RE.finditer(content))
+    if not matches:
         print(f"  ERROR: Could not find marker in {filepath}")
         return False
-
-    pos2 = content.find(MARKER, pos + len(MARKER))
-    if pos2 != -1:
-        pos = pos2  # use second occurrence (SCIContentView, not SCIMarginView)
+    match = matches[-1]
 
     # Insert patch code after the marker
-    insert_pos = pos + len(MARKER)
+    insert_pos = match.end()
     content = content[:insert_pos] + PATCH_CODE + content[insert_pos:]
 
     with open(filepath, 'w') as f:
