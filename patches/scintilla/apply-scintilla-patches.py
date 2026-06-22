@@ -3,7 +3,27 @@
 import re
 import sys
 
-# The complete patch code to insert after the SCIContentView drawRect marker
+# The complete patch code to insert after the SCIContentView drawRect marker.
+#
+# macOS 26+ forces layer-backed rendering on all NSViews. For content
+# views inside NSScrollView, AppKit defaults to calling updateLayer:
+# (which only sets layer properties like backgroundColor) instead of
+# drawRect:. This leaves the editor blank because SCIContentView draws
+# custom text content via drawRect:, not just layer properties.
+#
+# Override wantsUpdateLayer to return NO — this tells AppKit NOT to use
+# updateLayer:, and instead fall back to the default displayLayer:
+# implementation, which calls drawRect: under the hood. This preserves
+# Scintilla's original incremental dirty-rect painting: drawRect: receives
+# the dirty rect, so only the changed region is redrawn.
+#
+# NOTE: an earlier version of this patch implemented displayLayer: directly
+# and called Draw(bounds), redrawing the entire visible region on every
+# frame. That pinned the main thread at ~80% CPU and made the app appear
+# hung when loading files with many lines (e.g. a 5k-line log), because
+# every caret blink / styling tick triggered a full
+# DrawLine -> FillLineRemainder -> CGContextFillRect pass over the whole
+# viewport. Relying on drawRect:'s dirty rect avoids that.
 PATCH_CODE = '''
 
 //--------------------------------------------------------------------------------------------------
@@ -11,59 +31,17 @@ PATCH_CODE = '''
 // macOS 26+ forces layer-backed rendering on all NSViews. For content
 // views inside NSScrollView, AppKit defaults to calling updateLayer:
 // (which only sets layer properties like backgroundColor) instead of
-// displayLayer: or drawRect:. This leaves the editor blank because
-// SCIContentView draws custom text content, not just layer properties.
+// drawRect:. This leaves the editor blank because SCIContentView draws
+// custom text content via drawRect:, not just layer properties.
 //
-// Override wantsUpdateLayer to return NO — this tells AppKit to use
-// displayLayer: for content rendering instead of updateLayer:.
-// In displayLayer:, we create a CGBitmapContext, call Scintilla's
-// Draw() to render text into it, and assign the resulting CGImage
-// as the layer contents.
-//
-// WARNING: Must NOT call [self display] in displayLayer: — that
-// recurses into displayLayer: causing stack overflow (SIGSEGV crash
-// with RECURSION LEVEL >12000).
+// Override wantsUpdateLayer to return NO — this tells AppKit NOT to use
+// updateLayer:, and instead fall back to the default displayLayer:
+// implementation, which calls drawRect: under the hood. This preserves
+// Scintilla's original incremental dirty-rect painting: drawRect: receives
+// the dirty rect, so only the changed region is redrawn.
 
 + (BOOL) wantsUpdateLayer {
-	return NO;  // Force AppKit to use displayLayer: for content drawing
-}
-
-- (void) displayLayer: (CALayer *) layer {
-	NSRect bounds = self.bounds;
-	CGFloat scale = [self.window backingScaleFactor];
-	if (scale < 1.0) scale = 2.0;  // Default to Retina if no window yet
-	int width = (int)ceil(bounds.size.width * scale);
-	int height = (int)ceil(bounds.size.height * scale);
-	if (width <= 0 || height <= 0) return;
-
-	CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
-	CGContextRef ctx = CGBitmapContextCreate(NULL, width, height, 8,
-		width * 4, cs, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
-	CGColorSpaceRelease(cs);
-	if (!ctx) return;
-
-	// Set up context to match AppKit's drawRect: coordinate system for a
-	// flipped view (isFlipped=YES): origin at top-left, +Y going downward.
-	CGContextScaleCTM(ctx, scale, scale);  // Retina scaling
-	CGContextTranslateCTM(ctx, 0, bounds.size.height);
-	CGContextScaleCTM(ctx, 1.0, -1.0);    // Flip Y axis
-
-	// Render Scintilla content into this bitmap context
-	BOOL succeeded = mOwner.backend->Draw(bounds, ctx);
-
-	// Assign rendered image as layer contents
-	CGImageRef img = CGBitmapContextCreateImage(ctx);
-	CGContextRelease(ctx);
-	if (img) {
-		layer.contents = (__bridge id)img;
-		CGImageRelease(img);
-	}
-
-	if (!succeeded) {
-		// Drawing failed; request retry via setNeedsDisplayInRect:
-		// (which triggers displayLayer: on the next cycle)
-		[self setNeedsDisplayInRect: bounds];
-	}
+	return NO;  // Force AppKit to use drawRect: for content drawing
 }'''
 
 # The drawRect closing block we use as an insertion marker.
@@ -81,24 +59,20 @@ MARKER_RE = re.compile(
     r'[ \t]*\}'
 )
 
-# Key identifiers that confirm the patch is already correctly applied
-PATCH_SIGNATURES = [
-    '+ (BOOL) wantsUpdateLayer',
-    '- (void) displayLayer: (CALayer *) layer',
-    'CGContextScaleCTM(ctx, scale, scale);  // Retina scaling',
-    'CGContextTranslateCTM(ctx, 0, bounds.size.height);',
-]
-
 
 def is_patch_already_applied(content):
-    """Check whether the current patch implementation is already present."""
-    return all(sig in content for sig in PATCH_SIGNATURES)
+    """Check whether the current (drawRect-based) patch is already applied:
+    the wantsUpdateLayer override is present AND no displayLayer: override
+    remains (the old patch added one and it caused full-viewport redraws)."""
+    return '+ (BOOL) wantsUpdateLayer' in content and '- (void) displayLayer:' not in content
 
 
 def remove_old_patch(content):
     """Remove any existing wantsUpdateLayer/displayLayer implementations.
 
-    Uses a line-by-line approach: find the start of the patch block
+    Used to migrate from the old displayLayer:-based patch (which redrew the
+    whole viewport every frame) to the new drawRect-based patch. Uses a
+    line-by-line approach: find the start of the patch block
     (the separator line before wantsUpdateLayer) and the end of
     displayLayer's closing brace, then remove everything between them.
     """
@@ -152,18 +126,18 @@ def remove_old_patch(content):
 
 
 def apply_display_layer_patch(filepath):
-    """Add wantsUpdateLayer + displayLayer: to SCIContentView for macOS 26+.
+    """Add wantsUpdateLayer=NO to SCIContentView for macOS 26+.
 
     macOS 26 forces layer-backed rendering on all NSViews. For content views
-    inside NSScrollView, AppKit calls updateLayer: (NOT drawRect: or
-    displayLayer:) because NSView.wantsUpdateLayer defaults to YES in
-    layer-backed mode. updateLayer: only sets layer properties (background
-    color, etc.) and does NOT draw custom content — which explains why the
-    editor renders as blank white.
+    inside NSScrollView, AppKit calls updateLayer: (NOT drawRect:) because
+    NSView.wantsUpdateLayer defaults to YES in layer-backed mode. updateLayer:
+    only sets layer properties (background color, etc.) and does NOT draw
+    custom content — which explains why the editor renders as blank white.
 
-    Fix: override wantsUpdateLayer to return NO, forcing AppKit to use
-    displayLayer: instead. In displayLayer:, create a CGBitmapContext,
-    call Scintilla's Draw() directly, and set the result as layer.contents.
+    Fix: override wantsUpdateLayer to return NO, forcing AppKit to fall back
+    to the default displayLayer: implementation, which calls drawRect:. This
+    preserves Scintilla's incremental dirty-rect painting instead of redrawing
+    the whole viewport every frame.
     """
     with open(filepath, 'r') as f:
         content = f.read()
@@ -201,7 +175,7 @@ def apply_display_layer_patch(filepath):
     with open(filepath, 'w') as f:
         f.write(content)
 
-    print(f"  Applied: wantsUpdateLayer=NO + displayLayer CGBitmapContext patch to {filepath}")
+    print(f"  Applied: wantsUpdateLayer=NO (drawRect-based) patch to {filepath}")
     return True
 
 
