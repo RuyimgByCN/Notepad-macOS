@@ -10,3 +10,9 @@ dist/
 # (upstream/notepad--, upstream/NotepadNext) are tracked.
 upstream/notepad-plus-plus/
 
+# Claude Code local agent worktrees — never version-controlled
+.claude/worktrees/
+
+# Python bytecode caches (from patch scripts)
+__pycache__/
+
