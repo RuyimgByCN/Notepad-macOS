@@ -499,6 +499,28 @@ final class PreferencesEnhancementTests: XCTestCase {
         }
     }
 
+    // MARK: - Current Line Frame Width
+
+    func testCurrentLineFrameWidthDefaultIsFill() {
+        XCTAssertEqual(AppPreferences().currentLineFrameWidth, 0)
+    }
+
+    func testCurrentLineFrameWidthClampsToZeroToFour() {
+        XCTAssertEqual(AppPreferences(currentLineFrameWidth: -1).currentLineFrameWidth, 0)
+        XCTAssertEqual(AppPreferences(currentLineFrameWidth: 4).currentLineFrameWidth, 4)
+        XCTAssertEqual(AppPreferences(currentLineFrameWidth: 9).currentLineFrameWidth, 4)
+    }
+
+    func testCurrentLineFrameWidthRoundtripsAllOptions() {
+        let defaults = UserDefaults(suiteName: "test.currentLineFrameWidth.\(UUID().uuidString)")!
+        let store = PreferencesStore(defaults: defaults)
+
+        for width in 0...4 {
+            store.save(AppPreferences(currentLineFrameWidth: width))
+            XCTAssertEqual(store.load().currentLineFrameWidth, width)
+        }
+    }
+
     // MARK: - Auto-Complete Ignore Case
 
     func testAutoCompleteIgnoreCaseDefault() {

@@ -426,11 +426,12 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         caretBlinkRateStepper.increment = 50
         caretStickyModeLabel.stringValue = Localization.string("pref.caretStickyMode", default: "Caret sticky mode:")
         currentLineFrameLabel.stringValue = Localization.string(.preferencesCurrentLineFrame, default: "Current line highlight:")
-        if currentLineFrameSegmented.segmentCount == 4 {
+        if currentLineFrameSegmented.segmentCount == 5 {
             currentLineFrameSegmented.setLabel(Localization.string(.preferencesCurrentLineFrameFill, default: "Fill"), forSegment: 0)
             currentLineFrameSegmented.setLabel("1px", forSegment: 1)
             currentLineFrameSegmented.setLabel("2px", forSegment: 2)
             currentLineFrameSegmented.setLabel("3px", forSegment: 3)
+            currentLineFrameSegmented.setLabel("4px", forSegment: 4)
         }
         lineWrapIndentLabel.stringValue = Localization.string(.preferencesLineWrapIndent, default: "Wrap indent:")
         enableCodeFoldingButton.title = Localization.string("pref.enableCodeFolding", default: "Enable code folding")
@@ -693,6 +694,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         currentLineFrameSegmented.setLabel("1px", forSegment: 1)
         currentLineFrameSegmented.setLabel("2px", forSegment: 2)
         currentLineFrameSegmented.setLabel("3px", forSegment: 3)
+        currentLineFrameSegmented.setLabel("4px", forSegment: 4)
 
         lineWrapIndentPopup.removeAllItems()
         lineWrapIndentPopup.addItems(withTitles: [
@@ -870,7 +872,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         caretWidthSegmented.segmentCount = 3
         caretWidthSegmented.trackingMode = .selectOne
 
-        currentLineFrameSegmented.segmentCount = 4
+        currentLineFrameSegmented.segmentCount = 5
         currentLineFrameSegmented.trackingMode = .selectOne
 
         edgeLineColumnField.formatter = integerFormatter
@@ -1299,7 +1301,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         caretBlinkRateField.intValue = Int32(preferences.caretBlinkRate)
         caretBlinkRateStepper.intValue = Int32(preferences.caretBlinkRate)
         caretStickyModePopup.selectItem(at: max(0, min(2, preferences.caretStickyMode)))
-        currentLineFrameSegmented.selectedSegment = max(0, min(3, preferences.currentLineFrameWidth))
+        currentLineFrameSegmented.selectedSegment = max(0, min(4, preferences.currentLineFrameWidth))
         lineWrapIndentPopup.selectItem(at: max(0, min(3, preferences.lineWrapIndent)))
         enableCodeFoldingButton.state = preferences.enableCodeFolding ? .on : .off
         foldMarginStylePopup.selectItem(withTag: preferences.foldMarginStyle)
