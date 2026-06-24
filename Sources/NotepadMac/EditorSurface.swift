@@ -1168,10 +1168,9 @@ final class ScintillaEditorSurface: EditorSurface {
             bridge.setGeneralProperty(ScintillaMessage.clearDocumentStyle, parameter: 0, value: 0)
             configureFoldingProperties()
             configureLexillaProperties(for: language)
-            // Force initial colorization to build fold levels BEFORE enabling
-            // SC_AUTOMATICFOLD_CHANGE. Without this, AUTOMATICFOLD_CHANGE treats
-            // the initial fold-level construction as "fold level changed" and
-            // auto-collapses every fold point on document load.
+            // Force initial colorization so the fold margin reflects the new
+            // lexer immediately. configureAutomaticFold only enables SHOW|CLICK
+            // (never CHANGE), so colorize cannot auto-collapse the document.
             bridge.setGeneralProperty(ScintillaMessage.colourise, parameter: -1, value: -1)
             configureAutomaticFold()
         } else {
@@ -2619,10 +2618,15 @@ final class ScintillaEditorSurface: EditorSurface {
     /// that creates every fold point from scratch (which would auto-collapse
     /// the entire document on load).
     private func configureAutomaticFold() {
-        // SCI_SETAUTOMATICFOLD(SC_AUTOMATICFOLD_SHOW | SC_AUTOMATICFOLD_CHANGE)
-        // SHOW: re-fold previously collapsed lines when they become visible
-        // CHANGE: re-fold after fold structure changes (e.g. lexer re-style)
-        bridge.setGeneralProperty(ScintillaMessage.setAutomaticFold, parameter: 0x0001 | 0x0004, value: 0)
+        // SCI_SETAUTOMATICFOLD(SC_AUTOMATICFOLD_SHOW | SC_AUTOMATICFOLD_CLICK)
+        // SHOW (0x0001): keep lines folded when they become visible again.
+        // CLICK (0x0002): handle fold-margin clicks.
+        // SC_AUTOMATICFOLD_CHANGE (0x0004) is intentionally NOT set: it folds
+        // whenever a fold level changes, which fires during every colorize
+        // (language switch, keyword/style application after colorize) and
+        // collapses the whole document. Manual folding via margin/menu is
+        // unaffected.
+        bridge.setGeneralProperty(ScintillaMessage.setAutomaticFold, parameter: 0x0001 | 0x0002, value: 0)
     }
 
     private func configureLexillaProperties(for language: LanguageDefinition) {
@@ -2725,15 +2729,19 @@ final class ScintillaEditorSurface: EditorSurface {
             let style = stylePreferences.resolvedStyle(for: key, base: baseStyle)
             applyStyle(style)
         }
-        // Apply Default Style (STYLE_DEFAULT = 32) colors to autocomplete list
+        // Apply Default Style (STYLE_DEFAULT = 32) colors to the autocomplete list.
+        // This Scintilla build exposes no SCI_AUTOCSETFORE/BACK — those legacy
+        // IDs (2237/2238) are actually SCI_FOLDLINE/SCI_FOLDCHILDREN, so using
+        // them folded line 0 on every highlight pass. Use the element-colour API
+        // instead: SCI_SETELEMENTCOLOUR with SC_ELEMENT_LIST (0) / LIST_BACK (1).
         if let defaultStyle = styleCatalog.globalStyles.first(where: { $0.styleID == 32 }) {
             let key = StyleOverrideKey(languageName: "global", styleID: 32)
             let resolved = stylePreferences.resolvedStyle(for: key, base: defaultStyle)
             if let fg = resolved.foreground {
-                bridge.setGeneralProperty(ScintillaMessage.autoCSetFore, parameter: CLong(fg.scintillaColor), value: 0)
+                bridge.setGeneralProperty(ScintillaMessage.setElementColour, parameter: 0, value: CLong(fg.scintillaColor))
             }
             if let bg = resolved.background {
-                bridge.setGeneralProperty(ScintillaMessage.autoCSetBack, parameter: CLong(bg.scintillaColor), value: 0)
+                bridge.setGeneralProperty(ScintillaMessage.setElementColour, parameter: 1, value: CLong(bg.scintillaColor))
             }
         }
     }
@@ -2763,9 +2771,6 @@ final class ScintillaEditorSurface: EditorSurface {
 
         if let foreground = style.foreground {
             let scintVal = CLong(foreground.scintillaColor)
-            if [1, 3, 6, 9, 12, 17].contains(style.styleID) {
-                Self.dbgWrite("[applyStyle] id=\(style.styleID) fg=#\(foreground.hexRGB) scint=0x\(String(scintVal, radix: 16))")
-            }
             bridge.setGeneralProperty(ScintillaMessage.styleSetFore, parameter: styleID, value: scintVal)
         }
 
@@ -3133,8 +3138,7 @@ private enum ScintillaMessage {
     static let setEndAtLastLine: Int32 = 2277
     static let setScrollWidth: Int32 = 2274
     static let setScrollWidthTracking: Int32 = 2516
-    static let autoCSetFore: Int32 = 2237
-    static let autoCSetBack: Int32 = 2238
+    static let setElementColour: Int32 = 2753  // SCI_SETELEMENTCOLOUR
     static let setExtraAscent: Int32 = 2525
     static let setExtraDescent: Int32 = 2526
     static let setBidirectional: Int32 = 2709
