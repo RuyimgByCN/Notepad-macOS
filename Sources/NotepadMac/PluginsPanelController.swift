@@ -106,7 +106,7 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         self.editScriptApplier = editScriptApplier
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 760, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 600),
             styleMask: [.titled, .closable, .resizable, .utilityWindow],
             backing: .buffered,
             defer: false

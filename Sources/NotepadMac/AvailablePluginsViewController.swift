@@ -117,7 +117,11 @@ final class AvailablePluginsViewController: NSViewController, NSTableViewDataSou
             detailScrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             detailScrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             detailScrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            detailScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 84),
+            // Fixed height so the description pane does not expand (via the
+            // NSTextView's intrinsic content size) and starve the plugin list
+            // scrollView, whose NSTableView has no intrinsic content size and
+            // would otherwise collapse to zero height.
+            detailScrollView.heightAnchor.constraint(equalToConstant: 96),
 
             emptyLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
             emptyLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor)
