@@ -124,6 +124,11 @@ public enum PluginRepository {
             // Skip entries that are upstream Windows DLLs (not loadable on macOS)
             if entry.upstreamWindowsDLL == true { continue }
 
+            // Skip entries without a downloadable archive (built-in features or
+            // not-yet-implemented ports) — they cannot be installed from the
+            // repository and must not appear in the available/updates lists.
+            if entry.repository?.isEmpty ?? true { continue }
+
             if let installedPlugin = installedByIdentifier[entry.identifier] {
                 // Check for update
                 if let remoteVersion = entry.version,
@@ -207,4 +212,21 @@ public enum PluginRepositoryError: Error, Equatable, Sendable {
     case missingRepositoryURL(identifier: String)
     case userPluginDirectoryUnavailable
     case downloadFailed(identifier: String, reason: String)
+}
+
+extension PluginRepositoryError: LocalizedError {
+    // NotepadMacCore cannot depend on NotepadMac.Localization, so the messages
+    // are inline English (same convention as RunCommandSupport.Error). The key
+    // win is surfacing the failure reason — e.g. "HTTP 404" — instead of the
+    // opaque "PluginRepositoryError error 1." produced by the default bridge.
+    public var errorDescription: String? {
+        switch self {
+        case let .missingRepositoryURL(identifier):
+            return "No download URL is configured for plugin ‘\(identifier)’."
+        case .userPluginDirectoryUnavailable:
+            return "The user plugin folder is unavailable."
+        case let .downloadFailed(identifier, reason):
+            return "Failed to download plugin ‘\(identifier)’ (\(reason))."
+        }
+    }
 }

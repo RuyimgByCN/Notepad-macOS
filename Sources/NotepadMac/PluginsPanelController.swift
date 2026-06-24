@@ -660,7 +660,9 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         openPluginFolderButton.isEnabled = PluginCatalog.userPluginDirectory() != nil
         fetchAvailableButton.isEnabled = runningTask == nil
         checkUpdatesButton.isEnabled = runningTask == nil
-        installAvailableButton.isEnabled = runningTask == nil && !availablePlugins.isEmpty
+        installAvailableButton.isEnabled = runningTask == nil
+            && !availablePlugins.isEmpty
+            && PluginCatalog.userPluginDirectory() != nil
         tableView.isEnabled = runningTask == nil
         nativePluginPopUpButton.isEnabled = runningTask == nil && selectedNativePluginIdentifier() != nil
         toggleNativePluginButton.isEnabled = runningTask == nil && selectedNativePluginIdentifier() != nil
