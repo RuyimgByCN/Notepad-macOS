@@ -3,7 +3,7 @@ import NotepadMacCore
 import UniformTypeIdentifiers
 
 @MainActor
-final class PluginsPanelController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate {
+final class PluginsPanelController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate, AvailablePluginsViewControllerDelegate {
     private let summaryField = NSTextField(labelWithString: "")
     private let nativePluginLabel = NSTextField(
         labelWithString: Localization.string(.pluginsNativePluginLabel, default: "Native plugin:")
@@ -19,6 +19,7 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
     )
     private let argumentsField = NSTextField(string: "")
     private let tableView = NSTableView()
+    private let tableScrollView = NSScrollView()
     private let statusView = NSTextView()
     private let refreshButton = NSButton(
         title: Localization.string(.pluginsRefresh, default: "Rescan"),
@@ -87,6 +88,9 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
     private var remoteCatalog: PluginRepositoryCatalog?
     private var availablePlugins: [PluginRepositoryEntry] = []
     private var updatePlugins: [(remote: PluginRepositoryEntry, installed: PluginDescriptor)] = []
+    private let listModeSegmented = NSSegmentedControl()
+    private let availablePluginsContainer = NSView()
+    private var availablePluginsViewController: AvailablePluginsViewController?
 
     init(
         preferencesStore: PreferencesStore = PreferencesStore(),
@@ -240,7 +244,6 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         runButton.target = self
         runButton.action = #selector(runSelectedCommand(_:))
 
-        let tableScrollView = NSScrollView()
         tableScrollView.translatesAutoresizingMaskIntoConstraints = false
         tableScrollView.hasVerticalScroller = true
         tableScrollView.hasHorizontalScroller = true
@@ -262,6 +265,31 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         tableView.addTableColumn(identifierColumn)
         tableView.addTableColumn(versionColumn)
         tableScrollView.documentView = tableView
+
+        listModeSegmented.translatesAutoresizingMaskIntoConstraints = false
+        listModeSegmented.segmentCount = 2
+        listModeSegmented.segmentStyle = .texturedRounded
+        listModeSegmented.target = self
+        listModeSegmented.action = #selector(listModeChanged(_:))
+        listModeSegmented.selectedSegment = 0
+        listModeSegmented.setLabel(
+            Localization.string(.pluginsTabInstalled, default: "Installed Commands"),
+            forSegment: 0
+        )
+        listModeSegmented.setLabel(
+            Localization.string(.pluginsTabAvailable, default: "Available"),
+            forSegment: 1
+        )
+
+        let availableController = AvailablePluginsViewController()
+        availableController.delegate = self
+        availablePluginsViewController = availableController
+
+        availablePluginsContainer.translatesAutoresizingMaskIntoConstraints = false
+        availablePluginsContainer.isHidden = true
+        let availableView = availableController.view
+        availableView.translatesAutoresizingMaskIntoConstraints = false
+        availablePluginsContainer.addSubview(availableView)
 
         let statusScrollView = NSScrollView()
         statusScrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -293,6 +321,8 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         contentView.addSubview(installAvailableButton)
         contentView.addSubview(runButton)
         contentView.addSubview(tableScrollView)
+        contentView.addSubview(listModeSegmented)
+        contentView.addSubview(availablePluginsContainer)
         contentView.addSubview(statusScrollView)
 
         NSLayoutConstraint.activate([
@@ -348,8 +378,21 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
 
             tableScrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 14),
             tableScrollView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -14),
-            tableScrollView.topAnchor.constraint(equalTo: argumentsField.bottomAnchor, constant: 12),
-            tableScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 160),
+            listModeSegmented.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 14),
+            listModeSegmented.topAnchor.constraint(equalTo: argumentsField.bottomAnchor, constant: 12),
+            listModeSegmented.widthAnchor.constraint(greaterThanOrEqualToConstant: 280),
+
+            tableScrollView.topAnchor.constraint(equalTo: listModeSegmented.bottomAnchor, constant: 10),
+            tableScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 140),
+
+            availablePluginsContainer.leadingAnchor.constraint(equalTo: tableScrollView.leadingAnchor),
+            availablePluginsContainer.trailingAnchor.constraint(equalTo: tableScrollView.trailingAnchor),
+            availablePluginsContainer.topAnchor.constraint(equalTo: tableScrollView.topAnchor),
+            availablePluginsContainer.bottomAnchor.constraint(equalTo: tableScrollView.bottomAnchor),
+            availableView.leadingAnchor.constraint(equalTo: availablePluginsContainer.leadingAnchor),
+            availableView.trailingAnchor.constraint(equalTo: availablePluginsContainer.trailingAnchor),
+            availableView.topAnchor.constraint(equalTo: availablePluginsContainer.topAnchor),
+            availableView.bottomAnchor.constraint(equalTo: availablePluginsContainer.bottomAnchor),
 
             statusScrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 14),
             statusScrollView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -14),
@@ -375,6 +418,15 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         commandColumn.title = Localization.string(.pluginsColumnCommand, default: "Command")
         identifierColumn.title = Localization.string(.pluginsColumnIdentifier, default: "Identifier")
         versionColumn.title = Localization.string(.pluginsColumnVersion, default: "Version")
+        listModeSegmented.setLabel(
+            Localization.string(.pluginsTabInstalled, default: "Installed Commands"),
+            forSegment: 0
+        )
+        listModeSegmented.setLabel(
+            Localization.string(.pluginsTabAvailable, default: "Available"),
+            forSegment: 1
+        )
+        availablePluginsViewController?.refreshLocalization()
 
         if let selectedIdentifier = selectedNativePluginIdentifier() {
             reloadNativePluginMenu(preferredIdentifier: selectedIdentifier)
@@ -1005,6 +1057,59 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         }
     }
 
+    @objc private func listModeChanged(_ sender: NSSegmentedControl) {
+        let showAvailable = sender.selectedSegment == 1
+        tableScrollView.isHidden = showAvailable
+        availablePluginsContainer.isHidden = !showAvailable
+        updateControls()
+    }
+
+    private func installAvailableEntry(_ entry: PluginRepositoryEntry) {
+        guard runningTask == nil else {
+            appendStatus(Localization.string(.pluginsStatusBusy, default: "Action skipped: a plugin command is still running."))
+            return
+        }
+
+        appendStatus(String(
+            format: Localization.string(.pluginsStatusInstallingFromRepo, default: "Installing %@ from repository..."),
+            entry.name
+        ))
+
+        let task = Task { @MainActor in
+            do {
+                let result = try await PluginRepository.installFromRepository(entry: entry)
+                self.reload(preferredNativePluginIdentifier: result.plugin.identifier)
+                self.appendStatus(self.installationStatusText(for: result))
+                if let remoteCatalog = self.remoteCatalog {
+                    let comparison = PluginRepository.compare(remote: remoteCatalog, installed: self.catalog)
+                    self.availablePlugins = comparison.available
+                    self.updatePlugins = comparison.updates
+                    self.availablePluginsViewController?.update(entries: comparison.available)
+                }
+            } catch {
+                self.appendStatus(String(
+                    format: Localization.string(.pluginsStatusInstallFailed, default: "Install/update failed: %@"),
+                    error.localizedDescription
+                ))
+            }
+            self.runningTask = nil
+            self.stopRequested = false
+            self.updateControls()
+        }
+        runningTask = task
+        stopRequested = false
+        updateControls()
+    }
+
+    // MARK: - AvailablePluginsViewControllerDelegate
+
+    func availablePluginsViewController(
+        _ controller: AvailablePluginsViewController,
+        didRequestInstall entry: PluginRepositoryEntry
+    ) {
+        installAvailableEntry(entry)
+    }
+
     @objc private func fetchAvailablePlugins(_ sender: Any?) {
         guard runningTask == nil else {
             appendStatus(Localization.string(.pluginsStatusBusy, default: "Action skipped: a plugin command is still running."))
@@ -1016,14 +1121,10 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
             let fetched = await PluginRepository.fetchCatalog()
             self.remoteCatalog = fetched
             if let fetched {
-                self.availablePlugins = PluginRepository.compare(
-                    remote: fetched,
-                    installed: self.catalog
-                ).available
-                self.updatePlugins = PluginRepository.compare(
-                    remote: fetched,
-                    installed: self.catalog
-                ).updates
+                let comparison = PluginRepository.compare(remote: fetched, installed: self.catalog)
+                self.availablePlugins = comparison.available
+                self.updatePlugins = comparison.updates
+                self.availablePluginsViewController?.update(entries: comparison.available)
 
                 self.appendStatus(String(
                     format: Localization.string(
@@ -1034,12 +1135,16 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
                     self.updatePlugins.count
                 ))
                 self.renderRemoteInfo()
+                self.listModeSegmented.selectedSegment = 1
+                self.listModeChanged(self.listModeSegmented)
             } else {
                 self.appendStatus(Localization.string(
                     .pluginsStatusFetchFailed,
                     default: "Failed to fetch plugin catalog. Check network connection."
                 ))
             }
+            self.runningTask = nil
+            self.stopRequested = false
             self.updateControls()
         }
         runningTask = task

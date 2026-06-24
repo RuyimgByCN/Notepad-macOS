@@ -61,6 +61,17 @@ public enum PluginRepository {
         URL(string: "https://raw.githubusercontent.com/RuyimgByCN/Notepad-macOS-PluginList/main/mac-arm64.json")!
     }
 
+    /// URLSession with a short timeout for catalog fetches, so a stalled
+    /// network does not leave the plugin manager stuck "loading" for the
+    /// full 60s default. Falls back to the cached catalog on timeout.
+    public static let catalogSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 20
+        config.timeoutIntervalForResource = 30
+        config.waitsForConnectivity = false
+        return URLSession(configuration: config)
+    }()
+
     /// Cache file location.
     public static func cacheURL() -> URL {
         FileManager.default
@@ -75,7 +86,7 @@ public enum PluginRepository {
     @MainActor
     public static func fetchCatalog(
         from remoteURL: URL = defaultCatalogURL,
-        session: URLSession = .shared
+        session: URLSession = catalogSession
     ) async -> PluginRepositoryCatalog? {
         // Try remote first
         if let remoteCatalog = await fetchRemote(url: remoteURL, session: session) {
