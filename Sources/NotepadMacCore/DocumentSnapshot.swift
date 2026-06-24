@@ -8,6 +8,7 @@ public struct DocumentSnapshot: Codable, Equatable, Sendable {
     public let encodingRawValue: UInt
     public let lineEnding: LineEnding
     public let preservesByteOrderMark: Bool
+    public let languageName: String?
 
     public var encoding: String.Encoding {
         String.Encoding(rawValue: encodingRawValue)
@@ -20,7 +21,8 @@ public struct DocumentSnapshot: Codable, Equatable, Sendable {
         backupFile: URL,
         encoding: String.Encoding,
         lineEnding: LineEnding,
-        preservesByteOrderMark: Bool = false
+        preservesByteOrderMark: Bool = false,
+        languageName: String? = nil
     ) {
         self.id = id
         self.displayName = displayName.isEmpty ? "Untitled" : displayName
@@ -29,6 +31,7 @@ public struct DocumentSnapshot: Codable, Equatable, Sendable {
         self.encodingRawValue = encoding.rawValue
         self.lineEnding = lineEnding
         self.preservesByteOrderMark = preservesByteOrderMark
+        self.languageName = languageName
     }
 }
 
@@ -41,6 +44,7 @@ extension DocumentSnapshot {
         case encodingRawValue
         case lineEnding
         case preservesByteOrderMark
+        case languageName
     }
 
     public init(from decoder: Decoder) throws {
@@ -52,7 +56,8 @@ extension DocumentSnapshot {
             backupFile: try container.decode(URL.self, forKey: .backupFile),
             encoding: String.Encoding(rawValue: try container.decode(UInt.self, forKey: .encodingRawValue)),
             lineEnding: try container.decode(LineEnding.self, forKey: .lineEnding),
-            preservesByteOrderMark: try container.decodeIfPresent(Bool.self, forKey: .preservesByteOrderMark) ?? false
+            preservesByteOrderMark: try container.decodeIfPresent(Bool.self, forKey: .preservesByteOrderMark) ?? false,
+            languageName: try container.decodeIfPresent(String.self, forKey: .languageName)
         )
     }
 
@@ -65,6 +70,7 @@ extension DocumentSnapshot {
         try container.encode(encodingRawValue, forKey: .encodingRawValue)
         try container.encode(lineEnding, forKey: .lineEnding)
         try container.encode(preservesByteOrderMark, forKey: .preservesByteOrderMark)
+        try container.encodeIfPresent(languageName, forKey: .languageName)
     }
 }
 
@@ -76,6 +82,7 @@ public struct DocumentSnapshotDraft {
     public let encoding: String.Encoding
     public let lineEnding: LineEnding
     public let preservesByteOrderMark: Bool
+    public let languageName: String?
 
     public init(
         id: String?,
@@ -84,7 +91,8 @@ public struct DocumentSnapshotDraft {
         text: String,
         encoding: String.Encoding,
         lineEnding: LineEnding,
-        preservesByteOrderMark: Bool = false
+        preservesByteOrderMark: Bool = false,
+        languageName: String? = nil
     ) {
         self.id = id
         self.displayName = displayName.isEmpty ? "Untitled" : displayName
@@ -93,6 +101,7 @@ public struct DocumentSnapshotDraft {
         self.encoding = encoding
         self.lineEnding = lineEnding
         self.preservesByteOrderMark = preservesByteOrderMark
+        self.languageName = languageName
     }
 }
 
@@ -129,7 +138,8 @@ public final class SnapshotStore {
             backupFile: backupFile,
             encoding: draft.encoding,
             lineEnding: draft.lineEnding,
-            preservesByteOrderMark: draft.preservesByteOrderMark
+            preservesByteOrderMark: draft.preservesByteOrderMark,
+            languageName: draft.languageName
         )
     }
 

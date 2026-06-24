@@ -4444,7 +4444,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             text: editorSurface.text,
             encoding: encoding,
             lineEnding: lineEnding,
-            preservesByteOrderMark: savePolicy.includeByteOrderMark(for: encoding)
+            preservesByteOrderMark: savePolicy.includeByteOrderMark(for: encoding),
+            languageName: language.name
         )
     }
 
@@ -5282,7 +5283,15 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             .converted(to: snapshot.encoding)
         let text = try snapshotStore.loadText(for: snapshot)
         lineEnding = snapshot.lineEnding
-        language = LanguageDetector.detect(url: snapshot.originalFile, content: text, in: languageCatalog)
+        if let savedLanguageName = snapshot.languageName,
+           let savedLanguage = languageCatalog.language(named: savedLanguageName) {
+            // Preserve a user-chosen language for unsaved new documents (whose
+            // originalFile is nil, so detection would otherwise fall back to
+            // the default language on relaunch).
+            language = savedLanguage
+        } else {
+            language = LanguageDetector.detect(url: snapshot.originalFile, content: text, in: languageCatalog)
+        }
         editorSurface.text = text
         bookmarks = bookmarks.clamped(toLineCount: documentLineCount())
         editorSurface.syncBookmarkMarkers(bookmarks)
