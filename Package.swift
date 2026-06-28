@@ -32,8 +32,8 @@ let package = Package(
             publicHeadersPath: "include",
             cxxSettings: [
                 .headerSearchPath("include"),
-                .define("BOOST_REGEX_STANDALONE"),
-                .unsafeFlags(["-I", "upstream/notepad-plus-plus/boostregex"])
+                .headerSearchPath("../../upstream/notepad-plus-plus/boostregex"),
+                .define("BOOST_REGEX_STANDALONE")
             ],
             linkerSettings: [
                 .linkedLibrary("c++")

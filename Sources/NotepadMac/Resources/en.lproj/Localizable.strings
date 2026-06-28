@@ -1464,3 +1464,19 @@
 "pref.item.boxTree" = "Box tree";
 "pref.backup.simple" = "Simple (.bak)";
 "pref.backup.verbose" = "Verbose (timestamped .bak)";
+
+/* File compare / diff */
+"menu.diff" = "Compare";
+"diff.compareFiles" = "Compare Files...";
+"diff.compareActiveWith" = "Compare Active Document with...";
+"diff.compareTwoOpen" = "Compare Two Open Documents...";
+"diff.windowTitle" = "Compare Files";
+"diff.previous" = "Previous Difference";
+"diff.next" = "Next Difference";
+"diff.copyLeftToRight" = "Copy Left to Right";
+"diff.copyRightToLeft" = "Copy Right to Left";
+"diff.swap" = "Swap Sides";
+"diff.recompare" = "Recompare";
+"diff.close" = "Close";
+"diff.noDifferences" = "No differences";
+"diff.filesIdentical" = "Files are identical";

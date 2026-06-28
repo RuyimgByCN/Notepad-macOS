@@ -16,6 +16,23 @@ enum EditorMargin {
     case fold
 }
 
+/// A line highlight instruction emitted by the file-compare window.
+@MainActor
+struct DiffLineHighlight {
+    enum Kind {
+        case added
+        case removed
+        case changed
+        case pad
+    }
+    let line: Int      // 1-based line number
+    let kind: Kind
+    init(line: Int, kind: Kind) {
+        self.line = line
+        self.kind = kind
+    }
+}
+
 @MainActor
 struct EditorMarginClick {
     let margin: EditorMargin
@@ -225,6 +242,26 @@ protocol EditorSurface: AnyObject {
 
     // MARK: - Context menu
     func setContextMenu(_ menu: NSMenu?)
+
+    // MARK: - File compare / diff rendering
+    /// Configure this surface for use as a read-only compare pane: define the
+    /// markers and indicator used to highlight added/removed/changed lines and
+    /// inline character differences.
+    func configureForDiff()
+    /// Apply a set of diff line highlights. Each entry tints a line background
+    /// and (for non-pad lines) places a marker in the symbol margin.
+    func applyDiffLineHighlights(_ highlights: [DiffLineHighlight])
+    /// Clear all diff line highlights and markers.
+    func clearDiffHighlights()
+    /// Apply inline (character-level) indicator highlights for a single line.
+    /// `ranges` are 0-based UTF-16 ranges within the given (1-based) line's text.
+    func applyDiffInlineHighlights(line: Int, ranges: [NSRange], isInsert: Bool)
+    /// Clear all inline diff indicators.
+    func clearDiffInlineHighlights()
+    /// Scroll so that the given 1-based line is visible near the top of the pane.
+    func scrollDiffToLine(_ line: Int)
+    /// The 1-based line currently at the top of the visible area.
+    var firstVisibleDiffLine: Int { get }
 
     // MARK: - Lifecycle
     /// Called before the surface is released (e.g. window closing) to allow the
@@ -523,6 +560,14 @@ final class TextViewEditorSurface: EditorSurface {
     func scrollToSelection() {
         textView.scrollRangeToVisible(textView.selectedRange())
     }
+    // Diff rendering is a no-op on the fallback text view surface.
+    func configureForDiff() {}
+    func applyDiffLineHighlights(_ highlights: [DiffLineHighlight]) {}
+    func clearDiffHighlights() {}
+    func applyDiffInlineHighlights(line: Int, ranges: [NSRange], isInsert: Bool) {}
+    func clearDiffInlineHighlights() {}
+    func scrollDiffToLine(_ line: Int) {}
+    var firstVisibleDiffLine: Int { 1 }
     func teardown() {}
 }
 
@@ -1553,6 +1598,173 @@ final class ScintillaEditorSurface: EditorSurface {
 
     func hideIncrementalHighlight() {
         bridge.setGeneralProperty(ScintillaMessage.findIndicatorHide, parameter: 0, value: 0)
+    }
+
+    // MARK: - File compare / diff rendering
+
+    /// Diff line markers reuse Scintilla marker numbers 2-5 (bookmark=1,
+    /// fold margins=25-31). Indicators 6 (insert) and 7 (delete) are used for
+    /// inline character-level highlights; both well clear of the search-mark
+    /// indicators (1-5) and platform indicators.
+    private enum DiffMarker {
+        static let added: CLong = 2
+        static let removed: CLong = 3
+        static let changed: CLong = 4
+        static let mask: CLong = (1 << added) | (1 << removed) | (1 << changed)
+    }
+    private enum DiffIndicator {
+        static let insert: CLong = 6
+        static let delete: CLong = 7
+    }
+
+    func configureForDiff() {
+        isReadOnly = true
+        // Give the diff pane a dedicated symbol margin (margin #3, clear of the
+        // line-number/bookmark/fold margins 0/1/2) so line markers show.
+        let diffMargin: CLong = 3
+        bridge.setGeneralProperty(ScintillaMessage.setMarginType,
+                                  parameter: diffMargin, value: ScintillaMarginType.symbol)
+        bridge.setGeneralProperty(ScintillaMessage.setMarginWidth,
+                                  parameter: diffMargin, value: 14)
+        bridge.setGeneralProperty(ScintillaMessage.setMarginMask,
+                                  parameter: diffMargin, value: DiffMarker.mask)
+        bridge.setGeneralProperty(ScintillaMessage.setMarginSensitive,
+                                  parameter: diffMargin, value: 0)
+
+        // Marker definitions: background-tinting markers (SC_MARK_BACKGROUND)
+        // colour the whole line, plus a small symbol drawn in the margin.
+        let defs: [(marker: CLong, symbol: CLong, r: Int, g: Int, b: Int)] = [
+            // Added: green tint
+            (DiffMarker.added, ScintillaMarkerSymbol.arrowDown, 200, 255, 200),
+            // Removed: red/pink tint
+            (DiffMarker.removed, ScintillaMarkerSymbol.circle, 255, 210, 210),
+            // Changed: yellow tint
+            (DiffMarker.changed, ScintillaMarkerSymbol.arrow, 255, 240, 190),
+        ]
+        for d in defs {
+            bridge.setGeneralProperty(ScintillaMessage.markerDefine,
+                                      parameter: d.marker, value: ScintillaMarkerSymbol.background)
+            let rgb = CLong(d.b) | (CLong(d.g) << 8) | (CLong(d.r) << 16)
+            bridge.setGeneralProperty(ScintillaMessage.markerSetBack,
+                                      parameter: d.marker, value: rgb)
+            // Alpha for the background tint (0-255).
+            bridge.setGeneralProperty(ScintillaMessage.markerSetAlpha,
+                                      parameter: d.marker, value: 70)
+        }
+
+        // Inline indicators: subtle underline-style highlights for the changed
+        // characters within a modified line.
+        bridge.setGeneralProperty(ScintillaMessage.indicSetStyle,
+                                  parameter: DiffIndicator.insert,
+                                  value: ScintillaIndicatorStyle.roundBox)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetFore,
+                                  parameter: DiffIndicator.insert,
+                                  value: CLong(0x70) | (CLong(0xB0) << 8) | (CLong(0x70) << 16))  // green
+        bridge.setGeneralProperty(ScintillaMessage.indicSetAlpha,
+                                  parameter: DiffIndicator.insert, value: 90)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetUnder,
+                                  parameter: DiffIndicator.insert, value: 1)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetStyle,
+                                  parameter: DiffIndicator.delete,
+                                  value: ScintillaIndicatorStyle.roundBox)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetFore,
+                                  parameter: DiffIndicator.delete,
+                                  value: CLong(0xB0) | (CLong(0x70) << 8) | (CLong(0x70) << 16))  // red
+        bridge.setGeneralProperty(ScintillaMessage.indicSetAlpha,
+                                  parameter: DiffIndicator.delete, value: 90)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetUnder,
+                                  parameter: DiffIndicator.delete, value: 1)
+    }
+
+    func applyDiffLineHighlights(_ highlights: [DiffLineHighlight]) {
+        clearDiffHighlights()
+        for h in highlights {
+            guard h.line >= 1 else { continue }
+            let zeroBased = CLong(h.line - 1)
+            let marker: CLong
+            switch h.kind {
+            case .added: marker = DiffMarker.added
+            case .removed: marker = DiffMarker.removed
+            case .changed: marker = DiffMarker.changed
+            case .pad: continue  // pad lines get no marker
+            }
+            bridge.setGeneralProperty(ScintillaMessage.markerAdd,
+                                      parameter: zeroBased, value: marker)
+        }
+    }
+
+    func clearDiffHighlights() {
+        bridge.setGeneralProperty(ScintillaMessage.markerDeleteAll,
+                                  parameter: DiffMarker.added, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.markerDeleteAll,
+                                  parameter: DiffMarker.removed, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.markerDeleteAll,
+                                  parameter: DiffMarker.changed, value: 0)
+    }
+
+    func applyDiffInlineHighlights(line: Int, ranges: [NSRange], isInsert: Bool) {
+        guard line >= 1, !ranges.isEmpty else { return }
+        let indicator = isInsert ? DiffIndicator.insert : DiffIndicator.delete
+        bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent,
+                                  parameter: indicator, value: 0)
+        let currentText = text
+        for range in ranges {
+            // Convert the line-local UTF-16 offset to an absolute document offset.
+            let lineStartUTF16 = absoluteUTF16Start(ofLine: line, in: currentText)
+            let absLocation = lineStartUTF16 + range.location
+            let absEnd = lineStartUTF16 + NSMaxRange(range)
+            guard let sciStart = scintillaPosition(in: currentText, utf16Location: absLocation),
+                  let sciEnd = scintillaPosition(in: currentText, utf16Location: absEnd),
+                  sciEnd > sciStart
+            else { continue }
+            bridge.setGeneralProperty(ScintillaMessage.indicatorFillRange,
+                                      parameter: sciStart, value: sciEnd - sciStart)
+        }
+    }
+
+    func clearDiffInlineHighlights() {
+        let total = CLong(documentByteCount)
+        bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent,
+                                  parameter: DiffIndicator.insert, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange,
+                                  parameter: 0, value: total)
+        bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent,
+                                  parameter: DiffIndicator.delete, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange,
+                                  parameter: 0, value: total)
+    }
+
+    func scrollDiffToLine(_ line: Int) {
+        guard line >= 1 else { return }
+        // SCI_SCROLLRANGE keeps the given range visible; scrolling so that the
+        // target line sits near the top gives stable navigation between hunks.
+        let zeroBased = CLong(line - 1)
+        let lineStart = bridge.getGeneralProperty(ScintillaMessage.positionFromLine,
+                                                  parameter: zeroBased) ?? 0
+        // Use SCI_GOTOPOS via setGeneralProperty then ensure visible.
+        bridge.setGeneralProperty(ScintillaMessage.gotoPos, parameter: lineStart, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.scrollRange,
+                                  parameter: lineStart, value: lineStart)
+    }
+
+    var firstVisibleDiffLine: Int {
+        let sciPos = bridge.getGeneralProperty(ScintillaMessage.getFirstVisibleLine, parameter: 0) ?? 0
+        return Int(sciPos) + 1  // Scintilla reports a 0-based line
+    }
+
+    /// UTF-16 location of the start of a 1-based line in the whole document.
+    private func absoluteUTF16Start(ofLine line: Int, in fullText: String) -> Int {
+        guard line > 1 else { return 0 }
+        var current = 1
+        var utf16Index = 0
+        for char in fullText {
+            if current == line { return utf16Index }
+            utf16Index += char.utf16.count
+            if char == "\n" {
+                current += 1
+            }
+        }
+        return utf16Index
     }
 
     // MARK: - Multi-select operations
@@ -2998,6 +3210,7 @@ private enum ScintillaMessage {
     static let getOvertype: Int32 = 2115
     static let lineFromPosition: Int32 = 2166
     static let scrollCaret: Int32 = 2169
+    static let scrollRange: Int32 = 2569  // SCI_SCROLLRANGE (wParam=secondary, lParam=primary)
     static let getFoldLevel: Int32 = 2223
     static let getFoldExpanded: Int32 = 2230
     static let setFoldExpanded: Int32 = 2229
@@ -3070,6 +3283,7 @@ private enum ScintillaMessage {
     static let markerNext: Int32 = 2047
     static let markerPrevious: Int32 = 2048
     static let markerAddSet: Int32 = 2466
+    static let markerSetAlpha: Int32 = 2484  // SCI_MARKERSETALPHA
     static let setMarginType: Int32 = 2240
     static let setMarginWidth: Int32 = 2242
     static let setMarginMask: Int32 = 2244
@@ -3354,4 +3568,5 @@ private enum ScintillaMarkerSymbol {
     static let circlePlusConnected: CLong = 19
     static let circleMinus: CLong = 20
     static let circleMinusConnected: CLong = 21
+    static let background: CLong = 22  // SC_MARK_BACKGROUND: tints the whole line
 }

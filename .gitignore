@@ -5,10 +5,11 @@
 .swiftpm/
 dist/
 
-# Upstream Notepad++ source tree — fetched fresh at build/CI time
-# (see .github/workflows/release.yml). Only the placeholder markers
-# (upstream/notepad--, upstream/NotepadNext) are tracked.
+# Upstream reference repos — fetched fresh locally for development
+# (not version-controlled; treated as local clones for reference)
 upstream/notepad-plus-plus/
+upstream/notepad--/
+upstream/NotepadNext/
 
 # Claude Code local agent worktrees — never version-controlled
 .claude/worktrees/

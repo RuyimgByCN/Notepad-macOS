@@ -1202,6 +1202,22 @@ case settingsImportTheme = "settings.importTheme"
         case udlPlaceholderFoldCommentOpen = "udl.placeholder.foldCommentOpen"
         case udlPlaceholderFoldCommentMiddle = "udl.placeholder.foldCommentMiddle"
         case udlPlaceholderFoldCommentClose = "udl.placeholder.foldCommentClose"
+
+        // MARK: - File compare / diff
+        case diffMenu = "menu.diff"
+        case diffCompareFiles = "diff.compareFiles"
+        case diffCompareActiveWith = "diff.compareActiveWith"
+        case diffCompareTwoOpen = "diff.compareTwoOpen"
+        case diffWindowTitle = "diff.windowTitle"
+        case diffPrevious = "diff.previous"
+        case diffNext = "diff.next"
+        case diffCopyLeftToRight = "diff.copyLeftToRight"
+        case diffCopyRightToLeft = "diff.copyRightToLeft"
+        case diffSwap = "diff.swap"
+        case diffRecompare = "diff.recompare"
+        case diffClose = "diff.close"
+        case diffNoDifferences = "diff.noDifferences"
+        case diffFilesIdentical = "diff.filesIdentical"
     }
 
     static func string(_ key: Key, default defaultValue: String) -> String {

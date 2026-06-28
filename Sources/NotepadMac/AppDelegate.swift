@@ -141,6 +141,9 @@ private var appearanceObservation: NSKeyValueObservation?
         self.windows.forEach { $0.applyLanguageCatalog(self.languageCatalog) }
     }
 
+    /// Open file-compare windows, tracked so closing one drops the reference.
+    private var diffWindows: [DiffWindowController] = []
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         finishLaunchingIfNeeded()
     }
@@ -538,6 +541,101 @@ private var appearanceObservation: NSKeyValueObservation?
         if FileManager.default.fileExists(atPath: url.path) {
             openFile(url)
         }
+    }
+
+    // MARK: - File compare (diff)
+
+    /// Search > Compare > Compare Files... — pick two files on disk.
+    @objc func compareFiles(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.prompt = Localization.string(.diffCompareFiles, default: "Compare Files...")
+        if panel.runModal() == .OK {
+            let urls = panel.urls
+            guard urls.count >= 2 else { return }
+            presentCompare(leftURL: urls[0], rightURL: urls[1])
+        }
+    }
+
+    /// Search > Compare > Compare Active Document with... — current doc vs a file.
+    @objc func compareActiveWith(_ sender: Any?) {
+        guard let active = activeEditorController() else { return }
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.prompt = Localization.string(.diffCompareActiveWith, default: "Compare Active Document with...")
+        if panel.runModal() == .OK, let url = panel.url {
+            presentCompare(
+                leftText: active.documentPlainText,
+                leftTitle: active.compareDisplayName,
+                rightURL: url
+            )
+        }
+    }
+
+    /// Search > Compare > Compare Two Open Documents... — pick two open docs.
+    @objc func compareTwoOpenDocuments(_ sender: Any?) {
+        let controllers = windows
+        guard controllers.count >= 2 else { return }
+        let alert = NSAlert()
+        alert.messageText = Localization.string(.diffCompareTwoOpen, default: "Compare Two Open Documents...")
+        alert.informativeText = controllers.enumerated().map { "\($0.offset + 1). \($0.element.compareDisplayName)" }.joined(separator: "\n")
+        alert.addButton(withTitle: "Compare")
+        alert.addButton(withTitle: "Cancel")
+        // Compare the two most-recently-active documents.
+        let first = controllers[0]
+        let second = controllers[1]
+        if alert.runModal() == .alertFirstButtonReturn {
+            presentCompare(
+                leftText: first.documentPlainText, leftTitle: first.compareDisplayName,
+                rightText: second.documentPlainText, rightTitle: second.compareDisplayName
+            )
+        }
+    }
+
+    /// Load and compare two disk files side by side.
+    private func presentCompare(leftURL: URL, rightURL: URL) {
+        do {
+            let left = try TextFileCodec.read(leftURL)
+            let right = try TextFileCodec.read(rightURL)
+            presentCompare(
+                leftText: left.text, leftTitle: leftURL.lastPathComponent,
+                rightText: right.text, rightTitle: rightURL.lastPathComponent
+            )
+        } catch {
+            NSApp.presentError(error)
+        }
+    }
+
+    /// Compare a text buffer against a disk file.
+    private func presentCompare(leftText: String, leftTitle: String, rightURL: URL) {
+        do {
+            let right = try TextFileCodec.read(rightURL)
+            presentCompare(
+                leftText: leftText, leftTitle: leftTitle,
+                rightText: right.text, rightTitle: rightURL.lastPathComponent
+            )
+        } catch {
+            NSApp.presentError(error)
+        }
+    }
+
+    /// Build and show the compare window for two text buffers.
+    private func presentCompare(leftText: String, leftTitle: String, rightText: String, rightTitle: String) {
+        let controller = DiffWindowController(
+            left: leftText, right: rightText,
+            leftTitle: leftTitle, rightTitle: rightTitle
+        )
+        controller.onClose = { [weak self, weak controller] in
+            guard let self, let controller else { return }
+            self.diffWindows.removeAll { $0 === controller }
+        }
+        diffWindows.append(controller)
+        controller.showWindow(self)
+        controller.window?.makeKeyAndOrderFront(nil)
     }
 
     func openFileAtLine(fileURL: URL, line: Int) {

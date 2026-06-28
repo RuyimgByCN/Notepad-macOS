@@ -89,6 +89,11 @@ if [[ -n "$SCINTILLA_ONLY_ACTIVE_ARCH" ]]; then
     build_cmd+=("ONLY_ACTIVE_ARCH=$SCINTILLA_ONLY_ACTIVE_ARCH")
 fi
 
+# Override the deployment target: Scintilla.xcodeproj pins MACOSX_DEPLOYMENT_TARGET=10.13,
+# which newer Xcode SDKs (12.0+ minimum) reject. Default to 13.0 to match this project's
+# Package.swift platform floor; allow override via MACOS_DEPLOYMENT_TARGET.
+build_cmd+=("MACOSX_DEPLOYMENT_TARGET=${MACOS_DEPLOYMENT_TARGET:-13.0}")
+
 build_cmd+=(build)
 
 "${build_cmd[@]}"

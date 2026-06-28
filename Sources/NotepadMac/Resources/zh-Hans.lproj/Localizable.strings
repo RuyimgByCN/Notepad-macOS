@@ -1464,3 +1464,19 @@
 "pref.item.boxTree" = "方形树";
 "pref.backup.simple" = "简单 (.bak)";
 "pref.backup.verbose" = "详细（带时间戳的 .bak）";
+
+/* 文件对比 / diff */
+"menu.diff" = "对比";
+"diff.compareFiles" = "对比文件...";
+"diff.compareActiveWith" = "对比当前文档与...";
+"diff.compareTwoOpen" = "对比两个已打开文档...";
+"diff.windowTitle" = "对比文件";
+"diff.previous" = "上一个差异";
+"diff.next" = "下一个差异";
+"diff.copyLeftToRight" = "从左复制到右";
+"diff.copyRightToLeft" = "从右复制到左";
+"diff.swap" = "交换两侧";
+"diff.recompare" = "重新对比";
+"diff.close" = "关闭";
+"diff.noDifferences" = "无差异";
+"diff.filesIdentical" = "两个文件完全相同";

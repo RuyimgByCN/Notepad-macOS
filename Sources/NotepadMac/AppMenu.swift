@@ -816,6 +816,30 @@ enum AppMenu {
         changeHistoryMenu.addItem(withTitle: Localization.string(.searchChangedPrevious, default: "Go to Previous Change"), action: #selector(EditorWindowController.goToPreviousChangedLine(_:)), keyEquivalent: "")
         changeHistoryMenu.addItem(withTitle: Localization.string(.searchClearChangeHistory, default: "Clear Change History"), action: #selector(EditorWindowController.clearChangeHistory(_:)), keyEquivalent: "")
 
+        // Compare (file diff) submenu
+        searchMenu.addItem(NSMenuItem.separator())
+        let compareItem = NSMenuItem(title: Localization.string(.diffMenu, default: "Compare"), action: nil, keyEquivalent: "")
+        let compareMenu = NSMenu(title: Localization.string(.diffMenu, default: "Compare"))
+        compareItem.submenu = compareMenu
+        searchMenu.addItem(compareItem)
+        compareMenu.addItem(
+            withTitle: Localization.string(.diffCompareFiles, default: "Compare Files..."),
+            action: #selector(AppDelegate.compareFiles(_:)),
+            keyEquivalent: "d"
+        ).target = delegate
+        let compareActive = compareMenu.addItem(
+            withTitle: Localization.string(.diffCompareActiveWith, default: "Compare Active Document with..."),
+            action: #selector(AppDelegate.compareActiveWith(_:)),
+            keyEquivalent: "d"
+        )
+        compareActive.keyEquivalentModifierMask = [.command, .shift]
+        compareActive.target = delegate
+        compareMenu.addItem(
+            withTitle: Localization.string(.diffCompareTwoOpen, default: "Compare Two Open Documents..."),
+            action: #selector(AppDelegate.compareTwoOpenDocuments(_:)),
+            keyEquivalent: ""
+        ).target = delegate
+
         let toolsMenuItem = NSMenuItem()
         mainMenu.addItem(toolsMenuItem)
         let toolsMenu = NSMenu(title: Localization.string(.menuTools, default: "Tools"))

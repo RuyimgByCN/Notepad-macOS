@@ -6270,6 +6270,17 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
         return displayName
     }
+
+    // MARK: - File compare accessors
+
+    /// Plain text of the document, for use by the compare window.
+    var documentPlainText: String { editorSurface.text }
+
+    /// A title suitable for the compare window (filename or untitled name).
+    var compareDisplayName: String { displayName }
+
+    /// The on-disk URL of the document, if it is backed by a file.
+    var compareFileURL: URL? { fileURL }
 }
 
 // MARK: - DragOverlayView
