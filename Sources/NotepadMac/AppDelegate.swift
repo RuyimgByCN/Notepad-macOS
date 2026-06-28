@@ -164,7 +164,15 @@ private var appearanceObservation: NSKeyValueObservation?
 
         let preferences = preferencesStore.load()
         applyAppearanceMode(preferences.appearanceMode)
-        Localization.apply(localizationFileName: preferences.localizationFileName, postNotification: false)
+        // On first launch (preferences at default), detect system language so the UI
+        // starts in the user's language instead of always defaulting to English.
+        let effectiveLocalizationFileName: String
+        if preferences.localizationFileName == AppPreferences.defaultValue.localizationFileName {
+            effectiveLocalizationFileName = Self.systemDefaultLocalizationFileName()
+        } else {
+            effectiveLocalizationFileName = preferences.localizationFileName
+        }
+        Localization.apply(localizationFileName: effectiveLocalizationFileName, postNotification: false)
         reloadLanguageCatalog()
         // Load style catalog synchronously before files are opened, so highlighting works
         styleCatalog = StyleCatalog.loadDefault()
@@ -253,6 +261,16 @@ private var appearanceObservation: NSKeyValueObservation?
             }
         }
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Map the user's system language to a bundled native-lang XML file.
+    /// Returns the default (English) when the system language is not explicitly supported.
+    private static func systemDefaultLocalizationFileName() -> String {
+        let code = Locale.current.language.languageCode?.identifier ?? ""
+        if code.hasPrefix("zh") {
+            return "chinesesimplified.xml"
+        }
+        return AppPreferences.defaultValue.localizationFileName
     }
 
     func applicationWillTerminate(_ notification: Notification) {

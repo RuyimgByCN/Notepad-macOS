@@ -825,14 +825,13 @@ enum AppMenu {
         compareMenu.addItem(
             withTitle: Localization.string(.diffCompareFiles, default: "Compare Files..."),
             action: #selector(AppDelegate.compareFiles(_:)),
-            keyEquivalent: "d"
+            keyEquivalent: ""
         ).target = delegate
         let compareActive = compareMenu.addItem(
             withTitle: Localization.string(.diffCompareActiveWith, default: "Compare Active Document with..."),
             action: #selector(AppDelegate.compareActiveWith(_:)),
-            keyEquivalent: "d"
+            keyEquivalent: ""
         )
-        compareActive.keyEquivalentModifierMask = [.command, .shift]
         compareActive.target = delegate
         compareMenu.addItem(
             withTitle: Localization.string(.diffCompareTwoOpen, default: "Compare Two Open Documents..."),
