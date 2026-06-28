@@ -266,7 +266,14 @@ private var appearanceObservation: NSKeyValueObservation?
     /// Map the user's system language to a bundled native-lang XML file.
     /// Returns the default (English) when the system language is not explicitly supported.
     private static func systemDefaultLocalizationFileName() -> String {
-        let code = Locale.current.language.languageCode?.identifier ?? ""
+        // Read the user's raw language preference (AppleLanguages) instead of Locale.current.
+        // Locale.current is resolved through app-bundle localization negotiation: the packaged
+        // .app's main bundle has no top-level zh-Hans.lproj (Chinese resources live in the nested
+        // NotepadMac_NotepadMac.bundle) and CFBundleDevelopmentRegion=en, so the system resolves
+        // Locale.current to "en" even on a zh-Hans system — defeating first-launch detection.
+        // preferredLanguages is the unmodified user preference and is unaffected by that negotiation.
+        let preferred = Locale.preferredLanguages.first ?? ""
+        let code = Locale(identifier: preferred).language.languageCode?.identifier ?? ""
         if code.hasPrefix("zh") {
             return "chinesesimplified.xml"
         }
