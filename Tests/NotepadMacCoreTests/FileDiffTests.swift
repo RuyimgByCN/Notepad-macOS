@@ -16,6 +16,29 @@ import Testing
     #expect(FileDiff.splitLines("a\rb") == ["a", "b"])
 }
 
+@Test func computeIgnoresLeadingWhitespaceWhenOptionEnabled() {
+    let result = FileDiff.compute(
+        left: "  hello",
+        right: "hello",
+        leftTitle: "L",
+        rightTitle: "R",
+        options: FileDiff.CompareOptions(ignoreLeadingWhitespace: true)
+    )
+    #expect(result.isIdentical)
+}
+
+@Test func computeRespectsLeadingWhitespaceWhenOptionDisabled() {
+    let result = FileDiff.compute(
+        left: "  hello",
+        right: "hello",
+        leftTitle: "L",
+        rightTitle: "R",
+        options: FileDiff.CompareOptions(ignoreLeadingWhitespace: false)
+    )
+    #expect(!result.isIdentical)
+    #expect(result.hunks.count == 1)
+}
+
 @Test func computeIdenticalTextHasNoHunks() {
     let result = FileDiff.compute(left: "a\nb\nc", right: "a\nb\nc",
                                   leftTitle: "L", rightTitle: "R")

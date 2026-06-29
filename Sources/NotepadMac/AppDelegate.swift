@@ -144,6 +144,16 @@ private var appearanceObservation: NSKeyValueObservation?
     /// Open file-compare windows, tracked so closing one drops the reference.
     private var diffWindows: [DiffWindowController] = []
 
+    private struct PendingCompareSide {
+        let text: String
+        let title: String
+        let url: URL?
+        let encoding: String.Encoding
+    }
+
+    private var pendingCompareLeft: PendingCompareSide?
+    private var pendingCompareRight: PendingCompareSide?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         finishLaunchingIfNeeded()
     }
@@ -570,6 +580,62 @@ private var appearanceObservation: NSKeyValueObservation?
 
     // MARK: - File compare (diff)
 
+    private func pendingSide(from controller: EditorWindowController) -> PendingCompareSide? {
+        guard controller.compareFileURL != nil else { return nil }
+        return PendingCompareSide(
+            text: controller.documentPlainText,
+            title: controller.compareDisplayName,
+            url: controller.compareFileURL,
+            encoding: controller.documentEncoding
+        )
+    }
+
+    private func selectLeftCompareFile(from controller: EditorWindowController) {
+        guard let side = pendingSide(from: controller) else { return }
+        pendingCompareLeft = side
+        showCompareSelectionStatus(leftSelected: true)
+        tryOpenPendingCompare()
+    }
+
+    private func selectRightCompareFile(from controller: EditorWindowController) {
+        guard let side = pendingSide(from: controller) else { return }
+        pendingCompareRight = side
+        showCompareSelectionStatus(leftSelected: false)
+        tryOpenPendingCompare()
+    }
+
+    private func showCompareSelectionStatus(leftSelected: Bool) {
+        let message: String
+        if pendingCompareLeft != nil, pendingCompareRight == nil {
+            message = Localization.string(.diffSelectRightPending, default: "Left file selected. Select the right compare file.")
+        } else if pendingCompareRight != nil, pendingCompareLeft == nil {
+            message = Localization.string(.diffSelectLeftPending, default: "Right file selected. Select the left compare file.")
+        } else if leftSelected {
+            message = Localization.string(.diffSelectRightPending, default: "Left file selected. Select the right compare file.")
+        } else {
+            message = Localization.string(.diffSelectLeftPending, default: "Right file selected. Select the left compare file.")
+        }
+        if let controller = activeEditorController() {
+            controller.showTransientStatus(message)
+        }
+    }
+
+    private func tryOpenPendingCompare() {
+        guard let left = pendingCompareLeft, let right = pendingCompareRight else { return }
+        pendingCompareLeft = nil
+        pendingCompareRight = nil
+        presentCompare(
+            leftText: left.text,
+            leftTitle: left.title,
+            rightText: right.text,
+            rightTitle: right.title,
+            leftURL: left.url,
+            rightURL: right.url,
+            leftEncoding: left.encoding,
+            rightEncoding: right.encoding
+        )
+    }
+
     /// Search > Compare > Compare Files... — pick two files on disk.
     @objc func compareFiles(_ sender: Any?) {
         let panel = NSOpenPanel()
@@ -628,7 +694,9 @@ private var appearanceObservation: NSKeyValueObservation?
             let right = try TextFileCodec.read(rightURL)
             presentCompare(
                 leftText: left.text, leftTitle: leftURL.lastPathComponent,
-                rightText: right.text, rightTitle: rightURL.lastPathComponent
+                rightText: right.text, rightTitle: rightURL.lastPathComponent,
+                leftURL: leftURL, rightURL: rightURL,
+                leftEncoding: left.encoding, rightEncoding: right.encoding
             )
         } catch {
             NSApp.presentError(error)
@@ -641,7 +709,9 @@ private var appearanceObservation: NSKeyValueObservation?
             let right = try TextFileCodec.read(rightURL)
             presentCompare(
                 leftText: leftText, leftTitle: leftTitle,
-                rightText: right.text, rightTitle: rightURL.lastPathComponent
+                rightText: right.text, rightTitle: rightURL.lastPathComponent,
+                leftURL: nil, rightURL: rightURL,
+                leftEncoding: .utf8, rightEncoding: right.encoding
             )
         } catch {
             NSApp.presentError(error)
@@ -649,10 +719,25 @@ private var appearanceObservation: NSKeyValueObservation?
     }
 
     /// Build and show the compare window for two text buffers.
-    private func presentCompare(leftText: String, leftTitle: String, rightText: String, rightTitle: String) {
+    private func presentCompare(
+        leftText: String,
+        leftTitle: String,
+        rightText: String,
+        rightTitle: String,
+        leftURL: URL? = nil,
+        rightURL: URL? = nil,
+        leftEncoding: String.Encoding = .utf8,
+        rightEncoding: String.Encoding = .utf8
+    ) {
         let controller = DiffWindowController(
-            left: leftText, right: rightText,
-            leftTitle: leftTitle, rightTitle: rightTitle
+            left: leftText,
+            right: rightText,
+            leftTitle: leftTitle,
+            rightTitle: rightTitle,
+            leftURL: leftURL,
+            rightURL: rightURL,
+            leftEncoding: leftEncoding,
+            rightEncoding: rightEncoding
         )
         controller.onClose = { [weak self, weak controller] in
             guard let self, let controller else { return }
@@ -2228,6 +2313,10 @@ private var appearanceObservation: NSKeyValueObservation?
         case .toggleReadOnly:
             activate(targetController)
             targetController.toggleReadOnly(nil)
+        case .selectLeftCompareFile:
+            selectLeftCompareFile(from: targetController)
+        case .selectRightCompareFile:
+            selectRightCompareFile(from: targetController)
         }
     }
 

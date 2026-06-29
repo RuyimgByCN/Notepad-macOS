@@ -113,7 +113,7 @@ final class PluginsPanelController: NSWindowController, NSTableViewDataSource, N
         )
         panel.title = Localization.string(.pluginsPanelTitle, default: "Plugin Admin")
         panel.isFloatingPanel = true
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
 
         super.init(window: panel)
         configureContent()

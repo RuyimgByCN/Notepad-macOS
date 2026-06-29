@@ -1210,14 +1210,18 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func toggleNpcDisplay(_ sender: Any?) {
         guard editorSurface.supportsNpcDisplay else { return }
         showsNpcCharacters.toggle()
-        editorSurface.applyNpcDisplay(showsNpcCharacters)
+        preservingEditorViewPosition {
+            editorSurface.applyNpcDisplay(showsNpcCharacters)
+        }
         saveCurrentEditorPreferences()
     }
 
     @objc func toggleControlCharactersAndUnicodeEOL(_ sender: Any?) {
         guard editorSurface.supportsNpcDisplay else { return }
         showsControlCharactersAndUnicodeEOL.toggle()
-        editorSurface.applyControlCharactersAndUnicodeEOLDisplay(showsControlCharactersAndUnicodeEOL)
+        preservingEditorViewPosition {
+            editorSurface.applyControlCharactersAndUnicodeEOLDisplay(showsControlCharactersAndUnicodeEOL)
+        }
         saveCurrentEditorPreferences()
     }
 
@@ -5954,41 +5958,49 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func applyAdvancedViewOptions() {
-        editorSurface.applyShowWhitespace(whitespaceMode != .invisible)
-        if editorSurface.supportsAdvancedViewOptions {
-            editorSurface.applyShowWhitespace(mode: whitespaceMode.rawValue)
+        preservingEditorViewPosition {
+            editorSurface.applyShowWhitespace(whitespaceMode != .invisible)
+            if editorSurface.supportsAdvancedViewOptions {
+                editorSurface.applyShowWhitespace(mode: whitespaceMode.rawValue)
+            }
+            editorSurface.applyShowEOL(showsEOL)
+            if showsIndentGuides {
+                editorSurface.applyIndentGuides(mode: indentGuideMode)
+            } else {
+                editorSurface.applyIndentGuides(false)
+            }
+            editorSurface.applyCurrentLineHighlight(highlightsCurrentLine)
+            editorSurface.applyWrapSymbol(showsWrapSymbol)
+            editorSurface.applyChangeHistory(showsChangeHistory)
+            if editorSurface.supportsNpcDisplay {
+                editorSurface.applyNpcDisplay(showsNpcCharacters)
+                editorSurface.applyControlCharactersAndUnicodeEOLDisplay(showsControlCharactersAndUnicodeEOL)
+            }
+            editorSurface.applyCaretWidth(caretWidth)
+            editorSurface.applyCaretPeriod(caretNoBlink ? 0 : caretBlinkRate)
+            editorSurface.applyAdditionalEdgeColumns(additionalEdgeColumns)
+            editorSurface.applyCurrentLineFrameWidth(currentLineFrameWidth)
+            editorSurface.applyFoldMarginStyle(foldMarginStyle)
+            editorSurface.applyCodeFolding(enableCodeFolding && foldMarginStyle != FoldMarginStyle.none.rawValue)
+            editorSurface.applyFoldCompact(foldCompact)
+            editorSurface.applyVirtualSpace(enableVirtualSpace)
+            editorSurface.applyBackspaceUnindents(backspaceUnindents)
+            editorSurface.applyAutoIndent(autoIndent)
+            editorSurface.applyAutoIndentMode(autoIndentMode)
+            editorSurface.applyScrollBeyondLastLine(scrollBeyondLastLine)
+            editorSurface.applySelectedTextDragDrop(selectedTextDragDrop)
+            editorSurface.applyPasteConvertEndings(pasteConvertEndings)
+            editorSurface.applyCaretStickyMode(caretStickyMode)
+            editorSurface.applyLineNumberDynamicWidth(lineNumberDynamicWidth)
+            editorSurface.applyColumnSelectionToMultiEditing(columnSelectionToMultiEditing)
+            editorSurface.applyLinePadding(linePadding)
         }
-        editorSurface.applyShowEOL(showsEOL)
-        if showsIndentGuides {
-            editorSurface.applyIndentGuides(mode: indentGuideMode)
-        } else {
-            editorSurface.applyIndentGuides(false)
-        }
-        editorSurface.applyCurrentLineHighlight(highlightsCurrentLine)
-        editorSurface.applyWrapSymbol(showsWrapSymbol)
-        editorSurface.applyChangeHistory(showsChangeHistory)
-        if editorSurface.supportsNpcDisplay {
-            editorSurface.applyNpcDisplay(showsNpcCharacters)
-            editorSurface.applyControlCharactersAndUnicodeEOLDisplay(showsControlCharactersAndUnicodeEOL)
-        }
-        editorSurface.applyCaretWidth(caretWidth)
-        editorSurface.applyCaretPeriod(caretNoBlink ? 0 : caretBlinkRate)
-        editorSurface.applyAdditionalEdgeColumns(additionalEdgeColumns)
-        editorSurface.applyCurrentLineFrameWidth(currentLineFrameWidth)
-        editorSurface.applyFoldMarginStyle(foldMarginStyle)
-        editorSurface.applyCodeFolding(enableCodeFolding && foldMarginStyle != FoldMarginStyle.none.rawValue)
-        editorSurface.applyFoldCompact(foldCompact)
-        editorSurface.applyVirtualSpace(enableVirtualSpace)
-        editorSurface.applyBackspaceUnindents(backspaceUnindents)
-        editorSurface.applyAutoIndent(autoIndent)
-        editorSurface.applyAutoIndentMode(autoIndentMode)
-        editorSurface.applyScrollBeyondLastLine(scrollBeyondLastLine)
-        editorSurface.applySelectedTextDragDrop(selectedTextDragDrop)
-        editorSurface.applyPasteConvertEndings(pasteConvertEndings)
-        editorSurface.applyCaretStickyMode(caretStickyMode)
-        editorSurface.applyLineNumberDynamicWidth(lineNumberDynamicWidth)
-        editorSurface.applyColumnSelectionToMultiEditing(columnSelectionToMultiEditing)
-        editorSurface.applyLinePadding(linePadding)
+    }
+
+    private func preservingEditorViewPosition(_ work: () -> Void) {
+        let position = editorSurface.captureViewPosition()
+        work()
+        editorSurface.restoreViewPosition(position)
     }
 
     private func applyTabSettings(_ tabSize: Int, insertSpaces: Bool) {
@@ -6281,6 +6293,17 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// The on-disk URL of the document, if it is backed by a file.
     var compareFileURL: URL? { fileURL }
+
+    /// Encoding used for the current document buffer.
+    var documentEncoding: String.Encoding { encoding }
+
+    /// Show a short-lived message in the status bar.
+    func showTransientStatus(_ message: String) {
+        statusField.stringValue = message
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            self?.updateStatus()
+        }
+    }
 }
 
 // MARK: - DragOverlayView

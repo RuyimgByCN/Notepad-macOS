@@ -27,6 +27,8 @@ final class HashTextPanelController: NSObject, NSTextViewDelegate {
     override init() {
         super.init()
         panel.isReleasedWhenClosed = false
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = true
         configureContent()
         refreshLocalizedStrings()
         NotificationCenter.default.addObserver(

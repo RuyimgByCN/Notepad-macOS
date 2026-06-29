@@ -12,7 +12,6 @@ import Testing
         leftTitle: "Left.txt",
         rightTitle: "Right.txt"
     )
-    // The result should detect the single changed line.
     #expect(controller.result.hunks.count == 1)
     #expect(controller.result.leftLines.count == controller.result.rightLines.count)
     #expect(controller.window != nil)
@@ -32,7 +31,6 @@ import Testing
 
 @MainActor
 @Test func diffWindowControllerSelectorsExist() {
-    // The AppDelegate selectors must exist for the Search > Compare menu to dispatch.
     #expect(AppDelegate.instancesRespond(to: #selector(AppDelegate.compareFiles(_:))))
     #expect(AppDelegate.instancesRespond(to: #selector(AppDelegate.compareActiveWith(_:))))
     #expect(AppDelegate.instancesRespond(to: #selector(AppDelegate.compareTwoOpenDocuments(_:))))
@@ -45,4 +43,27 @@ import Testing
     toolbar.onNext = { navigated = true }
     toolbar.onNext?()
     #expect(navigated)
+}
+
+@MainActor
+@Test func diffWindowNavigationMovesBetweenHunks() {
+    let controller = DiffWindowController(
+        left: "a\nb\nc\nd",
+        right: "a\nX\nc\nY",
+        leftTitle: "L",
+        rightTitle: "R"
+    )
+    #expect(controller.result.hunks.count >= 2)
+    controller.navigateNext()
+    controller.navigateNext()
+    controller.navigatePrevious()
+}
+
+@MainActor
+@Test func diffToolbarIncludesWhitespaceAndRulesActions() {
+    let toolbar = DiffToolbar()
+    var rulesOpened = false
+    toolbar.onRules = { rulesOpened = true }
+    toolbar.onRules?()
+    #expect(rulesOpened)
 }

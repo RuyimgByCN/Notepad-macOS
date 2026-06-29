@@ -34,7 +34,7 @@ final class FoundResultsPanelController: NSWindowController, NSOutlineViewDataSo
             defer: false
         )
         panel.isFloatingPanel = true
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
         panel.minSize = NSSize(width: 480, height: 240)
         super.init(window: panel)
         configureContent()

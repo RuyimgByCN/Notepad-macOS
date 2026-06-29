@@ -53,7 +53,7 @@ final class FindInFilesPanelController: NSWindowController {
             defer: false
         )
         panel.isFloatingPanel = true
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
         panel.minSize = NSSize(width: 500, height: 350)
 
         super.init(window: panel)

@@ -118,6 +118,20 @@ public enum FileDiff {
         }
     }
 
+    // MARK: - Compare options
+
+    /// Options that control how lines are matched before diffing.
+    public struct CompareOptions: Sendable, Equatable {
+        /// Ignore leading whitespace when comparing lines (Notepad-- default).
+        public var ignoreLeadingWhitespace: Bool
+
+        public init(ignoreLeadingWhitespace: Bool = true) {
+            self.ignoreLeadingWhitespace = ignoreLeadingWhitespace
+        }
+
+        public static let `default` = CompareOptions()
+    }
+
     // MARK: - Public entry points
 
     /// Compute the difference between two texts.
@@ -128,13 +142,17 @@ public enum FileDiff {
         left: String,
         right: String,
         leftTitle: String,
-        rightTitle: String
+        rightTitle: String,
+        options: CompareOptions = .default
     ) -> DiffResult {
         let leftRaw = splitLines(left)
         let rightRaw = splitLines(right)
 
+        let leftNorm = leftRaw.map { normalizeLine($0, options: options) }
+        let rightNorm = rightRaw.map { normalizeLine($0, options: options) }
+
         // Stage 1: line-level LCS edit script.
-        let script = lineLevelEditScript(leftRaw, rightRaw)
+        let script = lineLevelEditScript(leftNorm, rightNorm)
 
         // Stage 2: build aligned line arrays (equal length) with pads inserted.
         var leftLines: [AlignedLine] = []
@@ -377,6 +395,16 @@ public enum FileDiff {
         // If the text ended with a terminator, the loop above already captured
         // the final line; no phantom "" is added, so no trailing-drop needed.
         return lines
+    }
+
+    /// Normalize a line for comparison according to the given options.
+    /// Original line text is preserved in the aligned output.
+    private static func normalizeLine(_ line: String, options: CompareOptions) -> String {
+        guard options.ignoreLeadingWhitespace else { return line }
+        if let first = line.firstIndex(where: { !$0.isWhitespace }) {
+            return String(line[first...])
+        }
+        return ""
     }
 
     // MARK: - Line-level LCS

@@ -1,55 +1,61 @@
 import AppKit
 import NotepadMacCore
 
-/// Window controller for side-by-side file comparison.
-///
-/// Owns two read-only `EditorSurface` panes (left / right) laid out in a split
-/// view, renders the result of `FileDiff.compute` as line background tints and
-/// inline character highlights, and supports navigating between hunks and
-/// copying a hunk from one side to the other.
-///
-/// The two panes stay aligned because `FileDiff` inserts virtual "pad" lines so
-/// that both aligned line arrays have equal length; sync-scrolling then maps a
-/// line on one side to the same aligned index on the other.
+/// Window controller for side-by-side file comparison (Notepad-- CompareWin layout).
 @MainActor
 final class DiffWindowController: NSWindowController, NSWindowDelegate {
 
-    /// Called when the window closes, so the owner (AppDelegate) can drop its
-    /// reference to this controller.
     var onClose: (() -> Void)?
 
     private let leftSurface: EditorSurface
     private let rightSurface: EditorSurface
+    private let leftHeader = DiffPaneHeader()
+    private let rightHeader = DiffPaneHeader()
     private let splitView = NSSplitView()
     private let toolbar = DiffToolbar()
     private let statusField = NSTextField(labelWithString: "")
-    private let leftTitleField = NSTextField(labelWithString: "")
-    private let rightTitleField = NSTextField(labelWithString: "")
+    private let keyHandlerView = DiffKeyHandlerView()
 
-    /// Current comparison result (reflects the latest apply/swap).
     private(set) var result: FileDiff.DiffResult
-
-    /// Current working text on each side (mutated by copy operations).
     private var leftText: String
     private var rightText: String
+    private var leftURL: URL?
+    private var rightURL: URL?
+    private var leftEncoding: String.Encoding
+    private var rightEncoding: String.Encoding
+    private var compareOptions = FileDiff.CompareOptions.default
 
-    /// Index of the hunk the navigation cursor currently points at.
-    /// `-1` means "before the first hunk".
     private var currentHunkIndex: Int = -1
-
-    /// Guards recursive sync-scroll handlers.
     private var isSyncingScroll = false
+    private var showWhitespace = false
+    private var fontSize: CGFloat = 13
+    private var keyMonitor: Any?
 
-    init(left: String, right: String, leftTitle: String, rightTitle: String) {
+    init(
+        left: String,
+        right: String,
+        leftTitle: String,
+        rightTitle: String,
+        leftURL: URL? = nil,
+        rightURL: URL? = nil,
+        leftEncoding: String.Encoding = .utf8,
+        rightEncoding: String.Encoding = .utf8
+    ) {
         self.leftText = left
         self.rightText = right
+        self.leftURL = leftURL
+        self.rightURL = rightURL
+        self.leftEncoding = leftEncoding
+        self.rightEncoding = rightEncoding
         self.leftSurface = EditorSurfaceFactory.make()
         self.rightSurface = EditorSurfaceFactory.make()
         self.result = FileDiff.compute(
-            left: left, right: right, leftTitle: leftTitle, rightTitle: rightTitle
+            left: left, right: right,
+            leftTitle: leftTitle, rightTitle: rightTitle,
+            options: .default
         )
 
-        let window = NSWindow(
+        let window = DiffWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1100, height: 720),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
@@ -64,7 +70,9 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
         }
         configureContent()
         updateWindowTitle()
+        updatePaneHeaders()
         render()
+        installKeyMonitor()
     }
 
     @available(*, unavailable)
@@ -82,51 +90,38 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
 
         leftSurface.configureForDiff()
         rightSurface.configureForDiff()
+        leftSurface.applyFont(size: fontSize)
+        rightSurface.applyFont(size: fontSize)
 
         toolbar.translatesAutoresizingMaskIntoConstraints = false
         wireToolbar()
 
-        for (field, title) in [(leftTitleField, result.leftTitle), (rightTitleField, result.rightTitle)] {
-            field.translatesAutoresizingMaskIntoConstraints = false
-            field.font = .systemFont(ofSize: 11, weight: .medium)
-            field.textColor = .secondaryLabelColor
-            field.lineBreakMode = .byTruncatingMiddle
-            field.maximumNumberOfLines = 1
-            field.stringValue = title
-        }
+        leftHeader.translatesAutoresizingMaskIntoConstraints = false
+        rightHeader.translatesAutoresizingMaskIntoConstraints = false
+        leftHeader.onOpen = { [weak self] in self?.openFile(side: .left) }
+        rightHeader.onOpen = { [weak self] in self?.openFile(side: .right) }
 
         statusField.translatesAutoresizingMaskIntoConstraints = false
         statusField.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
         statusField.textColor = .secondaryLabelColor
-        statusField.alignment = .center
+        statusField.alignment = .left
 
         splitView.translatesAutoresizingMaskIntoConstraints = false
         splitView.isVertical = true
         splitView.dividerStyle = .thin
-        splitView.addArrangedSubview(leftSurface.view)
-        splitView.addArrangedSubview(rightSurface.view)
 
-        let leftColumn = NSStackView(views: [leftTitleField])
-        leftColumn.translatesAutoresizingMaskIntoConstraints = false
-        leftColumn.orientation = .horizontal
-        leftColumn.edgeInsets = NSEdgeInsets(top: 2, left: 8, bottom: 2, right: 8)
+        let leftColumn = columnView(header: leftHeader, editor: leftSurface.view)
+        let rightColumn = columnView(header: rightHeader, editor: rightSurface.view)
+        splitView.addArrangedSubview(leftColumn)
+        splitView.addArrangedSubview(rightColumn)
 
-        let rightColumn = NSStackView(views: [rightTitleField])
-        rightColumn.translatesAutoresizingMaskIntoConstraints = false
-        rightColumn.orientation = .horizontal
-        rightColumn.edgeInsets = NSEdgeInsets(top: 2, left: 8, bottom: 2, right: 8)
-
-        let titleRow = NSSplitView()
-        titleRow.translatesAutoresizingMaskIntoConstraints = false
-        titleRow.isVertical = true
-        titleRow.dividerStyle = .thin
-        titleRow.addArrangedSubview(leftColumn)
-        titleRow.addArrangedSubview(rightColumn)
+        keyHandlerView.translatesAutoresizingMaskIntoConstraints = false
+        keyHandlerView.onKeyAction = { [weak self] action in self?.handleKeyAction(action) }
 
         rootView.addSubview(toolbar)
-        rootView.addSubview(titleRow)
         rootView.addSubview(splitView)
         rootView.addSubview(statusField)
+        rootView.addSubview(keyHandlerView)
 
         NSLayoutConstraint.activate([
             toolbar.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
@@ -134,39 +129,104 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
             toolbar.topAnchor.constraint(equalTo: rootView.topAnchor),
             toolbar.heightAnchor.constraint(equalToConstant: DiffToolbar.barHeight),
 
-            titleRow.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
-            titleRow.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            titleRow.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
-            titleRow.heightAnchor.constraint(equalToConstant: 20),
-
             splitView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             splitView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            splitView.topAnchor.constraint(equalTo: titleRow.bottomAnchor),
-            splitView.bottomAnchor.constraint(equalTo: statusField.topAnchor),
+            splitView.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
+            splitView.bottomAnchor.constraint(equalTo: statusField.topAnchor, constant: -4),
 
             statusField.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 10),
             statusField.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -10),
             statusField.bottomAnchor.constraint(equalTo: rootView.bottomAnchor, constant: -5),
+
+            keyHandlerView.widthAnchor.constraint(equalToConstant: 0),
+            keyHandlerView.heightAnchor.constraint(equalToConstant: 0),
         ])
+
+        window.makeFirstResponder(keyHandlerView)
     }
 
+    private func columnView(header: DiffPaneHeader, editor: NSView) -> NSView {
+        let column = NSView()
+        column.translatesAutoresizingMaskIntoConstraints = false
+        editor.translatesAutoresizingMaskIntoConstraints = false
+        column.addSubview(header)
+        column.addSubview(editor)
+        NSLayoutConstraint.activate([
+            header.leadingAnchor.constraint(equalTo: column.leadingAnchor),
+            header.trailingAnchor.constraint(equalTo: column.trailingAnchor),
+            header.topAnchor.constraint(equalTo: column.topAnchor),
+            header.heightAnchor.constraint(equalToConstant: DiffPaneHeader.headerHeight),
+
+            editor.leadingAnchor.constraint(equalTo: column.leadingAnchor),
+            editor.trailingAnchor.constraint(equalTo: column.trailingAnchor),
+            editor.topAnchor.constraint(equalTo: header.bottomAnchor),
+            editor.bottomAnchor.constraint(equalTo: column.bottomAnchor),
+        ])
+        return column
+    }
+
+    private enum CompareSide { case left, right }
+
     private func wireToolbar() {
+        toolbar.onWhitespace = { [weak self] in self?.toggleWhitespace() }
+        toolbar.onRules = { [weak self] in self?.showCompareOptions() }
         toolbar.onPrevious = { [weak self] in self?.navigatePrevious() }
         toolbar.onNext = { [weak self] in self?.navigateNext() }
-        toolbar.onCopyLeftToRight = { [weak self] in self?.copyCurrentHunkLeftToRight() }
-        toolbar.onCopyRightToLeft = { [weak self] in self?.copyCurrentHunkRightToLeft() }
+        toolbar.onZoomIn = { [weak self] in self?.zoomIn() }
+        toolbar.onZoomOut = { [weak self] in self?.zoomOut() }
+        toolbar.onClear = { [weak self] in self?.clearCompare() }
         toolbar.onSwap = { [weak self] in self?.swapSides() }
         toolbar.onRefresh = { [weak self] in self?.recompare() }
-        toolbar.onClose = { [weak self] in self?.close() }
+        toolbar.onCopyLeftToRight = { [weak self] in self?.copyCurrentHunkLeftToRight() }
+        toolbar.onCopyRightToLeft = { [weak self] in self?.copyCurrentHunkRightToLeft() }
+    }
+
+    private func installKeyMonitor() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, event.window === self.window else { return event }
+            switch event.keyCode {
+            case 99:  // F3
+                self.navigatePrevious()
+                return nil
+            case 118: // F4
+                self.navigateNext()
+                return nil
+            case 96:  // F5
+                self.recompare()
+                return nil
+            default:
+                return event
+            }
+        }
+    }
+
+    private func handleKeyAction(_ action: DiffKeyAction) {
+        switch action {
+        case .previous: navigatePrevious()
+        case .next: navigateNext()
+        case .refresh: recompare()
+        }
     }
 
     private func updateWindowTitle() {
         window?.title = "\(DiffStrings.windowTitle): \(result.leftTitle) ↔ \(result.rightTitle)"
     }
 
+    private func updatePaneHeaders() {
+        leftHeader.update(
+            title: result.leftTitle,
+            encoding: leftEncoding,
+            encodingLabel: DiffStrings.paneLeftEncoding
+        )
+        rightHeader.update(
+            title: result.rightTitle,
+            encoding: rightEncoding,
+            encodingLabel: DiffStrings.paneRightEncoding
+        )
+    }
+
     // MARK: - Rendering
 
-    /// Re-emit the current `result` into both panes and refresh highlights.
     private func render() {
         let leftJoined = result.leftLines.map(\.text).joined(separator: "\n")
         let rightJoined = result.rightLines.map(\.text).joined(separator: "\n")
@@ -176,17 +236,21 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
 
         leftSurface.configureForDiff()
         rightSurface.configureForDiff()
+        leftSurface.applyFont(size: fontSize)
+        rightSurface.applyFont(size: fontSize)
+        leftSurface.applyShowWhitespace(showWhitespace)
+        rightSurface.applyShowWhitespace(showWhitespace)
 
         renderHighlights()
         updateStatus()
+        toolbar.setWhitespaceHighlighted(showWhitespace)
     }
 
     private func renderHighlights() {
         let leftHL = result.leftLines.enumerated().compactMap { idx, line -> DiffLineHighlight? in
-            // Aligned index is 1-based line number in the pane.
             let kind: DiffLineHighlight.Kind?
             switch line.kind {
-            case .added: kind = nil  // added only appears on the right
+            case .added: kind = nil
             case .removed: kind = .removed
             case .changed: kind = .changed
             case .pad: kind = .pad
@@ -199,7 +263,7 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
             let kind: DiffLineHighlight.Kind?
             switch line.kind {
             case .added: kind = .added
-            case .removed: kind = nil  // removed only appears on the left
+            case .removed: kind = nil
             case .changed: kind = .changed
             case .pad: kind = .pad
             case .common: kind = nil
@@ -215,10 +279,8 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
         renderInlineHighlights()
     }
 
-    /// Apply character-level inline indicators for every changed line in each hunk.
     private func renderInlineHighlights() {
         for hunk in result.hunks {
-            // Left side: delete segments for each non-pad left line in the hunk.
             for (offset, segs) in hunk.leftSegments.enumerated() {
                 let alignedIndex = hunk.leftRange.lowerBound + offset
                 guard alignedIndex < result.leftLines.count,
@@ -230,7 +292,6 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
                         line: alignedIndex + 1, ranges: ranges, isInsert: false)
                 }
             }
-            // Right side: insert segments for each non-pad right line in the hunk.
             for (offset, segs) in hunk.rightSegments.enumerated() {
                 let alignedIndex = hunk.rightRange.lowerBound + offset
                 guard alignedIndex < result.rightLines.count,
@@ -245,8 +306,6 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    /// Convert inline segments of a given edit type into 0-based UTF-16 ranges
-    /// relative to the start of the line.
     private func inlineUTF16Ranges(
         segments: [FileDiff.InlineSegment],
         filter: FileDiff.InlineSegment.Edit
@@ -269,25 +328,49 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
             statusField.textColor = .systemGreen
             toolbar.updateHunkCount(current: 0, total: 0)
         } else {
-            let total = result.hunks.count
-            let display = currentHunkIndex < 0 ? 0 : currentHunkIndex + 1
-            statusField.stringValue = "\(result.hunks.count) \(result.hunks.count == 1 ? "difference" : "differences")"
+            statusField.stringValue = DiffStrings.statusDiffCount(total: result.hunks.count)
             statusField.textColor = .secondaryLabelColor
-            toolbar.updateHunkCount(current: display, total: total)
+            let display = currentHunkIndex < 0 ? 0 : currentHunkIndex + 1
+            toolbar.updateHunkCount(current: display, total: result.hunks.count)
+        }
+    }
+
+    private func flashStatus(_ message: String) {
+        statusField.stringValue = message
+        statusField.textColor = .secondaryLabelColor
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.updateStatus()
         }
     }
 
     // MARK: - Navigation
 
     func navigateNext() {
-        guard !result.hunks.isEmpty else { return }
+        guard !result.hunks.isEmpty else {
+            flashStatus(DiffStrings.statusNoMoreDiffs)
+            return
+        }
+        if currentHunkIndex >= result.hunks.count - 1 {
+            flashStatus(DiffStrings.statusAlreadyLast)
+            return
+        }
         currentHunkIndex = min(currentHunkIndex + 1, result.hunks.count - 1)
         scrollToCurrentHunk()
         updateStatus()
     }
 
     func navigatePrevious() {
-        guard !result.hunks.isEmpty else { return }
+        guard !result.hunks.isEmpty else {
+            flashStatus(DiffStrings.statusNoMoreDiffs)
+            return
+        }
+        if currentHunkIndex <= 0 {
+            currentHunkIndex = 0
+            flashStatus(DiffStrings.statusAlreadyFirst)
+            scrollToCurrentHunk()
+            updateStatus()
+            return
+        }
         currentHunkIndex = max(currentHunkIndex - 1, 0)
         scrollToCurrentHunk()
         updateStatus()
@@ -296,7 +379,6 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
     private func scrollToCurrentHunk() {
         guard currentHunkIndex >= 0, currentHunkIndex < result.hunks.count else { return }
         let hunk = result.hunks[currentHunkIndex]
-        // Scroll both panes to the top of the hunk.
         if hunk.leftRange.lowerBound < result.leftLines.count {
             leftSurface.scrollDiffToLine(hunk.leftRange.lowerBound + 1)
         }
@@ -305,7 +387,7 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    // MARK: - Copy / merge
+    // MARK: - Toolbar actions
 
     func copyCurrentHunkLeftToRight() {
         guard currentHunkIndex >= 0, currentHunkIndex < result.hunks.count else { return }
@@ -322,30 +404,116 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func swapSides() {
-        let swapText = leftText
-        leftText = rightText
-        rightText = swapText
+        swap(&leftText, &rightText)
+        swap(&leftURL, &rightURL)
+        swap(&leftEncoding, &rightEncoding)
         let swapTitle = result.leftTitle
         result = FileDiff.compute(
             left: leftText, right: rightText,
-            leftTitle: result.rightTitle, rightTitle: swapTitle
+            leftTitle: result.rightTitle, rightTitle: swapTitle,
+            options: compareOptions
         )
-        leftTitleField.stringValue = result.leftTitle
-        rightTitleField.stringValue = result.rightTitle
         currentHunkIndex = -1
         updateWindowTitle()
+        updatePaneHeaders()
         render()
     }
 
-    /// Re-read the disk files backing each side (no-op if neither has a URL).
     func recompare() {
+        if let url = leftURL {
+            if let loaded = try? TextFileCodec.read(url) {
+                leftText = loaded.text
+                leftEncoding = loaded.encoding
+            }
+        }
+        if let url = rightURL {
+            if let loaded = try? TextFileCodec.read(url) {
+                rightText = loaded.text
+                rightEncoding = loaded.encoding
+            }
+        }
         recompute()
+    }
+
+    private func clearCompare() {
+        leftText = ""
+        rightText = ""
+        leftURL = nil
+        rightURL = nil
+        result = FileDiff.compute(
+            left: "", right: "",
+            leftTitle: result.leftTitle, rightTitle: result.rightTitle,
+            options: compareOptions
+        )
+        currentHunkIndex = -1
+        updatePaneHeaders()
+        render()
+    }
+
+    private func toggleWhitespace() {
+        showWhitespace.toggle()
+        leftSurface.applyShowWhitespace(showWhitespace)
+        rightSurface.applyShowWhitespace(showWhitespace)
+        toolbar.setWhitespaceHighlighted(showWhitespace)
+    }
+
+    private func zoomIn() {
+        fontSize = min(fontSize + 1, 48)
+        leftSurface.applyFont(size: fontSize)
+        rightSurface.applyFont(size: fontSize)
+    }
+
+    private func zoomOut() {
+        fontSize = max(fontSize - 1, 8)
+        leftSurface.applyFont(size: fontSize)
+        rightSurface.applyFont(size: fontSize)
+    }
+
+    private func showCompareOptions() {
+        let panel = CompareOptionsPanel(options: compareOptions)
+        panel.onApply = { [weak self] options in
+            guard let self else { return }
+            self.compareOptions = options
+            self.recompute()
+        }
+        if let window {
+            window.beginSheet(panel.window!) { _ in }
+        } else {
+            panel.showWindow(nil)
+        }
+    }
+
+    private func openFile(side: CompareSide) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.prompt = DiffStrings.paneOpen
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let loaded = try TextFileCodec.read(url)
+            switch side {
+            case .left:
+                leftText = loaded.text
+                leftURL = url
+                leftEncoding = loaded.encoding
+            case .right:
+                rightText = loaded.text
+                rightURL = url
+                rightEncoding = loaded.encoding
+            }
+            recompute()
+            updatePaneHeaders()
+        } catch {
+            NSApp.presentError(error)
+        }
     }
 
     private func recompute() {
         result = FileDiff.compute(
             left: leftText, right: rightText,
-            leftTitle: result.leftTitle, rightTitle: result.rightTitle
+            leftTitle: result.leftTitle, rightTitle: result.rightTitle,
+            options: compareOptions
         )
         currentHunkIndex = result.hunks.isEmpty ? -1 : min(max(currentHunkIndex, 0), result.hunks.count - 1)
         render()
@@ -353,8 +521,6 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: - Sync scroll
 
-    /// Sync the right pane's first visible line to the left pane (and vice versa).
-    /// Called by observers wired up after the surfaces are ready.
     func syncScrollFromLeft() {
         guard !isSyncingScroll else { return }
         isSyncingScroll = true
@@ -374,8 +540,39 @@ final class DiffWindowController: NSWindowController, NSWindowDelegate {
     // MARK: - Window delegate
 
     func windowWillClose(_ notification: Notification) {
+        if let keyMonitor {
+            NSEvent.removeMonitor(keyMonitor)
+            self.keyMonitor = nil
+        }
         leftSurface.teardown()
         rightSurface.teardown()
         onClose?()
     }
+}
+
+// MARK: - Keyboard helpers
+
+enum DiffKeyAction {
+    case previous
+    case next
+    case refresh
+}
+
+private final class DiffKeyHandlerView: NSView {
+    var onKeyAction: ((DiffKeyAction) -> Void)?
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        switch event.keyCode {
+        case 99: onKeyAction?(.previous); return
+        case 118: onKeyAction?(.next); return
+        case 96: onKeyAction?(.refresh); return
+        default: super.keyDown(with: event)
+        }
+    }
+}
+
+private final class DiffWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
 }

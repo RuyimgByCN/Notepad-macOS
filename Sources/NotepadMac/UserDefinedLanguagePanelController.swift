@@ -113,7 +113,7 @@ final class UserDefinedLanguagePanelController: NSWindowController, NSTableViewD
         )
         panel.title = Localization.string(.udlPanelTitle, default: "User Defined Languages")
         panel.isFloatingPanel = true
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
 
         super.init(window: panel)
         configureContent()

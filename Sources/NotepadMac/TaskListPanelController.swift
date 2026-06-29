@@ -23,6 +23,8 @@ final class TaskListPanelController: NSObject, NSTableViewDataSource, NSTableVie
     override init() {
         super.init()
         panel.isReleasedWhenClosed = false
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = true
         configureContent()
         refreshLocalizedStrings()
         NotificationCenter.default.addObserver(

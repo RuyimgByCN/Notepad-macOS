@@ -39,6 +39,14 @@ struct EditorMarginClick {
     let line: Int
 }
 
+/// Caret/selection plus scroll anchor captured before view-option toggles that
+/// can trigger Scintilla relayout (e.g. whitespace/EOL/NPC representations).
+@MainActor
+struct EditorViewPosition {
+    var selectedRange: NSRange
+    var firstVisibleLine: Int
+}
+
 @MainActor
 protocol EditorSurface: AnyObject {
     var view: NSView { get }
@@ -207,6 +215,8 @@ protocol EditorSurface: AnyObject {
     func updateBraceHighlightAtUtf16Location(_ location: Int)
 
     // MARK: - Scroll
+    func captureViewPosition() -> EditorViewPosition
+    func restoreViewPosition(_ position: EditorViewPosition)
     func scrollToSelection()
 
     // MARK: - Line padding
@@ -557,6 +567,18 @@ final class TextViewEditorSurface: EditorSurface {
     }
     func applyScintillaKeyRemaps(_ remaps: [ScintillaKeyRemap]) {}
     func setContextMenu(_ menu: NSMenu?) { textView.menu = menu }
+    func captureViewPosition() -> EditorViewPosition {
+        EditorViewPosition(
+            selectedRange: textView.selectedRange(),
+            firstVisibleLine: 0
+        )
+    }
+
+    func restoreViewPosition(_ position: EditorViewPosition) {
+        textView.setSelectedRange(position.selectedRange)
+        textView.scrollRangeToVisible(position.selectedRange)
+    }
+
     func scrollToSelection() {
         textView.scrollRangeToVisible(textView.selectedRange())
     }
@@ -2578,6 +2600,29 @@ final class ScintillaEditorSurface: EditorSurface {
         scintillaView.menu = menu
     }
 
+    func captureViewPosition() -> EditorViewPosition {
+        EditorViewPosition(
+            selectedRange: selectedRange,
+            firstVisibleLine: Int(bridge.getGeneralProperty(ScintillaMessage.getFirstVisibleLine, parameter: 0) ?? 0)
+        )
+    }
+
+    func restoreViewPosition(_ position: EditorViewPosition) {
+        guard let scintillaRange = scintillaPositionRange(in: text, forUTF16Range: position.selectedRange) else {
+            return
+        }
+        bridge.setGeneralProperty(
+            ScintillaMessage.setSelection,
+            parameter: scintillaRange.caret,
+            value: scintillaRange.anchor
+        )
+        bridge.setGeneralProperty(
+            ScintillaMessage.setFirstVisibleLine,
+            parameter: CLong(position.firstVisibleLine),
+            value: 0
+        )
+    }
+
     func scrollToSelection() {
         bridge.setGeneralProperty(ScintillaMessage.scrollCaret, parameter: 0, value: 0)
     }
@@ -3316,6 +3361,7 @@ private enum ScintillaMessage {
     static let positionFromLine: Int32 = 2167
     static let getColumn: Int32 = 2129
     static let getFirstVisibleLine: Int32 = 2152
+    static let setFirstVisibleLine: Int32 = 2163
     static let docLineFromVisible: Int32 = 2221
     static let linesOnScreen: Int32 = 2370
     static let textWidth: Int32 = 2276

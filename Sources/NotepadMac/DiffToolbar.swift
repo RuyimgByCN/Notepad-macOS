@@ -1,32 +1,24 @@
 import AppKit
 
-/// Toolbar for the file-compare window.
-///
-/// A horizontal strip of buttons for navigating between hunks, copying a hunk
-/// from one side to the other, swapping the two sides, and closing the window.
-/// All actions are delivered via closures so the toolbar stays free of business
-/// logic; the controller wires them up.
+/// Toolbar for the file-compare window (aligned with Notepad-- CompareWin toolbar).
 @MainActor
 final class DiffToolbar: NSView {
 
-    /// Called when the user asks to jump to the previous difference hunk.
+    var onWhitespace: (() -> Void)?
+    var onRules: (() -> Void)?
     var onPrevious: (() -> Void)?
-    /// Called when the user asks to jump to the next difference hunk.
     var onNext: (() -> Void)?
-    /// Called when the user asks to copy the current hunk from left to right.
-    var onCopyLeftToRight: (() -> Void)?
-    /// Called when the user asks to copy the current hunk from right to left.
-    var onCopyRightToLeft: (() -> Void)?
-    /// Called when the user asks to swap the two sides and recompare.
+    var onZoomIn: (() -> Void)?
+    var onZoomOut: (() -> Void)?
+    var onClear: (() -> Void)?
     var onSwap: (() -> Void)?
-    /// Called when the user asks to re-run the comparison (refresh).
     var onRefresh: (() -> Void)?
-    /// Called when the user asks to close the compare window.
-    var onClose: (() -> Void)?
+    var onCopyLeftToRight: (() -> Void)?
+    var onCopyRightToLeft: (() -> Void)?
 
     private let countField = NSTextField(labelWithString: "")
+    private let whitespaceButton = NSButton()
 
-    /// Static height of the toolbar row.
     static let barHeight: CGFloat = 36
 
     override init(frame frameRect: NSRect) {
@@ -49,37 +41,40 @@ final class DiffToolbar: NSView {
         countField.alignment = .right
         countField.stringValue = ""
 
-        let prevButton = makeButton(symbol: "chevron.up",
-                                    tooltip: DiffStrings.previousDifference,
-                                    action: #selector(previousClicked))
-        let nextButton = makeButton(symbol: "chevron.down",
-                                    tooltip: DiffStrings.nextDifference,
-                                    action: #selector(nextClicked))
-        let copyLR = makeButton(symbol: "arrow.right",
-                                tooltip: DiffStrings.copyLeftToRight,
-                                action: #selector(copyLeftToRightClicked))
-        let copyRL = makeButton(symbol: "arrow.left",
-                                tooltip: DiffStrings.copyRightToLeft,
-                                action: #selector(copyRightToLeftClicked))
-        let swap = makeButton(symbol: "arrow.left.arrow.right",
-                              tooltip: DiffStrings.swapSides,
-                              action: #selector(swapClicked))
-        let refresh = makeButton(symbol: "arrow.clockwise",
-                                 tooltip: DiffStrings.recompare,
-                                 action: #selector(refreshClicked))
-        let closeButton = makeButton(symbol: "xmark",
-                                     tooltip: DiffStrings.close,
-                                     action: #selector(closeClicked))
+        whitespaceButton.translatesAutoresizingMaskIntoConstraints = false
+        whitespaceButton.bezelStyle = .smallSquare
+        whitespaceButton.image = NSImage(systemSymbolName: "space", accessibilityDescription: DiffStrings.toolbarWhitespace)
+        whitespaceButton.imagePosition = .imageOnly
+        whitespaceButton.toolTip = DiffStrings.toolbarWhitespace
+        whitespaceButton.target = self
+        whitespaceButton.action = #selector(whitespaceClicked)
+        whitespaceButton.setContentHuggingPriority(.required, for: .horizontal)
 
-        let stack = NSStackView(views: [prevButton, nextButton, NSView(), copyLR, copyRL, swap, refresh])
+        let buttons: [(String, String, Selector)] = [
+            ("list.bullet.rectangle", DiffStrings.toolbarRules, #selector(rulesClicked)),
+            ("chevron.up", DiffStrings.previousDifference, #selector(previousClicked)),
+            ("chevron.down", DiffStrings.nextDifference, #selector(nextClicked)),
+            ("plus.magnifyingglass", DiffStrings.toolbarZoomIn, #selector(zoomInClicked)),
+            ("minus.magnifyingglass", DiffStrings.toolbarZoomOut, #selector(zoomOutClicked)),
+            ("trash", DiffStrings.toolbarClear, #selector(clearClicked)),
+            ("arrow.left.arrow.right", DiffStrings.swapSides, #selector(swapClicked)),
+            ("arrow.clockwise", DiffStrings.recompare, #selector(refreshClicked)),
+        ]
+
+        var items: [NSView] = [whitespaceButton]
+        for (symbol, tooltip, action) in buttons {
+            items.append(makeButton(symbol: symbol, tooltip: tooltip, action: action))
+        }
+        items.append(makeCopyMenuButton())
+
+        let stack = NSStackView(views: items)
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.orientation = .horizontal
-        stack.spacing = 6
+        stack.spacing = 4
         stack.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
 
         addSubview(stack)
         addSubview(countField)
-        addSubview(closeButton)
 
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -87,12 +82,9 @@ final class DiffToolbar: NSView {
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
 
             countField.centerYAnchor.constraint(equalTo: centerYAnchor),
-            countField.leadingAnchor.constraint(equalTo: stack.trailingAnchor, constant: 12),
-            countField.widthAnchor.constraint(greaterThanOrEqualToConstant: 70),
-
-            closeButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
-            closeButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            closeButton.leadingAnchor.constraint(greaterThanOrEqualTo: countField.trailingAnchor, constant: 12),
+            countField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+            countField.leadingAnchor.constraint(greaterThanOrEqualTo: stack.trailingAnchor, constant: 12),
+            countField.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
         ])
     }
 
@@ -109,41 +101,81 @@ final class DiffToolbar: NSView {
         return button
     }
 
-    /// Update the "current / total" hunk counter shown on the right.
+    private func makeCopyMenuButton() -> NSButton {
+        let button = NSButton()
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.bezelStyle = .smallSquare
+        button.image = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: DiffStrings.toolbarCopyMenu)
+        button.imagePosition = .imageOnly
+        button.toolTip = DiffStrings.toolbarCopyMenu
+        button.setContentHuggingPriority(.required, for: .horizontal)
+        button.target = self
+        button.action = #selector(copyMenuClicked(_:))
+
+        let menu = NSMenu()
+        let copyLR = NSMenuItem(
+            title: DiffStrings.copyLeftToRight,
+            action: #selector(copyLeftToRightClicked),
+            keyEquivalent: ""
+        )
+        copyLR.target = self
+        menu.addItem(copyLR)
+        let copyRL = NSMenuItem(
+            title: DiffStrings.copyRightToLeft,
+            action: #selector(copyRightToLeftClicked),
+            keyEquivalent: ""
+        )
+        copyRL.target = self
+        menu.addItem(copyRL)
+        button.menu = menu
+        return button
+    }
+
+    @objc private func copyMenuClicked(_ sender: NSButton) {
+        guard let menu = sender.menu else { return }
+        let location = NSPoint(x: 0, y: sender.bounds.height)
+        menu.popUp(positioning: nil, at: location, in: sender)
+    }
+
+    func setWhitespaceHighlighted(_ highlighted: Bool) {
+        whitespaceButton.contentTintColor = highlighted ? .controlAccentColor : nil
+    }
+
     func updateHunkCount(current: Int, total: Int) {
         if total == 0 {
             countField.stringValue = DiffStrings.noDifferences
             countField.textColor = .secondaryLabelColor
         } else {
             let clamped = min(max(current, 1), total)
-            countField.stringValue = "\(clamped) / \(total)"
+            countField.stringValue = DiffStrings.hunkCount(current: clamped, total: total)
             countField.textColor = .labelColor
         }
     }
 
-    // MARK: - Actions
-
+    @objc private func whitespaceClicked() { onWhitespace?() }
+    @objc private func rulesClicked() { onRules?() }
     @objc private func previousClicked() { onPrevious?() }
     @objc private func nextClicked() { onNext?() }
-    @objc private func copyLeftToRightClicked() { onCopyLeftToRight?() }
-    @objc private func copyRightToLeftClicked() { onCopyRightToLeft?() }
+    @objc private func zoomInClicked() { onZoomIn?() }
+    @objc private func zoomOutClicked() { onZoomOut?() }
+    @objc private func clearClicked() { onClear?() }
     @objc private func swapClicked() { onSwap?() }
     @objc private func refreshClicked() { onRefresh?() }
-    @objc private func closeClicked() { onClose?() }
+    @objc private func copyLeftToRightClicked() { onCopyLeftToRight?() }
+    @objc private func copyRightToLeftClicked() { onCopyRightToLeft?() }
 }
 
-/// Localized strings for the compare feature. Centralized here so the toolbar,
-/// window controller, and menu all reference the same copy.
+/// Localized strings for the compare feature.
 @MainActor
 enum DiffStrings {
     static var windowTitle: String {
         Localization.string(.diffWindowTitle, default: "Compare Files")
     }
     static var previousDifference: String {
-        Localization.string(.diffPrevious, default: "Previous Difference")
+        Localization.string(.diffPrevious, default: "Previous Difference (F3)")
     }
     static var nextDifference: String {
-        Localization.string(.diffNext, default: "Next Difference")
+        Localization.string(.diffNext, default: "Next Difference (F4)")
     }
     static var copyLeftToRight: String {
         Localization.string(.diffCopyLeftToRight, default: "Copy Left → Right")
@@ -155,15 +187,89 @@ enum DiffStrings {
         Localization.string(.diffSwap, default: "Swap Sides")
     }
     static var recompare: String {
-        Localization.string(.diffRecompare, default: "Recompare")
-    }
-    static var close: String {
-        Localization.string(.diffClose, default: "Close")
+        Localization.string(.diffRecompare, default: "Recompare (F5)")
     }
     static var noDifferences: String {
         Localization.string(.diffNoDifferences, default: "No differences")
     }
     static var filesIdentical: String {
         Localization.string(.diffFilesIdentical, default: "Files are identical")
+    }
+    static var toolbarWhitespace: String {
+        Localization.string(.diffToolbarWhitespace, default: "Show Whitespace")
+    }
+    static var toolbarRules: String {
+        Localization.string(.diffToolbarRules, default: "Compare Rules")
+    }
+    static var toolbarZoomIn: String {
+        Localization.string(.diffToolbarZoomIn, default: "Zoom In")
+    }
+    static var toolbarZoomOut: String {
+        Localization.string(.diffToolbarZoomOut, default: "Zoom Out")
+    }
+    static var toolbarClear: String {
+        Localization.string(.diffToolbarClear, default: "Clear Compare")
+    }
+    static var toolbarCopyMenu: String {
+        Localization.string(.diffToolbarCopyMenu, default: "Copy Hunk")
+    }
+    static var paneOpen: String {
+        Localization.string(.diffPaneOpen, default: "Open File")
+    }
+    static var paneLeftEncoding: String {
+        Localization.string(.diffPaneLeftEncoding, default: "Left encoding")
+    }
+    static var paneRightEncoding: String {
+        Localization.string(.diffPaneRightEncoding, default: "Right encoding")
+    }
+    static var optionsTitle: String {
+        Localization.string(.diffOptionsTitle, default: "Compare Options")
+    }
+    static var optionsCompareGroup: String {
+        Localization.string(.diffOptionsCompareGroup, default: "Compare Options")
+    }
+    static var optionsIgnoreLeadingWhitespace: String {
+        Localization.string(.diffOptionsIgnoreLeadingWhitespace, default: "Ignore whitespace characters before line")
+    }
+    static var optionsIgnoreTrailingWhitespace: String {
+        Localization.string(.diffOptionsIgnoreTrailingWhitespace, default: "Ignore whitespace characters at back of the line")
+    }
+    static var optionsIgnoreAllWhitespace: String {
+        Localization.string(.diffOptionsIgnoreAllWhitespace, default: "Ignore all whitespace characters")
+    }
+    static var optionsComingSoon: String {
+        Localization.string(.diffOptionsComingSoon, default: "Coming soon")
+    }
+    static var optionsApply: String {
+        Localization.string(.diffOptionsApply, default: "Apply")
+    }
+    static var optionsCancel: String {
+        Localization.string(.diffOptionsCancel, default: "Cancel")
+    }
+    static var statusAlreadyFirst: String {
+        Localization.string(.diffStatusAlreadyFirst, default: "Already the first difference")
+    }
+    static var statusAlreadyLast: String {
+        Localization.string(.diffStatusAlreadyLast, default: "Already the last difference")
+    }
+    static var statusNoMoreDiffs: String {
+        Localization.string(.diffStatusNoMoreDiffs, default: "No more differences")
+    }
+
+    static func hunkCount(current: Int, total: Int) -> String {
+        String(
+            format: Localization.string(.diffStatusHunkCount, default: "Difference %d of %d"),
+            locale: Locale.current,
+            current,
+            total
+        )
+    }
+
+    static func statusDiffCount(total: Int) -> String {
+        String(
+            format: Localization.string(.diffStatusDiffCount, default: "%d difference(s)"),
+            locale: Locale.current,
+            total
+        )
     }
 }

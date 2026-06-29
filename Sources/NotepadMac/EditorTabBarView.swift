@@ -29,6 +29,8 @@ enum TabContextAction {
     case reload
     case print
     case toggleReadOnly
+    case selectLeftCompareFile
+    case selectRightCompareFile
 }
 
 @MainActor
@@ -932,6 +934,10 @@ final class EditorTabButton: NSView {
         case .removeColor:          return Localization.string(.windowTabColorNone, default: "Remove Color")
         case .pinTab:               return Localization.string(.windowPinTab, default: "Pin Tab")
         case .unpinTab:             return Localization.string(.windowUnpinTab, default: "Unpin Tab")
+        case .selectLeftCompareFile:
+            return Localization.string(.diffSelectLeftCmpFile, default: "Select Left Cmp File")
+        case .selectRightCompareFile:
+            return Localization.string(.diffSelectRightCmpFile, default: "Select Right Cmp File")
         }
     }
 
@@ -965,6 +971,8 @@ final class EditorTabButton: NSView {
         case .applyColor5:          return .setColor(5)
         case .removeColor:          return .setColor(nil)
         case .pinTab, .unpinTab:    return .togglePin
+        case .selectLeftCompareFile: return .selectLeftCompareFile
+        case .selectRightCompareFile: return .selectRightCompareFile
         }
     }
 
@@ -980,7 +988,8 @@ final class EditorTabButton: NSView {
         switch action {
         case .rename, .moveToTrash, .reload, .openContainingFolder,
              .openInTerminal, .openAsFolderWorkspace, .openInDefaultViewer,
-             .copyFullPath, .copyDirPath:
+             .copyFullPath, .copyDirPath,
+             .selectLeftCompareFile, .selectRightCompareFile:
             return isFile
         default:
             return true
@@ -1027,6 +1036,22 @@ final class EditorTabButton: NSView {
         let reloadItem = menuItem(Localization.string(.fileReloadFromDisk, default: "重新加载"), action: .reload)
         reloadItem.isEnabled = isFile
         menu.addItem(reloadItem)
+
+        menu.addItem(.separator())
+
+        let selectLeftCmp = menuItem(
+            Localization.string(.diffSelectLeftCmpFile, default: "选择左对比文件"),
+            action: .selectLeftCompareFile
+        )
+        selectLeftCmp.isEnabled = isFile
+        menu.addItem(selectLeftCmp)
+
+        let selectRightCmp = menuItem(
+            Localization.string(.diffSelectRightCmpFile, default: "选择右对比文件"),
+            action: .selectRightCompareFile
+        )
+        selectRightCmp.isEnabled = isFile
+        menu.addItem(selectRightCmp)
 
         // — 打印
         menu.addItem(menuItem(Localization.string(.filePrint, default: "打印..."), action: .print))

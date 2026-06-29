@@ -118,7 +118,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         )
         panel.minSize = NSSize(width: 660, height: 300)
         panel.isFloatingPanel = true
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
         panel.becomesKeyOnlyIfNeeded = false
 
         super.init(window: panel)

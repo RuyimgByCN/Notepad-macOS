@@ -45,6 +45,9 @@ public enum TabContextMenuAction: String, Sendable {
     // Pin
     case pinTab                 = "Pin Tab"
     case unpinTab               = "Unpin Tab"
+    // Compare
+    case selectLeftCompareFile  = "Select Left Cmp File"
+    case selectRightCompareFile = "Select Right Cmp File"
 }
 
 /// Parsed representation of tabContextMenu.xml.

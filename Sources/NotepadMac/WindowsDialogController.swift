@@ -60,6 +60,8 @@ final class WindowsDialogController: NSObject, NSTableViewDataSource, NSTableVie
     override init() {
         super.init()
         panel.isReleasedWhenClosed = false
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = true
         panel.minSize = NSSize(width: 500, height: 260)
         configureContent()
         refreshLocalizedStrings()

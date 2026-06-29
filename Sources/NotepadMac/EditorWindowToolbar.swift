@@ -125,6 +125,7 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
             .space,
             .editorFind,
             .editorReplace,
+            .editorFileCompare,
             .space,
             .editorZoomIn,
             .editorZoomOut,
@@ -275,6 +276,7 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
         .editorRedo: "redo",
         .editorFind: "find",
         .editorReplace: "findReplace",
+        .editorFileCompare: "cmpfile",
         .editorZoomIn: "zoomIn",
         .editorZoomOut: "zoomOut",
         .editorSyncVerticalScroll: "syncV",
@@ -421,6 +423,15 @@ final class EditorWindowToolbar: NSObject, NSToolbarDelegate {
             symbolName: "arrow.triangle.2.circlepath",
             action: #selector(EditorWindowController.showReplacePanel(_:)),
             target: .controller
+        ),
+        Command(
+            identifier: .editorFileCompare,
+            label: Localization.string(.diffToolbarFileCompare, default: "File Compare"),
+            paletteLabel: Localization.string(.diffToolbarFileCompare, default: "File Compare"),
+            toolTip: Localization.string(.diffToolbarFileCompare, default: "Compare two files"),
+            symbolName: "doc.on.doc.fill",
+            action: #selector(AppDelegate.compareFiles(_:)),
+            target: .appDelegate
         ),
         Command(
             identifier: .editorZoomIn,
@@ -751,6 +762,7 @@ private extension NSToolbarItem.Identifier {
     static let editorRedo = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.redo")
     static let editorFind = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.find")
     static let editorReplace = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.replace")
+    static let editorFileCompare = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.file-compare")
     static let editorZoomIn = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.zoom-in")
     static let editorZoomOut = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.zoom-out")
     static let editorSyncVerticalScroll = NSToolbarItem.Identifier("org.notepad-plus-plus.macnative.editor.toolbar.sync-vertical-scroll")

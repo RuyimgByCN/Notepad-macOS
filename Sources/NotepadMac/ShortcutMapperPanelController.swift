@@ -89,7 +89,7 @@ final class ShortcutMapperPanelController: NSWindowController, NSTableViewDataSo
             defer: false
         )
         panel.isFloatingPanel = true
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
         panel.minSize = NSSize(width: 420, height: 300)
         super.init(window: panel)
         buildEntries()

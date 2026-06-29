@@ -17,7 +17,7 @@ final class IncrementalSearchPanelController: NSWindowController {
             defer: false
         )
         panel.isFloatingPanel = true
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
         panel.title = Localization.string(.incrementalSearchTitle, default: "Incremental Search")
 
         super.init(window: panel)

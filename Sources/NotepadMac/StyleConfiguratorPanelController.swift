@@ -55,7 +55,7 @@ final class StyleConfiguratorPanelController: NSWindowController {
             defer: false
         )
         panel.isFloatingPanel = true
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
 
         super.init(window: panel)
         configureContent()

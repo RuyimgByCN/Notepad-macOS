@@ -48,6 +48,8 @@ final class ColumnEditorPanelController: NSObject {
     override init() {
         super.init()
         panel.isReleasedWhenClosed = false
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = true
         configureContent()
         refreshLocalizedStrings()
         updateModeControls()
