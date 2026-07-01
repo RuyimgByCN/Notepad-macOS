@@ -258,6 +258,9 @@ protocol EditorSurface: AnyObject {
     /// markers and indicator used to highlight added/removed/changed lines and
     /// inline character differences.
     func configureForDiff()
+    /// Force a full repaint of the diff surface (works around macOS 26 layer
+    /// backing keeping stale pixels after Scintilla grows its content view).
+    func forceDiffRepaint()
     /// Apply a set of diff line highlights. Each entry tints a line background
     /// and (for non-pad lines) places a marker in the symbol margin.
     func applyDiffLineHighlights(_ highlights: [DiffLineHighlight])
@@ -272,6 +275,8 @@ protocol EditorSurface: AnyObject {
     func scrollDiffToLine(_ line: Int)
     /// The 1-based line currently at the top of the visible area.
     var firstVisibleDiffLine: Int { get }
+    /// Force a repaint after the host view has received its final geometry.
+    func refreshDisplayAfterLayout()
 
     // MARK: - Lifecycle
     /// Called before the surface is released (e.g. window closing) to allow the
@@ -284,12 +289,17 @@ enum EditorSurfaceFactory {
     static func make() -> EditorSurface {
         return ScintillaEditorSurface.load() ?? TextViewEditorSurface()
     }
+
+    static func makeDiff() -> EditorSurface {
+        ScintillaEditorSurface.load() ?? TextViewEditorSurface()
+    }
 }
 
 @MainActor
 final class TextViewEditorSurface: EditorSurface {
-    let scrollView = NSScrollView()
-    let textView = NSTextView()
+    let scrollView: NSScrollView
+    let textView: NSTextView
+    private var fillsVisibleHeight = false
 
     var view: NSView { scrollView }
     var notificationObject: AnyObject { textView }
@@ -301,7 +311,11 @@ final class TextViewEditorSurface: EditorSurface {
 
     var text: String {
         get { textView.string }
-        set { textView.string = newValue }
+        set {
+            textView.string = newValue
+            applyBaseTextAttributes()
+            sizeTextViewToScrollView()
+        }
     }
 
     var selectedRange: NSRange {
@@ -332,6 +346,12 @@ final class TextViewEditorSurface: EditorSurface {
     func detachFromSharedDocument() {}
 
     init() {
+        let standardScrollView = NSTextView.scrollableTextView()
+        self.scrollView = standardScrollView
+        self.textView = standardScrollView.documentView as? NSTextView ?? NSTextView()
+        if standardScrollView.documentView == nil {
+            standardScrollView.documentView = textView
+        }
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
@@ -343,14 +363,27 @@ final class TextViewEditorSurface: EditorSurface {
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
         textView.allowsUndo = true
+        textView.frame = scrollView.contentView.bounds
+        textView.autoresizingMask = [.width]
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(
+            width: max(1, scrollView.contentSize.width),
+            height: CGFloat.greatestFiniteMagnitude
+        )
         scrollView.documentView = textView
+        applyBaseTextAttributes()
+        sizeTextViewToScrollView()
     }
 
     func applyFont(size: CGFloat) {
         textView.font = .monospacedSystemFont(ofSize: size, weight: .regular)
+        applyBaseTextAttributes()
+        sizeTextViewToScrollView()
     }
 
     func applyFont(name: String, size: CGFloat, bold: Bool) {
@@ -362,6 +395,8 @@ final class TextViewEditorSurface: EditorSurface {
             textView.font = NSFont(name: fontName, size: size)
                 ?? .monospacedSystemFont(ofSize: size, weight: weight)
         }
+        applyBaseTextAttributes()
+        sizeTextViewToScrollView()
     }
 
     func applyCaretWidth(_ width: Int) {}
@@ -582,15 +617,163 @@ final class TextViewEditorSurface: EditorSurface {
     func scrollToSelection() {
         textView.scrollRangeToVisible(textView.selectedRange())
     }
-    // Diff rendering is a no-op on the fallback text view surface.
-    func configureForDiff() {}
-    func applyDiffLineHighlights(_ highlights: [DiffLineHighlight]) {}
-    func clearDiffHighlights() {}
-    func applyDiffInlineHighlights(line: Int, ranges: [NSRange], isInsert: Bool) {}
-    func clearDiffInlineHighlights() {}
-    func scrollDiffToLine(_ line: Int) {}
-    var firstVisibleDiffLine: Int { 1 }
+    func configureForDiff() {
+        fillsVisibleHeight = true
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.drawsBackground = true
+        textView.backgroundColor = .textBackgroundColor
+        textView.textColor = .textColor
+        scrollView.drawsBackground = true
+        scrollView.backgroundColor = .textBackgroundColor
+        scrollView.contentView.drawsBackground = true
+        scrollView.contentView.backgroundColor = .textBackgroundColor
+        applyBaseTextAttributes()
+        sizeTextViewToScrollView()
+    }
+
+    func forceDiffRepaint() {
+        textView.needsDisplay = true
+        scrollView.needsDisplay = true
+    }
+
+    func applyDiffLineHighlights(_ highlights: [DiffLineHighlight]) {
+        clearDiffHighlights()
+        let nsText = textView.string as NSString
+        for highlight in highlights {
+            guard let range = utf16RangeForLine(highlight.line, in: nsText) else { continue }
+            let color: NSColor
+            switch highlight.kind {
+            case .added:
+                color = NSColor.systemGreen.withAlphaComponent(0.18)
+            case .removed:
+                color = NSColor.systemRed.withAlphaComponent(0.16)
+            case .changed:
+                color = NSColor.systemYellow.withAlphaComponent(0.28)
+            case .pad:
+                color = NSColor.quaternaryLabelColor.withAlphaComponent(0.12)
+            }
+            textView.textStorage?.addAttribute(.backgroundColor, value: color, range: range)
+        }
+    }
+
+    func clearDiffHighlights() {
+        let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
+        textView.textStorage?.removeAttribute(.backgroundColor, range: fullRange)
+        applyBaseTextAttributes()
+    }
+
+    func applyDiffInlineHighlights(line: Int, ranges: [NSRange], isInsert: Bool) {
+        guard line >= 1, !ranges.isEmpty else { return }
+        let nsText = textView.string as NSString
+        guard let lineRange = utf16RangeForLine(line, in: nsText) else { return }
+        let color = (isInsert ? NSColor.systemGreen : NSColor.systemRed).withAlphaComponent(0.34)
+        for range in ranges {
+            let absolute = NSRange(location: lineRange.location + range.location, length: range.length)
+            guard NSMaxRange(absolute) <= NSMaxRange(lineRange),
+                  NSMaxRange(absolute) <= nsText.length
+            else { continue }
+            textView.textStorage?.addAttribute(.backgroundColor, value: color, range: absolute)
+        }
+    }
+
+    func clearDiffInlineHighlights() {
+        clearDiffHighlights()
+    }
+
+    func scrollDiffToLine(_ line: Int) {
+        let nsText = textView.string as NSString
+        guard let range = utf16RangeForLine(line, in: nsText) else { return }
+        textView.scrollRangeToVisible(range)
+    }
+
+    var firstVisibleDiffLine: Int {
+        guard let clipView = scrollView.contentView as NSClipView? else { return 1 }
+        let visibleOrigin = clipView.bounds.origin
+        let glyphIndex = textView.layoutManager?.glyphIndex(
+            for: visibleOrigin,
+            in: textView.textContainer ?? NSTextContainer()
+        ) ?? 0
+        let charIndex = textView.layoutManager?.characterIndexForGlyph(at: glyphIndex) ?? 0
+        let prefix = (textView.string as NSString).substring(with: NSRange(location: 0, length: min(charIndex, (textView.string as NSString).length)))
+        return prefix.components(separatedBy: .newlines).count
+    }
+
+    func refreshDisplayAfterLayout() {
+        sizeTextViewToScrollView()
+        if let layoutManager = textView.layoutManager,
+           let textContainer = textView.textContainer {
+            layoutManager.ensureLayout(for: textContainer)
+        }
+        textView.needsDisplay = true
+        textView.displayIfNeeded()
+        scrollView.needsDisplay = true
+        scrollView.displayIfNeeded()
+    }
     func teardown() {}
+
+    private func applyBaseTextAttributes() {
+        let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
+        guard fullRange.length > 0 else { return }
+        textView.textStorage?.addAttributes([
+            .font: textView.font ?? NSFont.monospacedSystemFont(ofSize: 13, weight: .regular),
+            .foregroundColor: NSColor.textColor,
+        ], range: fullRange)
+    }
+
+    private func sizeTextViewToScrollView() {
+        let contentWidth = max(1, scrollView.contentSize.width)
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(
+            width: contentWidth,
+            height: CGFloat.greatestFiniteMagnitude
+        )
+        let usedHeight: CGFloat
+        if let layoutManager = textView.layoutManager,
+           let textContainer = textView.textContainer {
+            layoutManager.ensureLayout(for: textContainer)
+            usedHeight = layoutManager.usedRect(for: textContainer).height
+        } else {
+            usedHeight = 0
+        }
+        let insetHeight = textView.textContainerInset.height * 2
+        var contentHeight = max(scrollView.contentSize.height, usedHeight + insetHeight)
+        if fillsVisibleHeight {
+            contentHeight = max(contentHeight, scrollView.contentView.bounds.height)
+        }
+        textView.frame = NSRect(x: 0, y: 0, width: contentWidth, height: contentHeight)
+    }
+
+    private func utf16RangeForLine(_ oneBasedLine: Int, in text: NSString) -> NSRange? {
+        guard oneBasedLine >= 1 else { return nil }
+        var currentLine = 1
+        var lineStart = 0
+        var index = 0
+        while index < text.length {
+            if currentLine == oneBasedLine {
+                var lineEnd = index
+                while lineEnd < text.length {
+                    let ch = text.character(at: lineEnd)
+                    if ch == 10 || ch == 13 { break }
+                    lineEnd += 1
+                }
+                return NSRange(location: lineStart, length: lineEnd - lineStart)
+            }
+            let ch = text.character(at: index)
+            if ch == 10 || ch == 13 {
+                if ch == 13, index + 1 < text.length, text.character(at: index + 1) == 10 {
+                    index += 1
+                }
+                currentLine += 1
+                lineStart = index + 1
+            }
+            index += 1
+        }
+        if currentLine == oneBasedLine {
+            return NSRange(location: lineStart, length: text.length - lineStart)
+        }
+        return nil
+    }
 }
 
 @MainActor
@@ -856,6 +1039,12 @@ final class ScintillaEditorSurface: EditorSurface {
         self.scintillaView.autoresizingMask = [.width, .height]
         configureMargins()
         configureNotificationDelegateIfAvailable()
+    }
+
+    deinit {
+        MainActor.assumeIsolated {
+            _ = bridge.setDelegate(nil)
+        }
     }
 
     func teardown() {
@@ -1641,6 +1830,30 @@ final class ScintillaEditorSurface: EditorSurface {
 
     func configureForDiff() {
         isReadOnly = true
+        isDiffMode = true
+
+        // DIAGNOSTIC: disable buffered draw (intermediate bitmap may not be
+        // colour-matched to the display, darkening white from 255 to ~234).
+        bridge.setGeneralProperty(2035, parameter: 0, value: 0)
+
+        bridge.setReferenceProperty(ScintillaMessage.setILexer, parameter: 0, value: nil)
+
+        let catalog = StyleCatalog.loadDefault()
+        let prefs = StylePreferences()
+        bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
+        applyDefaultLexerStyles(styleCatalog: catalog, stylePreferences: prefs)
+        applyGlobalStyles(styleCatalog: catalog, stylePreferences: prefs)
+
+        bridge.setGeneralProperty(
+            ScintillaMessage.setMarginType,
+            parameter: ScintillaMargin.lineNumber,
+            value: ScintillaMarginType.number
+        )
+        bridge.setGeneralProperty(ScintillaMessage.setMarginWidth, parameter: ScintillaMargin.bookmark, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.setMarginWidth, parameter: ScintillaMargin.fold, value: 0)
+        applyLineNumberMargin(true)
+        applyDiffScrollAppearance()
+
         // Give the diff pane a dedicated symbol margin (margin #3, clear of the
         // line-number/bookmark/fold margins 0/1/2) so line markers show.
         let diffMargin: CLong = 3
@@ -1696,6 +1909,106 @@ final class ScintillaEditorSurface: EditorSurface {
                                   parameter: DiffIndicator.delete, value: 90)
         bridge.setGeneralProperty(ScintillaMessage.indicSetUnder,
                                   parameter: DiffIndicator.delete, value: 1)
+
+        recolourDocument()
+        invalidateEntireSurface()
+
+        // Scintilla caches a drawing copy (vsDraw) of the styles and skips
+        // rebuilding it when STYLE_DEFAULT is re-set to its *current* value, so the
+        // cached background can stay stale grey (which is what paints the area
+        // below the last line) even though the model style already reports the
+        // editor background. Force an actual change — sentinel then editor white —
+        // so Scintilla refreshes the drawing copy and repaints white.
+        let editorBackground: CLong = 0xFF_FFFF
+        bridge.setGeneralProperty(ScintillaMessage.styleSetBack, parameter: 32, value: 0x00_0001)
+        bridge.setGeneralProperty(ScintillaMessage.styleSetBack, parameter: 32, value: editorBackground)
+        recolourDocument()
+        invalidateEntireSurface()
+    }
+
+    private var isDiffMode = false
+
+    /// Force the whole Scintilla surface to repaint. macOS 26 layer-backed views
+    /// keep stale backing for regions exposed by a *programmatic* frame growth
+    /// (Scintilla enlarges its content view from one line to the full viewport
+    /// after the diff window settles), leaving grey below the text. Marking the
+    /// content/margin/host views dirty over their full bounds forces drawRect to
+    /// repaint the exposed area with STYLE_DEFAULT white.
+    func forceDiffRepaint() {
+        guard isDiffMode else { return }
+        applyDiffScrollAppearance()
+        let scroll = scintillaView.subviews.compactMap { $0 as? NSScrollView }.first
+        let candidates: [NSView?] = [
+            scintillaContentView(),
+            scroll?.contentView,
+            scroll?.verticalRulerView,
+            scroll,
+            scintillaView,
+        ]
+        for view in candidates.compactMap({ $0 }) {
+            view.layer?.setNeedsDisplay()
+            view.setNeedsDisplay(view.bounds)
+            view.display()
+        }
+
+        if ProcessInfo.processInfo.arguments.contains("--smoke-diff") {
+            let content = scintillaContentView()
+            let styleBack = bridge.getGeneralProperty(2482, parameter: 32) ?? -1
+            let msg = "forceDiffRepaint STYLE_DEFAULT.back=\(String(styleBack, radix: 16)) contentFound=\(content != nil) contentFrame=\(content?.frame ?? .zero) scintillaFrame=\(scintillaView.frame)\n"
+            if let f = fopen("/tmp/diff_repaint.txt", "a") { fputs(msg, f); fclose(f) }
+        }
+    }
+
+    private func applyDiffScrollAppearance() {
+        for scroll in scintillaView.subviews.compactMap({ $0 as? NSScrollView }) {
+            scroll.drawsBackground = true
+            scroll.backgroundColor = .textBackgroundColor
+            scroll.contentView.drawsBackground = true
+            scroll.contentView.backgroundColor = .textBackgroundColor
+            scroll.verticalRulerView?.needsDisplay = true
+        }
+    }
+
+    private func scintillaContentView() -> NSView? {
+        let selector = NSSelectorFromString("content")
+        guard scintillaView.responds(to: selector),
+              let method = scintillaView.method(for: selector)
+        else {
+            return scintillaView.subviews.compactMap { $0 as? NSScrollView }.first?.contentView
+        }
+        typealias Function = @convention(c) (AnyObject, Selector) -> Unmanaged<NSView>
+        let function = unsafeBitCast(method, to: Function.self)
+        return function(scintillaView, selector).takeUnretainedValue()
+    }
+
+    private func invalidateEntireSurface() {
+        applyDiffScrollAppearance()
+        let views = [
+            scintillaContentView(),
+            scintillaView.subviews.compactMap { $0 as? NSScrollView }.first?.verticalRulerView,
+            scintillaView,
+        ].compactMap { $0 }
+        for view in views {
+            view.setNeedsDisplay(view.bounds)
+            view.displayIfNeeded()
+        }
+    }
+
+    private func scintillaColor(from color: NSColor) -> CLong {
+        let rgb = color.usingColorSpace(.sRGB) ?? color
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        rgb.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return CLong(Int(red * 255)) | (CLong(Int(green * 255)) << 8) | (CLong(Int(blue * 255)) << 16)
+    }
+
+    private func recolourDocument() {
+        let length = bridge.getGeneralProperty(ScintillaMessage.getLength, parameter: 0) ?? 0
+        if length > 0 {
+            bridge.setGeneralProperty(ScintillaMessage.colourise, parameter: 0, value: length)
+        }
     }
 
     func applyDiffLineHighlights(_ highlights: [DiffLineHighlight]) {
@@ -1713,6 +2026,7 @@ final class ScintillaEditorSurface: EditorSurface {
             bridge.setGeneralProperty(ScintillaMessage.markerAdd,
                                       parameter: zeroBased, value: marker)
         }
+        invalidateEntireSurface()
     }
 
     func clearDiffHighlights() {
@@ -1742,6 +2056,7 @@ final class ScintillaEditorSurface: EditorSurface {
             bridge.setGeneralProperty(ScintillaMessage.indicatorFillRange,
                                       parameter: sciStart, value: sciEnd - sciStart)
         }
+        invalidateEntireSurface()
     }
 
     func clearDiffInlineHighlights() {
@@ -1772,6 +2087,15 @@ final class ScintillaEditorSurface: EditorSurface {
     var firstVisibleDiffLine: Int {
         let sciPos = bridge.getGeneralProperty(ScintillaMessage.getFirstVisibleLine, parameter: 0) ?? 0
         return Int(sciPos) + 1  // Scintilla reports a 0-based line
+    }
+
+    func refreshDisplayAfterLayout() {
+        if isDiffMode {
+            applyLineNumberMargin(true)
+            applyDiffScrollAppearance()
+        }
+        recolourDocument()
+        invalidateEntireSurface()
     }
 
     /// UTF-16 location of the start of a 1-based line in the whole document.

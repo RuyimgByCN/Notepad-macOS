@@ -22,7 +22,7 @@ import Testing
         right: "hello",
         leftTitle: "L",
         rightTitle: "R",
-        options: FileDiff.CompareOptions(ignoreLeadingWhitespace: true)
+        options: FileDiff.CompareOptions(whitespaceMode: .leading)
     )
     #expect(result.isIdentical)
 }
@@ -33,7 +33,7 @@ import Testing
         right: "hello",
         leftTitle: "L",
         rightTitle: "R",
-        options: FileDiff.CompareOptions(ignoreLeadingWhitespace: false)
+        options: FileDiff.CompareOptions(whitespaceMode: .none)
     )
     #expect(!result.isIdentical)
     #expect(result.hunks.count == 1)

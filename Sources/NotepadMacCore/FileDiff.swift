@@ -122,11 +122,33 @@ public enum FileDiff {
 
     /// Options that control how lines are matched before diffing.
     public struct CompareOptions: Sendable, Equatable {
-        /// Ignore leading whitespace when comparing lines (Notepad-- default).
-        public var ignoreLeadingWhitespace: Bool
+        public enum WhitespaceMode: Sendable, Equatable {
+            /// Do not ignore whitespace.
+            case none
+            /// Ignore whitespace before the first non-whitespace character.
+            case leading
+            /// Ignore whitespace after the last non-whitespace character.
+            case trailing
+            /// Ignore all whitespace characters.
+            case all
+        }
 
-        public init(ignoreLeadingWhitespace: Bool = true) {
-            self.ignoreLeadingWhitespace = ignoreLeadingWhitespace
+        public enum CompareMode: Sendable, Equatable {
+            /// Faster: compute line-level diff only (no inline character segments).
+            case quick
+            /// More detailed: also compute inline character segments for changed lines.
+            case deep
+        }
+
+        public var whitespaceMode: WhitespaceMode
+        public var mode: CompareMode
+
+        public init(
+            whitespaceMode: WhitespaceMode = .leading,
+            mode: CompareMode = .deep
+        ) {
+            self.whitespaceMode = whitespaceMode
+            self.mode = mode
         }
 
         public static let `default` = CompareOptions()
@@ -182,9 +204,9 @@ public enum FileDiff {
         @discardableResult
         func flushHunk() -> Bool {
             guard let h = current else { return false }
-            // Stage 2b: character-level inline diff for paired changed lines.
+            // Stage 2b: optional character-level inline diff for paired changed lines.
             // Walk both aligned arrays in lockstep; for two non-pad, non-common
-            // lines treat them as a changed pair and segment them.
+            // lines treat them as a changed pair and segment them when enabled.
             var leftSegs: [[InlineSegment]] = []
             var rightSegs: [[InlineSegment]] = []
             var li = 0
@@ -210,10 +232,15 @@ public enum FileDiff {
                     rightSegs.append([])
                     ri += 1
                 case (.changed?, .changed?):
-                    // Paired modification: run character-level diff.
-                    let segs = charLevelSegments(l!.text, r!.text)
-                    leftSegs.append(segs.left)
-                    rightSegs.append(segs.right)
+                    if options.mode == .deep {
+                        // Paired modification: run character-level diff.
+                        let segs = charLevelSegments(l!.text, r!.text)
+                        leftSegs.append(segs.left)
+                        rightSegs.append(segs.right)
+                    } else {
+                        leftSegs.append([])
+                        rightSegs.append([])
+                    }
                     li += 1; ri += 1
                 default:
                     li += 1; ri += 1
@@ -400,11 +427,22 @@ public enum FileDiff {
     /// Normalize a line for comparison according to the given options.
     /// Original line text is preserved in the aligned output.
     private static func normalizeLine(_ line: String, options: CompareOptions) -> String {
-        guard options.ignoreLeadingWhitespace else { return line }
-        if let first = line.firstIndex(where: { !$0.isWhitespace }) {
-            return String(line[first...])
+        switch options.whitespaceMode {
+        case .none:
+            return line
+        case .leading:
+            if let first = line.firstIndex(where: { !$0.isWhitespace }) {
+                return String(line[first...])
+            }
+            return ""
+        case .trailing:
+            if let last = line.lastIndex(where: { !$0.isWhitespace }) {
+                return String(line[...last])
+            }
+            return ""
+        case .all:
+            return String(line.filter { !$0.isWhitespace })
         }
-        return ""
     }
 
     // MARK: - Line-level LCS

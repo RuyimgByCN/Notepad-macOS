@@ -162,6 +162,17 @@ private var appearanceObservation: NSKeyValueObservation?
         guard !didCompleteLaunch else { return }
         didCompleteLaunch = true
 
+        if CommandLine.arguments.contains("--smoke-diff") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                self?.presentCompare(
+                    leftText: "111\nline2",
+                    leftTitle: "新文件1",
+                    rightText: "112\nline2",
+                    rightTitle: "新文件2"
+                )
+            }
+        }
+
         NSWindow.allowsAutomaticWindowTabbing = true
 
         // Pre-warm ObjC/UIFoundation class hierarchy before any Scintilla views render.
@@ -581,8 +592,7 @@ private var appearanceObservation: NSKeyValueObservation?
     // MARK: - File compare (diff)
 
     private func pendingSide(from controller: EditorWindowController) -> PendingCompareSide? {
-        guard controller.compareFileURL != nil else { return nil }
-        return PendingCompareSide(
+        PendingCompareSide(
             text: controller.documentPlainText,
             title: controller.compareDisplayName,
             url: controller.compareFileURL,
@@ -645,7 +655,16 @@ private var appearanceObservation: NSKeyValueObservation?
         panel.prompt = Localization.string(.diffCompareFiles, default: "Compare Files...")
         if panel.runModal() == .OK {
             let urls = panel.urls
-            guard urls.count >= 2 else { return }
+            guard urls.count >= 2 else {
+                presentSimpleAlert(
+                    title: Localization.string(.diffMenu, default: "Compare"),
+                    message: Localization.string(
+                        .diffNeedTwoFiles,
+                        default: "Select at least two files to compare."
+                    )
+                )
+                return
+            }
             presentCompare(leftURL: urls[0], rightURL: urls[1])
         }
     }
@@ -669,22 +688,129 @@ private var appearanceObservation: NSKeyValueObservation?
 
     /// Search > Compare > Compare Two Open Documents... — pick two open docs.
     @objc func compareTwoOpenDocuments(_ sender: Any?) {
-        let controllers = windows
-        guard controllers.count >= 2 else { return }
+        let controllers = orderedWindows()
+        guard controllers.count >= 2 else {
+            presentSimpleAlert(
+                title: Localization.string(.diffCompareTwoOpen, default: "Compare Two Open Documents..."),
+                message: Localization.string(
+                    .diffNeedTwoOpenDocuments,
+                    default: "Open at least two documents before comparing."
+                )
+            )
+            return
+        }
+
+        guard let selection = pickTwoOpenDocumentsForCompare(from: controllers) else { return }
+        presentCompare(leftController: selection.left, rightController: selection.right)
+    }
+
+    private struct OpenDocumentCompareSelection {
+        let left: EditorWindowController
+        let right: EditorWindowController
+    }
+
+    /// When exactly two documents are open, compare them directly. Otherwise show
+    /// left/right pickers so the user chooses which buffers to diff.
+    private func pickTwoOpenDocumentsForCompare(
+        from controllers: [EditorWindowController]
+    ) -> OpenDocumentCompareSelection? {
+        guard controllers.count >= 2 else { return nil }
+        if controllers.count == 2 {
+            return OpenDocumentCompareSelection(left: controllers[0], right: controllers[1])
+        }
+
+        let leftPopup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 360, height: 26), pullsDown: false)
+        let rightPopup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 360, height: 26), pullsDown: false)
+        for controller in controllers {
+            leftPopup.addItem(withTitle: controller.compareDisplayName)
+            leftPopup.lastItem?.representedObject = controller
+            rightPopup.addItem(withTitle: controller.compareDisplayName)
+            rightPopup.lastItem?.representedObject = controller
+        }
+
+        let activeIndex = controllers.firstIndex(where: { $0 === activeEditorController() }) ?? 0
+        leftPopup.selectItem(at: activeIndex)
+        let defaultRightIndex = Self.defaultRightDocumentIndex(
+            leftIndex: activeIndex,
+            documentCount: controllers.count
+        )
+        rightPopup.selectItem(at: defaultRightIndex)
+
+        let leftLabel = NSTextField(labelWithString: Localization.string(.diffPickerLeft, default: "Left file:"))
+        let rightLabel = NSTextField(labelWithString: Localization.string(.diffPickerRight, default: "Right file:"))
+        for label in [leftLabel, rightLabel] {
+            label.font = .systemFont(ofSize: NSFont.systemFontSize)
+            label.alignment = .right
+        }
+
+        let grid = NSGridView(views: [
+            [leftLabel, leftPopup],
+            [rightLabel, rightPopup],
+        ])
+        grid.column(at: 0).xPlacement = .trailing
+        grid.rowSpacing = 8
+        grid.translatesAutoresizingMaskIntoConstraints = false
+
+        let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 440, height: 64))
+        accessory.addSubview(grid)
+        NSLayoutConstraint.activate([
+            grid.leadingAnchor.constraint(equalTo: accessory.leadingAnchor),
+            grid.trailingAnchor.constraint(equalTo: accessory.trailingAnchor),
+            grid.topAnchor.constraint(equalTo: accessory.topAnchor),
+            grid.bottomAnchor.constraint(equalTo: accessory.bottomAnchor),
+            leftPopup.widthAnchor.constraint(equalToConstant: 360),
+            rightPopup.widthAnchor.constraint(equalToConstant: 360),
+        ])
+
         let alert = NSAlert()
         alert.messageText = Localization.string(.diffCompareTwoOpen, default: "Compare Two Open Documents...")
-        alert.informativeText = controllers.enumerated().map { "\($0.offset + 1). \($0.element.compareDisplayName)" }.joined(separator: "\n")
-        alert.addButton(withTitle: "Compare")
-        alert.addButton(withTitle: "Cancel")
-        // Compare the two most-recently-active documents.
-        let first = controllers[0]
-        let second = controllers[1]
-        if alert.runModal() == .alertFirstButtonReturn {
-            presentCompare(
-                leftText: first.documentPlainText, leftTitle: first.compareDisplayName,
-                rightText: second.documentPlainText, rightTitle: second.compareDisplayName
+        alert.informativeText = Localization.string(
+            .diffCompareTwoOpenPickerHint,
+            default: "Choose the left and right documents to compare."
+        )
+        alert.accessoryView = accessory
+        alert.addButton(withTitle: Localization.string(.diffCompareAction, default: "Compare"))
+        alert.addButton(withTitle: Localization.string(.diffOptionsCancel, default: "Cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+
+        guard let left = leftPopup.selectedItem?.representedObject as? EditorWindowController,
+              let right = rightPopup.selectedItem?.representedObject as? EditorWindowController
+        else { return nil }
+
+        if left === right {
+            presentSimpleAlert(
+                title: Localization.string(.diffCompareTwoOpen, default: "Compare Two Open Documents..."),
+                message: Localization.string(
+                    .diffSameDocumentSelected,
+                    default: "Choose two different documents."
+                )
             )
+            return nil
         }
+        return OpenDocumentCompareSelection(left: left, right: right)
+    }
+
+    /// Pick a default right-hand document distinct from the chosen left index.
+    nonisolated static func defaultRightDocumentIndex(leftIndex: Int, documentCount: Int) -> Int {
+        guard documentCount > 1 else { return 0 }
+        let clampedLeft = min(max(leftIndex, 0), documentCount - 1)
+        return (clampedLeft + 1) % documentCount
+    }
+
+    private func presentCompare(
+        leftController: EditorWindowController,
+        rightController: EditorWindowController
+    ) {
+        presentCompare(
+            leftText: leftController.documentPlainText,
+            leftTitle: leftController.compareDisplayName,
+            rightText: rightController.documentPlainText,
+            rightTitle: rightController.compareDisplayName,
+            leftURL: leftController.compareFileURL,
+            rightURL: rightController.compareFileURL,
+            leftEncoding: leftController.documentEncoding,
+            rightEncoding: rightController.documentEncoding
+        )
     }
 
     /// Load and compare two disk files side by side.
@@ -745,7 +871,9 @@ private var appearanceObservation: NSKeyValueObservation?
         }
         diffWindows.append(controller)
         controller.showWindow(self)
+        controller.finishWindowPresentation()
         controller.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func openFileAtLine(fileURL: URL, line: Int) {
