@@ -1427,7 +1427,7 @@ final class ScintillaEditorSurface: EditorSurface {
             // Force initial colorization so the fold margin reflects the new
             // lexer immediately. configureAutomaticFold only enables SHOW|CLICK
             // (never CHANGE), so colorize cannot auto-collapse the document.
-            bridge.setGeneralProperty(ScintillaMessage.colourise, parameter: -1, value: -1)
+            bridge.setGeneralProperty(ScintillaMessage.colourise, parameter: 0, value: -1)
             configureAutomaticFold()
         } else {
             bridge.setReferenceProperty(ScintillaMessage.setILexer, parameter: 0, value: nil)

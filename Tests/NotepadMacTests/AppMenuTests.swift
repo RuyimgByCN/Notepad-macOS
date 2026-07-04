@@ -1,4 +1,5 @@
 import AppKit
+import NotepadMacCore
 import Testing
 @testable import NotepadMac
 
@@ -73,4 +74,16 @@ import Testing
     #expect(Localization.string(.viewShowWhitespace, default: "") == "Show Space and Tab")
     #expect(Localization.string(.viewShowNpcCharacters, default: "") == "Show Non-Printing Characters")
     #expect(Localization.string(.viewShowControlCharactersAndUnicodeEOL, default: "") == "Show Control Characters && Unicode EOL")
+}
+
+@MainActor
+@Test func languageMenuKeepsOnlyES6JavaScriptEntry() {
+    let catalog = LanguageCatalog(languages: [
+        LanguageDefinition(name: "javascript", displayName: "JavaScript"),
+        LanguageDefinition(name: "javascript.js"),
+    ])
+
+    let javascriptEntries = AppMenu.languageMenuLanguages(in: catalog).filter { $0.displayName == "JavaScript" }
+
+    #expect(javascriptEntries.map(\.name) == ["javascript.js"])
 }

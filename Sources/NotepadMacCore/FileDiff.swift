@@ -209,41 +209,33 @@ public enum FileDiff {
             // lines treat them as a changed pair and segment them when enabled.
             var leftSegs: [[InlineSegment]] = []
             var rightSegs: [[InlineSegment]] = []
-            var li = 0
-            var ri = 0
-            while li < h.leftAligned.count || ri < h.rightAligned.count {
-                let l = li < h.leftAligned.count ? h.leftAligned[li] : nil
-                let r = ri < h.rightAligned.count ? h.rightAligned[ri] : nil
-                switch (l?.kind, r?.kind) {
+            for idx in h.leftAligned.indices {
+                let l = h.leftAligned[idx]
+                let r = h.rightAligned[idx]
+                switch (l.kind, r.kind) {
                 case (.pad, .pad):
                     leftSegs.append([]); rightSegs.append([])
-                    li += 1; ri += 1
                 case (.pad, _):
                     leftSegs.append([])
-                    ri += 1
                 case (_, .pad):
                     rightSegs.append([])
-                    li += 1
-                case (.removed?, _):
+                case (.removed, _):
                     // Pure removal: full-line delete highlight, no inline segs needed.
                     leftSegs.append([])
-                    li += 1
-                case (_, .added?):
+                case (_, .added):
                     rightSegs.append([])
-                    ri += 1
-                case (.changed?, .changed?):
+                case (.changed, .changed):
                     if options.mode == .deep {
                         // Paired modification: run character-level diff.
-                        let segs = charLevelSegments(l!.text, r!.text)
+                        let segs = charLevelSegments(l.text, r.text)
                         leftSegs.append(segs.left)
                         rightSegs.append(segs.right)
                     } else {
                         leftSegs.append([])
                         rightSegs.append([])
                     }
-                    li += 1; ri += 1
                 default:
-                    li += 1; ri += 1
+                    break
                 }
             }
             hunks.append(DiffHunk(

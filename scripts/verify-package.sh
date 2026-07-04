@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEFAULT_APP_PATH="$ROOT_DIR/dist/Notepad++ Mac.app"
 DEFAULT_DMG_PATH="$ROOT_DIR/dist/Notepad++ Mac.dmg"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
-REQUIRED_ARCHS=(x86_64 arm64)
+read -r -a REQUIRED_ARCHS <<< "${MACOS_VERIFY_REQUIRED_ARCHS:-x86_64 arm64}"
 LEXILLA_INSTALL_NAME="@rpath/liblexilla.dylib"
 
 TMP_DIR=""

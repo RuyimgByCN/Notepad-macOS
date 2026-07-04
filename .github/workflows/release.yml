@@ -67,16 +67,31 @@ jobs:
           MACOS_CODESIGN_IDENTITY: "-"
         run: scripts/package-macos.sh
 
-      - name: Rename DMG for release
+      - name: Rename DMGs for release
         run: |
           mv "dist/Notepad++ Mac.dmg" \
              "dist/Notepad-macOS-${{ steps.version.outputs.version }}.dmg"
+          mv "dist/Notepad++ Mac-arm64.dmg" \
+             "dist/Notepad-macOS-${{ steps.version.outputs.version }}-arm64.dmg"
+          mv "dist/Notepad++ Mac-x86_64.dmg" \
+             "dist/Notepad-macOS-${{ steps.version.outputs.version }}-x86_64.dmg"
 
       - name: Compute SHA-256
-        id: sha
         run: |
-          SHA=$(shasum -a 256 "dist/Notepad-macOS-${{ steps.version.outputs.version }}.dmg" | cut -d ' ' -f1)
-          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          VER="${{ steps.version.outputs.version }}"
+          {
+            echo "| File | Architecture | SHA-256 |"
+            echo "|------|--------------|---------|"
+            for asset in \
+              "Notepad-macOS-${VER}.dmg|arm64 (Apple Silicon) + x86_64 (Intel) — Universal" \
+              "Notepad-macOS-${VER}-arm64.dmg|arm64 (Apple Silicon)" \
+              "Notepad-macOS-${VER}-x86_64.dmg|x86_64 (Intel)"; do
+              file="${asset%%|*}"
+              arch="${asset#*|}"
+              sha="$(shasum -a 256 "dist/$file" | cut -d ' ' -f1)"
+              echo "| $file | $arch | \`$sha\` |"
+            done
+          } > /tmp/release-sha-table.md
 
       - name: Generate release notes
         id: notes
@@ -89,8 +104,7 @@ jobs:
             COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
           fi
 
-          SHA="${{ steps.sha.outputs.sha256 }}"
-          VER="${{ steps.version.outputs.version }}"
+          SHA_TABLE="$(cat /tmp/release-sha-table.md)"
 
           cat > /tmp/release-notes.md <<RELEASEEOF
           ## What's Changed
@@ -99,11 +113,7 @@ jobs:
 
           ---
 
-          **SHA-256:** \`${SHA}\`
-
-          | File | Architecture |
-          |------|--------------|
-          | Notepad-macOS-${VER}.dmg | arm64 (Apple Silicon) + x86_64 (Intel) — Universal |
+          $SHA_TABLE
           RELEASEEOF
           echo "path=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
 
@@ -115,3 +125,5 @@ jobs:
           body_path: /tmp/release-notes.md
           files: |
             dist/Notepad-macOS-${{ steps.version.outputs.version }}.dmg
+            dist/Notepad-macOS-${{ steps.version.outputs.version }}-arm64.dmg
+            dist/Notepad-macOS-${{ steps.version.outputs.version }}-x86_64.dmg

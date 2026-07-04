@@ -50,6 +50,21 @@ import Testing
 }
 
 @MainActor
+@Test func scintillaJavascriptLanguageSwitchAfterEditingReturns() throws {
+    let controller = EditorWindowController(
+        languageCatalog: try LanguageCatalog.load(from: upstreamLanguageModelURL()),
+        styleCatalog: try StyleCatalog.load(from: upstreamStyleModelURL())
+    )
+    defer { controller.editorSurface.teardown() }
+
+    controller.editorSurface.text = "const answer = 42\nfunction show() { return answer }\n"
+    controller.setLanguage(named: "javascript")
+
+    #expect(controller.languageDisplayName.lowercased() == "javascript")
+    #expect(controller.editorSurface.text.contains("function show"))
+}
+
+@MainActor
 @Test func scintillaRawNativeTextChangeNotificationIsIgnored() throws {
     let controller = EditorWindowController(
         languageCatalog: try LanguageCatalog.load(from: upstreamLanguageModelURL()),

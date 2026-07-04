@@ -118,7 +118,7 @@ public struct LanguageDefinition: Equatable, Identifiable, Sendable {
         case "ihex":
             "Intel HEX"
         case "javascript.js":
-            "JavaScript (ES6)"
+            "JavaScript"
         case "mmixal":
             "MMIXAL"
         case "mssql":

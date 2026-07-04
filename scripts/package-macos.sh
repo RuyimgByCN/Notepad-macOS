@@ -35,6 +35,7 @@ RESOURCE_BIN_DIR=""
 MAIN_BUILD_MODE=""
 LEXILLA_BUILD_MODE=""
 LEXILLA_REQUESTED_ARCHS=""
+ARCH_PACKAGE_PATHS=()
 
 archs_for_binary() {
     local binary="$1"
@@ -312,6 +313,86 @@ rewrite_lexilla_install_name() {
     fi
 
     "$INSTALL_NAME_TOOL" -id "@rpath/liblexilla.dylib" "$lexilla_binary"
+}
+
+thin_binary_to_arch() {
+    local binary="$1"
+    local arch="$2"
+    local tmp_binary="$binary.$arch"
+
+    if [[ ! -f "$binary" ]]; then
+        echo "WARNING: Cannot thin missing binary: $binary" >&2
+        return 1
+    fi
+
+    if ! binary_has_arch "$binary" "$arch"; then
+        echo "WARNING: $binary does not contain $arch ($(archs_for_binary "$binary" 2>/dev/null || echo "missing"))." >&2
+        return 1
+    fi
+
+    "$LIPO" -thin "$arch" "$binary" -output "$tmp_binary"
+    mv "$tmp_binary" "$binary"
+    chmod +x "$binary" 2>/dev/null || true
+}
+
+print_arch_specific_report() {
+    local arch="$1"
+    local app_path="$2"
+    local main_binary="$app_path/Contents/MacOS/$EXECUTABLE_NAME"
+    local scintilla_binary
+    local lexilla_binary="$app_path/Contents/Frameworks/liblexilla.dylib"
+
+    scintilla_binary="$(scintilla_binary_path "$app_path/Contents/Frameworks/Scintilla.framework")"
+
+    echo "Architecture report ($arch package):"
+    echo "  Main executable: $(archs_for_binary "$main_binary" 2>/dev/null || echo "missing")"
+    echo "  Scintilla.framework: $(archs_for_binary "$scintilla_binary" 2>/dev/null || echo "missing")"
+    echo "  liblexilla.dylib: $(archs_for_binary "$lexilla_binary" 2>/dev/null || echo "missing")"
+}
+
+create_arch_specific_package() {
+    local arch="$1"
+    local arch_work_dir="$ROOT_DIR/.build/package-$arch"
+    local arch_app_path="$arch_work_dir/$APP_NAME.app"
+    local arch_dmg_path="$DIST_DIR/$APP_NAME-$arch.dmg"
+    local scintilla_binary
+    local lexilla_binary="$arch_app_path/Contents/Frameworks/liblexilla.dylib"
+
+    echo "Creating $arch app and dmg..."
+    rm -rf "$arch_work_dir" "$arch_dmg_path" "$DIST_DIR/$APP_NAME-$arch.app"
+    mkdir -p "$arch_work_dir"
+    ditto "$APP_PATH" "$arch_app_path"
+
+    scintilla_binary="$(scintilla_binary_path "$arch_app_path/Contents/Frameworks/Scintilla.framework")"
+    thin_binary_to_arch "$arch_app_path/Contents/MacOS/$EXECUTABLE_NAME" "$arch"
+    thin_binary_to_arch "$scintilla_binary" "$arch"
+    thin_binary_to_arch "$lexilla_binary" "$arch"
+
+    xattr -cr "$arch_app_path" 2>/dev/null || true
+    codesign_target "$arch_app_path/Contents/Frameworks/Scintilla.framework"
+    codesign_target "$lexilla_binary"
+    codesign_target "$arch_app_path"
+
+    hdiutil create \
+        -volname "$APP_NAME" \
+        -srcfolder "$arch_app_path" \
+        -ov \
+        -format UDZO \
+        "$arch_dmg_path" >/dev/null
+    codesign_target "$arch_dmg_path"
+
+    ARCH_PACKAGE_PATHS+=("$arch_dmg_path")
+    print_arch_specific_report "$arch" "$arch_app_path"
+}
+
+create_arch_specific_packages() {
+    if [[ -z "$LIPO" ]]; then
+        echo "WARNING: lipo is not available; skipping architecture-specific packages." >&2
+        return
+    fi
+
+    create_arch_specific_package arm64
+    create_arch_specific_package x86_64
 }
 
 echo "Building $EXECUTABLE_NAME release binary..."
@@ -649,8 +730,12 @@ hdiutil create \
     -format UDZO \
     "$DMG_PATH" >/dev/null
 codesign_target "$DMG_PATH"
+create_arch_specific_packages
 
 echo "Created:"
 echo "  $APP_PATH"
 echo "  $DMG_PATH"
+for package_path in "${ARCH_PACKAGE_PATHS[@]}"; do
+    echo "  $package_path"
+done
 print_architecture_report

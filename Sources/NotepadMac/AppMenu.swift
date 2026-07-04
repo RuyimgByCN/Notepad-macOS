@@ -42,6 +42,23 @@ enum AppMenu {
         .item(.viewShowWrapSymbol, "Show Wrap Symbol", #selector(EditorWindowController.toggleWrapSymbol(_:)))
     ]
 
+    static func languageMenuLanguages(in catalog: LanguageCatalog) -> [LanguageDefinition] {
+        var byDisplayName: [String: LanguageDefinition] = [:]
+        for language in catalog.languages {
+            let key = language.displayName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard let current = byDisplayName[key] else {
+                byDisplayName[key] = language
+                continue
+            }
+            if languageMenuRank(language) > languageMenuRank(current) {
+                byDisplayName[key] = language
+            }
+        }
+        return byDisplayName.values.sorted {
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
+    }
+
     enum WindowSortMode: Int {
         case none
         case nameAsc
@@ -87,6 +104,10 @@ enum AppMenu {
     private static weak var installedRunMenu: NSMenu?
     @MainActor
     private static weak var installedMacroMenu: NSMenu?
+
+    private static func languageMenuRank(_ language: LanguageDefinition) -> Int {
+        language.name == "javascript.js" ? 1 : 0
+    }
 
     @MainActor
     static func install(
@@ -1973,7 +1994,7 @@ enum AppMenu {
         ).target = delegate
         menu.addItem(NSMenuItem.separator())
 
-        let sorted = catalog.languages.sorted(by: { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending })
+        let sorted = languageMenuLanguages(in: catalog)
         if compact {
             // Upstream-style compact menu: group languages by first letter.
             // Letters with 2+ languages get a submenu; single-language letters
