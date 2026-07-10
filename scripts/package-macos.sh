@@ -120,14 +120,16 @@ build_main_one_step_universal() {
 build_main_lipo_universal() {
     local arm_bin_dir
     local x86_bin_dir
-    local arm_binary
-    local x86_binary
+    local arm_binary="$UNIVERSAL_BIN_DIR/$EXECUTABLE_NAME.arm64"
+    local x86_binary="$UNIVERSAL_BIN_DIR/$EXECUTABLE_NAME.x86_64"
     local universal_binary="$UNIVERSAL_BIN_DIR/$EXECUTABLE_NAME"
 
     if [[ -z "$LIPO" ]]; then
         echo "lipo is not available; cannot merge per-architecture builds." >&2
         return 1
     fi
+
+    mkdir -p "$UNIVERSAL_BIN_DIR"
 
     echo "Building $EXECUTABLE_NAME for arm64..."
     if ! swift build --package-path "$ROOT_DIR" -c release --triple "$ARM64_TRIPLE"; then
@@ -136,6 +138,10 @@ build_main_lipo_universal() {
     fi
     if ! arm_bin_dir="$(show_bin_path --triple "$ARM64_TRIPLE")"; then
         echo "Could not resolve arm64 Swift build output path." >&2
+        return 1
+    fi
+    if ! cp "$arm_bin_dir/$EXECUTABLE_NAME" "$arm_binary"; then
+        echo "Could not preserve arm64 Swift build output." >&2
         return 1
     fi
 
@@ -148,9 +154,11 @@ build_main_lipo_universal() {
         echo "Could not resolve x86_64 Swift build output path." >&2
         return 1
     fi
+    if ! cp "$x86_bin_dir/$EXECUTABLE_NAME" "$x86_binary"; then
+        echo "Could not preserve x86_64 Swift build output." >&2
+        return 1
+    fi
 
-    arm_binary="$arm_bin_dir/$EXECUTABLE_NAME"
-    x86_binary="$x86_bin_dir/$EXECUTABLE_NAME"
     if [[ ! -x "$arm_binary" || ! -x "$x86_binary" ]]; then
         echo "Per-architecture Swift build output is incomplete:" >&2
         echo "  arm64:  $arm_binary" >&2
@@ -158,7 +166,6 @@ build_main_lipo_universal() {
         return 1
     fi
 
-    mkdir -p "$UNIVERSAL_BIN_DIR"
     rm -f "$universal_binary"
     "$LIPO" -create "$arm_binary" "$x86_binary" -output "$universal_binary"
 
@@ -330,6 +337,10 @@ thin_binary_to_arch() {
         return 1
     fi
 
+    if [[ "$(archs_for_binary "$binary")" == "$arch" ]]; then
+        return
+    fi
+
     "$LIPO" -thin "$arch" "$binary" -output "$tmp_binary"
     mv "$tmp_binary" "$binary"
     chmod +x "$binary" 2>/dev/null || true
@@ -398,27 +409,10 @@ create_arch_specific_packages() {
 echo "Building $EXECUTABLE_NAME release binary..."
 build_scintilla_framework
 
-# Patch LexUser.cxx for macOS: the upstream file unconditionally includes <windows.h>
-# and uses _itoa (both Windows-only). Guard them so the file compiles on macOS.
+# Use the tracked macOS-compatible LexUser.cxx as the single source of truth.
+# Copying it on every build is idempotent and also repairs stale generated copies.
 LEX_USER="$ROOT_DIR/upstream/notepad-plus-plus/lexilla/lexers/LexUser.cxx"
-if [[ -f "$LEX_USER" ]] && grep -q '#include <windows.h>' "$LEX_USER"; then
-    python3 - "$LEX_USER" <<'PYEOF'
-import sys, re, pathlib
-path = pathlib.Path(sys.argv[1])
-text = path.read_text()
-text = text.replace(
-    '#include <windows.h>',
-    '#ifdef _WIN32\n#include <windows.h>\n#else\n'
-    '#include <cstdio>\n'
-    'static inline char* _itoa(int val, char* buf, int base) {\n'
-    '    std::snprintf(buf, 12, base == 16 ? "%x" : base == 8 ? "%o" : "%d", val);\n'
-    '    return buf;\n'
-    '}\n#endif'
-)
-path.write_text(text)
-print(f"Patched {path.name} for macOS compatibility")
-PYEOF
-fi
+cp "$ROOT_DIR/patches/lexilla/LexUser.cxx" "$LEX_USER"
 
 build_lexilla_dylib
 

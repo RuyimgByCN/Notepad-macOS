@@ -9,7 +9,7 @@ enum AppLocalizationCatalog {
     static func loadBundledOptions(bundle: Bundle = Localization.resourceBundle) -> [AppLocalizationOption] {
         let fileManager = FileManager.default
         let xmlURLs = (try? fileManager.contentsOfDirectory(
-            at: bundle.bundleURL,
+            at: bundle.resourceURL ?? bundle.bundleURL,
             includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles]
         ))?.filter { $0.pathExtension.lowercased() == "xml" } ?? []

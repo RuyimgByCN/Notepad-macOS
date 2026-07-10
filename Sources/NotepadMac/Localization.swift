@@ -1348,7 +1348,7 @@ case settingsImportTheme = "settings.importTheme"
         default:
             return nil
         }
-        let stringsURL = resourceBundle.bundleURL
+        let stringsURL = (resourceBundle.resourceURL ?? resourceBundle.bundleURL)
             .appending(path: "\(localeIdentifier).lproj")
             .appending(path: "Localizable.strings")
         guard let table = NSDictionary(contentsOfFile: stringsURL.path) as? [String: String] else {
@@ -1368,7 +1368,8 @@ case settingsImportTheme = "settings.importTheme"
             "en"
         }
 
-        let lprojURL = resourceBundle.bundleURL.appending(path: "\(localeIdentifier).lproj")
+        let lprojURL = (resourceBundle.resourceURL ?? resourceBundle.bundleURL)
+            .appending(path: "\(localeIdentifier).lproj")
         guard FileManager.default.fileExists(atPath: lprojURL.path),
               let bundle = Bundle(url: lprojURL)
         else {
