@@ -672,7 +672,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func saveDocumentAs(_ sender: Any?) {
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = displayStrings.saveAsName(fileURL: fileURL)
+        // Numbered tab name (新文件1 / Untitled2) + language extension
+        // (upstream Notepad++ selects the matching filter + appends extension).
+        panel.nameFieldStringValue = displayStrings.saveAsName(
+            fileURL: fileURL,
+            untitledBaseName: displayName,
+            preferredExtension: language.extensions.first
+        )
         let prefs = preferencesStore.load()
         if !prefs.defaultSaveDirectory.isEmpty {
             panel.directoryURL = URL(fileURLWithPath: prefs.defaultSaveDirectory)
@@ -685,7 +691,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func saveCopyAs(_ sender: Any?) {
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = displayStrings.saveAsName(fileURL: fileURL)
+        panel.nameFieldStringValue = displayStrings.saveAsName(
+            fileURL: fileURL,
+            untitledBaseName: displayName,
+            preferredExtension: language.extensions.first
+        )
         let prefs = preferencesStore.load()
         if !prefs.defaultSaveDirectory.isEmpty {
             panel.directoryURL = URL(fileURLWithPath: prefs.defaultSaveDirectory)

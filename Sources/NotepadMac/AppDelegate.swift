@@ -442,7 +442,8 @@ private var appearanceObservation: NSKeyValueObservation?
 
     @discardableResult
     private func makeNewDocument() -> EditorWindowController {
-        let prefix = Localization.string(.editorNewDocumentPrefix, default: "新文件")
+        // Chinese: 新文件1 / 新文件2; English & other: Untitled1 / Untitled2.
+        let prefix = Localization.string(.editorNewDocumentPrefix, default: "Untitled")
         // Find lowest unused numbered name across all open untitled tabs.
         let usedNumbers = Set(windows.compactMap { w -> Int? in
             let title = w.tabItem.title
