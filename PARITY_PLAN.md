@@ -1,6 +1,8 @@
 # Notepad++ 功能补齐计划 (native-macos)
 
-> ✅ 本计划已全部完成（2026-06-13）。保留此文档作为功能对齐的历史记录。
+> ✅ 主计划条目已全部完成（2026-06-13）。此后按上游小版本增量补齐。
+> 当前构建基准：**v8.9.7.0**，CI `NPP_COMMIT` = `00fa5df0da1d4f6b334317aa979db13ac77ee24d`
+> （见 `.github/workflows/release.yml` / `scripts/package-macos.sh`）。
 
 基于 2026-06 对 `Sources/` 与上游 `PowerEditor` 菜单/功能集的差距分析。
 按"价值 / 工作量"排序,P0 最优先。每项含触改文件与验收标准。
@@ -316,7 +318,8 @@ swift test 490 项全过。
 
 ## 全量对等审计 + Mac Cyrillic 编码补齐（2026-06-13）✅ 已完成
 
-以本地 `upstream/notepad-plus-plus/`（v8.9.6.4, pinned `6ab5c211`）为基准，逐域
+以当时本地 `upstream/notepad-plus-plus/`（**v8.9.6.4**, 历史 pin `6ab5c211`；
+现已前移至 v8.9.7.0，见下文）为基准，逐域
 核对了 `menuCmdID.h` 的 567 个命令 ID 与本地实现：
 
 - **语言**（95 `IDM_LANG_*`）：`ScintillaLexilla.lexerNames` 覆盖全部命名语言，
@@ -337,6 +340,52 @@ swift test 490 项全过。
 `TextFileCodecTests`（round-trip + 字节值）、`CoreBehaviorTests`（全量显示名
 快照 + init 往返）全过；`swift test` 489/490，唯一失败为既有环境性
 `scintillaRawNativeTextChangeNotificationIsIgnored`，与本次改动无关。
+
+## 对齐上游 v8.9.7.0（2026-07-15）✅ 已完成
+
+上游 Notepad++ **8.9.7**（`VERSION_PRODUCT_VALUE` = `8.9.7.0`）相对 8.9.6.4 为
+漏洞修复 + 回归修复 + 小功能增强。本项目同步如下。
+
+### 构建 / 版本 pin
+
+| 项 | 值 |
+|----|-----|
+| `NPP_COMMIT`（`release.yml`） | `00fa5df0da1d4f6b334317aa979db13ac77ee24d` |
+| 默认 `MACOS_APP_VERSION`（`package-macos.sh`） | `8.9.7.0` |
+| Scintilla | **5.6.4**（本地重建 framework） |
+| Lexilla | **5.5.1**（universal dylib；含 LexBaan OOB、HTML/XML CDATA 样式） |
+| 打包资源 | 自动跟上游 `langs.model.xml`、`APIs/css.xml` / `php.xml` 等 |
+
+发版 tag 须为 **`v8.9.7.0`**（与 `resource.h` 一致，禁止自拟小版本号）。
+
+### 功能对等（本机实现，非 Win32 直译）
+
+| 上游 8.9.7 项 | 本项目落地 | 状态 |
+|---------------|------------|------|
+| Incremental Search「Count」+「nth of total」 | `IncrementalSearchPanelController` + 匹配缓存；`TextSearch.matchOrdinal` | ✅ |
+| Folder as Workspace 展开状态跨会话 | `WorkspaceExpandStateStore` + `WorkspacePanelController` 按 root 持久化 | ✅ |
+| Print FormFeed as Page Break | `PrintSettings.printFormFeedPageBreak`、偏好勾选、`PrintDocument`/`PrintTextView` | ✅ |
+| ANSI EscapeSequence 词法（changelog 亦列） | 已在 v8.9.6.4 轮完成 `escseq` 映射 | ✅ 既有 |
+| CSS/PHP 关键字与自动完成 XML | 打包 `cp`/`ditto` 上游资源即可 | ✅ 随 pin |
+| 多数 Win32 安全修复 / 剪贴板监听 / 安装器 / WinGUp 等 | 平台无关或不适用 | ⏭ 不做 |
+
+### 触改要点
+
+- 搜索：`IncrementalSearchPanelController.swift`、`EditorWindowController.swift`、
+  `TextSearch.swift`
+- 工作区：`WorkspaceExpandStateStore.swift`、`WorkspacePanelController.swift`、
+  `AppDelegate.swift`、`WorkspaceDocument.folderWorkspace` 挂 root URL
+- 打印：`PrintHeaderFooter.swift`、`PrintDocument.swift`、`PrintTextView.swift`、
+  `PreferencesPanelController.swift`
+- 测试：`CoreBehaviorTests`（matchOrdinal / FormFeed 分页 / expand store）、
+  `PrintHeaderFooterTests`（新字段持久化与旧 JSON 兼容）
+
+### 明确未跟（平台 / 架构差异）
+
+- shortcuts.xml 宏 HMAC、session 路径规范化、WinGUp Zip Slip 等 Windows 安全项
+- FaW 符号链接冻死 / 条目消失等 Win32 TreeView 特有 bug 补丁（本机用
+  `NSOutlineView` + 文件系统 API，按需另修）
+- pugixml 升级、Windows 颜色选择器 16 自定义色、TaskDialog 深色消息框等
 
 ## 明确不做(Won't do)
 
