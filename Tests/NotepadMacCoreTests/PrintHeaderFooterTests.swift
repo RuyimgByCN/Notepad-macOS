@@ -101,6 +101,7 @@ final class PrintHeaderFooterTests: XCTestCase {
         XCTAssertEqual(ps.colorMode, 0)
         XCTAssertEqual(ps.fontSize, 0)
         XCTAssertEqual(ps.marginTop, 36)
+        XCTAssertFalse(ps.printFormFeedPageBreak)
     }
 
     func testPrintSettingsColorModeClamp() {
@@ -127,7 +128,8 @@ final class PrintHeaderFooterTests: XCTestCase {
                 header: PrintBand(left: "L", center: "C", right: "R"),
                 footer: PrintBand(left: "", center: "footer", right: ""),
                 colorMode: 1,
-                fontSize: 11
+                fontSize: 11,
+                printFormFeedPageBreak: true
             )
         )
         store.save(written)
@@ -139,6 +141,20 @@ final class PrintHeaderFooterTests: XCTestCase {
         XCTAssertEqual(read.printSettings.footer.center, "footer")
         XCTAssertEqual(read.printSettings.colorMode, 1)
         XCTAssertEqual(read.printSettings.fontSize, 11)
+        XCTAssertTrue(read.printSettings.printFormFeedPageBreak)
+    }
+
+    func testPrintFormFeedPageBreakDefaultsFalseWhenMissingFromJSON() throws {
+        // Older preferences JSON without the new key must decode as false.
+        let legacy = """
+        {"header":{"left":"","center":"$(FILE_NAME)","right":""},\
+        "footer":{"left":"","center":"","right":"$(PAGE) / $(PAGES)"},\
+        "colorMode":0,"fontSize":0,\
+        "marginTop":36,"marginBottom":36,"marginLeft":36,"marginRight":36}
+        """
+        let data = Data(legacy.utf8)
+        let ps = try JSONDecoder().decode(PrintSettings.self, from: data)
+        XCTAssertFalse(ps.printFormFeedPageBreak)
     }
 
     func testDelimiterPreferencesPersist() {

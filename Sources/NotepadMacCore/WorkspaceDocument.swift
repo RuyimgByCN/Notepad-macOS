@@ -190,7 +190,13 @@ public struct WorkspaceDocument: Codable, Equatable, Sendable {
     public static func folderWorkspace(from rootURL: URL) throws -> WorkspaceDocument {
         let root = rootURL.standardizedFileURL
         let children = try workspaceChildren(in: root)
-        let project = WorkspaceNode(name: root.lastPathComponent, kind: .project, children: children)
+        // Attach root URL so Folder-as-Workspace expand state can key off the project node.
+        let project = WorkspaceNode(
+            name: root.lastPathComponent,
+            kind: .project,
+            url: root,
+            children: children
+        )
         return WorkspaceDocument(name: root.lastPathComponent, projects: [project])
     }
 

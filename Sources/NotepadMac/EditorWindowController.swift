@@ -4246,23 +4246,73 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
-    func performIncrementalFind(query: String) -> Bool {
+    /// Cached Incremental Search matches so "Count" can skip full recount while
+    /// the query is unchanged (upstream 8.9.7 performance optimization).
+    private var incrementalMatchCache: (query: String, textLength: Int, matches: [NSRange])?
+
+    func performIncrementalFind(query: String, countMatches: Bool = true) -> IncrementalFindResult {
         editorSurface.hideIncrementalHighlight()
-        guard !query.isEmpty else { return false }
+        guard !query.isEmpty else {
+            clearIncrementalMatchCache()
+            return IncrementalFindResult(found: false, nth: 0, total: 0, countingEnabled: countMatches)
+        }
+
         let text = editorSurface.text
         let fromRange = NSRange(location: editorSurface.selectedRange.location, length: 0)
         let options = TextSearch.Options(matchCase: false, wholeWord: false, wraps: true, direction: .down)
+
         guard let range = TextSearch.findNext(query, in: text, from: fromRange, options: options) else {
-            return false
+            if countMatches {
+                // Still populate total when possible so status can show 0 of N if desired;
+                // upstream shows "not found" without nth when no current hit.
+                _ = cachedIncrementalMatches(query: query, text: text, options: options)
+            } else {
+                clearIncrementalMatchCache()
+            }
+            return IncrementalFindResult(found: false, nth: 0, total: 0, countingEnabled: countMatches)
         }
+
         editorSurface.setSelectedRange(range)
         editorSurface.showIncrementalHighlight(range: range)
         updateStatus()
-        return true
+
+        guard countMatches else {
+            clearIncrementalMatchCache()
+            return IncrementalFindResult(found: true, nth: 0, total: 0, countingEnabled: false)
+        }
+
+        let matches = cachedIncrementalMatches(query: query, text: text, options: options)
+        let nth = TextSearch.matchOrdinal(of: range, in: matches) ?? 0
+        return IncrementalFindResult(
+            found: true,
+            nth: nth,
+            total: matches.count,
+            countingEnabled: true
+        )
     }
 
     func clearIncrementalHighlight() {
         editorSurface.hideIncrementalHighlight()
+    }
+
+    func clearIncrementalMatchCache() {
+        incrementalMatchCache = nil
+    }
+
+    private func cachedIncrementalMatches(
+        query: String,
+        text: String,
+        options: TextSearch.Options
+    ) -> [NSRange] {
+        let textLength = (text as NSString).length
+        if let cache = incrementalMatchCache,
+           cache.query == query,
+           cache.textLength == textLength {
+            return cache.matches
+        }
+        let matches = TextSearch.findAll(query, in: text, options: options)
+        incrementalMatchCache = (query: query, textLength: textLength, matches: matches)
+        return matches
     }
 
     func applyPreferences(_ preferences: AppPreferences) {

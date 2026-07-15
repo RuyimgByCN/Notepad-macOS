@@ -249,6 +249,13 @@ public enum TextSearch {
         return matches
     }
 
+    /// 1-based index of `range` within `matches`, or `nil` if absent.
+    /// Used by Incremental Search "nth of count" (upstream Notepad++ 8.9.7).
+    public static func matchOrdinal(of range: NSRange, in matches: [NSRange]) -> Int? {
+        guard let index = matches.firstIndex(of: range) else { return nil }
+        return index + 1
+    }
+
     private static func find(_ query: String, in text: NSString, searchRange: NSRange, options: Options, direction: Direction) -> NSRange? {
         let effectiveQuery: String
         switch options.searchMode {

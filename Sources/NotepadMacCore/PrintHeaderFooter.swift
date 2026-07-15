@@ -104,6 +104,9 @@ public struct PrintSettings: Codable, Equatable, Sendable {
     public var marginBottom: Double
     public var marginLeft: Double
     public var marginRight: Double
+    /// When true, form-feed characters (`\u{000C}`) force a page break when printing
+    /// (upstream Notepad++ 8.9.7 “Print FormFeed as Page Break”).
+    public var printFormFeedPageBreak: Bool
 
     public init(
         header: PrintBand = PrintBand(left: "", center: "$(FILE_NAME)", right: ""),
@@ -113,7 +116,8 @@ public struct PrintSettings: Codable, Equatable, Sendable {
         marginTop: Double = 36,
         marginBottom: Double = 36,
         marginLeft: Double = 36,
-        marginRight: Double = 36
+        marginRight: Double = 36,
+        printFormFeedPageBreak: Bool = false
     ) {
         self.header = header
         self.footer = footer
@@ -123,5 +127,28 @@ public struct PrintSettings: Codable, Equatable, Sendable {
         self.marginBottom = max(0, marginBottom)
         self.marginLeft = max(0, marginLeft)
         self.marginRight = max(0, marginRight)
+        self.printFormFeedPageBreak = printFormFeedPageBreak
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case header, footer, colorMode, fontSize
+        case marginTop, marginBottom, marginLeft, marginRight
+        case printFormFeedPageBreak
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        header = try c.decodeIfPresent(PrintBand.self, forKey: .header)
+            ?? PrintBand(left: "", center: "$(FILE_NAME)", right: "")
+        footer = try c.decodeIfPresent(PrintBand.self, forKey: .footer)
+            ?? PrintBand(left: "", center: "", right: "$(PAGE) / $(PAGES)")
+        colorMode = max(0, min(1, try c.decodeIfPresent(Int.self, forKey: .colorMode) ?? 0))
+        fontSize = max(0, try c.decodeIfPresent(Double.self, forKey: .fontSize) ?? 0)
+        marginTop = max(0, try c.decodeIfPresent(Double.self, forKey: .marginTop) ?? 36)
+        marginBottom = max(0, try c.decodeIfPresent(Double.self, forKey: .marginBottom) ?? 36)
+        marginLeft = max(0, try c.decodeIfPresent(Double.self, forKey: .marginLeft) ?? 36)
+        marginRight = max(0, try c.decodeIfPresent(Double.self, forKey: .marginRight) ?? 36)
+        // Missing key → false (upstream default / backward compatible).
+        printFormFeedPageBreak = try c.decodeIfPresent(Bool.self, forKey: .printFormFeedPageBreak) ?? false
     }
 }

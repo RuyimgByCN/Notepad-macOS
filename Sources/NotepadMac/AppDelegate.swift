@@ -1332,11 +1332,11 @@ private var appearanceObservation: NSKeyValueObservation?
         let folderURL = fileURL.deletingLastPathComponent()
         do {
             let workspace = try WorkspaceDocument.folderWorkspace(from: folderURL)
-            fileBrowserPanel.show(workspace: workspace)
+            fileBrowserPanel.show(workspace: workspace, expandStateRoot: folderURL)
             fileBrowserPanel.startWatching(url: folderURL) { [weak self] in
                 guard let self else { return }
                 if let updated = try? WorkspaceDocument.folderWorkspace(from: folderURL) {
-                    self.fileBrowserPanel.show(workspace: updated)
+                    self.fileBrowserPanel.show(workspace: updated, expandStateRoot: folderURL)
                 }
             }
         } catch {
@@ -1378,11 +1378,11 @@ private var appearanceObservation: NSKeyValueObservation?
         if fileBrowserPanel.window?.isVisible != true {
             do {
                 let workspace = try WorkspaceDocument.folderWorkspace(from: folderURL)
-                fileBrowserPanel.show(workspace: workspace)
+                fileBrowserPanel.show(workspace: workspace, expandStateRoot: folderURL)
                 fileBrowserPanel.startWatching(url: folderURL) { [weak self] in
                     guard let self else { return }
                     if let updated = try? WorkspaceDocument.folderWorkspace(from: folderURL) {
-                        self.fileBrowserPanel.show(workspace: updated)
+                        self.fileBrowserPanel.show(workspace: updated, expandStateRoot: folderURL)
                     }
                 }
             } catch {
@@ -3291,7 +3291,16 @@ private var appearanceObservation: NSKeyValueObservation?
 
     private func loadWorkspaceFolder(_ url: URL) {
         do {
-            showWorkspace(try WorkspaceDocument.folderWorkspace(from: url))
+            let workspace = try WorkspaceDocument.folderWorkspace(from: url)
+            workspaceStore.save(workspace)
+            workspacePanel.show(workspace: workspace, expandStateRoot: url)
+            workspacePanel.startWatching(url: url) { [weak self] in
+                guard let self else { return }
+                if let updated = try? WorkspaceDocument.folderWorkspace(from: url) {
+                    self.workspaceStore.save(updated)
+                    self.workspacePanel.show(workspace: updated, expandStateRoot: url)
+                }
+            }
         } catch {
             NSApp.presentError(error)
         }

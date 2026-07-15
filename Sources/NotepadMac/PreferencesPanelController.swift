@@ -39,6 +39,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
     private let customBackupDirField = NSTextField(string: "")
     private let customBackupDirBrowseButton = NSButton(title: "", target: nil, action: nil)
     private let printLineNumbersButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let printFormFeedPageBreakButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     // Print section
     private let printSectionLabel = NSTextField(labelWithString: "")
     private let printHeaderSectionLabel = NSTextField(labelWithString: "")
@@ -618,6 +619,10 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         highlightNonHtmlZoneButton.title = Localization.string("pref.highlightNonHtmlZone", default: "Apply XML tag matching in non-HTML/PHP/ASP zones")
         defaultSaveDirLabel.stringValue = Localization.string("pref.defaultSaveDir", default: "Default save directory (empty = system default):")
         printLineNumbersButton.title = Localization.string("pref.printLineNumbers", default: "Print line numbers")
+        printFormFeedPageBreakButton.title = Localization.string(
+            "pref.printFormFeedPageBreak",
+            default: "Print Form Feed as page break"
+        )
         openDirFollowsDocButton.title = Localization.string(.preferencesOpenDirFollowsDoc, default: "Open dialog starts in the current document's directory")
         folderDropAsWorkspaceButton.title = Localization.string(.preferencesFolderDropAsWorkspace, default: "Open dropped folder as workspace")
         folderDropRecursiveOpenButton.title = Localization.string("pref.folderDropRecursiveOpen", default: "Recursively open all files when dropping a folder")
@@ -813,7 +818,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         tabSizeStepper.maxValue = 8
         tabSizeStepper.increment = 1
 
-        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, enableCodeFoldingButton, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, autoCompleteIgnoreCaseButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, replaceDoesNotMoveButton, findDialogMonospaceButton, fillFindFromSelectionButton, autoSelectWordUnderCaretButton, findInFilesIgnoreUnsavedButton, confirmReplaceInAllDocsButton, maxFindHistoryField, maxFindHistoryStepper, findTransparencySlider, fileChangeDetectionButton, copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton, urlIndicatorStyleSegmented, langTabOverridesField, tabbarHideButton, tabbarDoubleClickCloseButton, tabbarLockDragDropButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, reloadScrollToLastCaretButton, editorFontNameField, editorFontBoldButton, tabbarShowCloseButtonButton, caretBlinkRateField, caretBlinkRateStepper,
+        [localizationPopup, fontSizeField, fontSizeStepper, wrapsLinesButton, tabSizeField, tabSizeStepper, insertSpacesButton, autoPairButton, xmlTagMatchButton, clickableLinksButton, smartHighlightMatchCaseButton, smartHighlightWholeWordButton, caretWidthSegmented, caretNoBlinkButton, currentLineFrameSegmented, lineWrapIndentPopup, enableCodeFoldingButton, foldMarginStylePopup, virtualSpaceButton, backspaceUnindentsButton, autoIndentButton, scrollBeyondLastLineButton, linePaddingSegmented, autoCompleteField, autoCompleteStepper, autoCompleteModePopup, autoCompleteChooseSingleButton, autoCompleteTABFillupButton, autoCompleteIgnoreCaseButton, additionalEdgeColumnsField, largeFileMBField, largeFileMBStepper, rememberSessionButton, newDocumentOnLaunchButton, useFirstLineAsTabNameButton, recentFilesMaxField, recentFilesMaxStepper, recentFilesShowFullPathButton, noCheckRecentAtLaunchButton, keepAbsentFilesButton, autoReloadButton, snapshotModeButton, periodicBackupLabel, periodicBackupField, periodicBackupStepper, backupOnSaveLabel, backupOnSavePopup, useCustomBackupDirButton, customBackupDirField, customBackupDirBrowseButton, printLineNumbersButton, printFormFeedPageBreakButton, openDirFollowsDocButton, folderDropAsWorkspaceButton, defaultLangPopup, newDocEncodingPopup, newDocLineEndingPopup, searchMatchCaseButton, searchWholeWordButton, dateTimeFormatField, searchEnginePopup, searchEngineCustomURLField, extraURLSchemesField, inSelectionThresholdField, inSelectionThresholdStepper, keepFindDialogOpenButton, replaceDoesNotMoveButton, findDialogMonospaceButton, fillFindFromSelectionButton, autoSelectWordUnderCaretButton, findInFilesIgnoreUnsavedButton, confirmReplaceInAllDocsButton, maxFindHistoryField, maxFindHistoryStepper, findTransparencySlider, fileChangeDetectionButton, copyLineWithoutSelectionButton, smartHighlightUseFindSettingsButton, urlIndicatorStyleSegmented, langTabOverridesField, tabbarHideButton, tabbarDoubleClickCloseButton, tabbarLockDragDropButton, tabbarMaxLabelLengthField, tabbarMaxLabelLengthStepper, statusBarVisibleButton, shortTitleButton, saveAllConfirmButton, autoCompleteIgnoreNumbersButton, reloadScrollToLastCaretButton, editorFontNameField, editorFontBoldButton, tabbarShowCloseButtonButton, caretBlinkRateField, caretBlinkRateStepper,
          whitespaceDisplayModePopup, bidiModePopup, caretStickyModePopup, trimTrailingSpacesOnSaveButton, pasteConvertEndingsButton, smoothFontButton, multiEditEnabledButton, multiPasteModePopup, indentGuideModePopup, wordWrapModePopup, additionalSelAlphaField, additionalSelAlphaStepper, additionalCaretsBlinkButton, additionalCaretsVisibleButton, caretLineVisibleAlwaysButton, whitespaceSizeField, whitespaceSizeStepper, selectionAlphaField, selectionAlphaStepper, controlCharDisplayPopup, autoIndentModePopup, fileAutoDetectionPopup, updateSilentlyButton, zoomSyncToAllTabsButton, hideMenuShortcutsButton, scrollToLastLineOnMonitorReloadButton, printHeaderLeftField, printHeaderCenterField, printHeaderRightField, printFooterLeftField, printFooterCenterField, printFooterRightField, printColorModePopup, printFontSizeField, printFontSizeStepper,
          printMarginTopField, printMarginBottomField, printMarginLeftField, printMarginRightField,
          delimiterLeftField, delimiterRightField,
@@ -1166,6 +1171,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
 
         sectionViews[.print] = column([
             printLineNumbersButton,
+            printFormFeedPageBreakButton,
             row([printColorModeLabel, printColorModePopup]),
             row([printFontSizeLabel, sized(printFontSizeField, 58), printFontSizeStepper]),
             printHeaderSectionLabel,
@@ -1329,6 +1335,7 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
         customBackupDirField.stringValue = preferences.customBackupDirectory
         updateCustomBackupDirEnabled()
         printLineNumbersButton.state = preferences.printLineNumbers ? .on : .off
+        printFormFeedPageBreakButton.state = preferences.printSettings.printFormFeedPageBreak ? .on : .off
         openDirFollowsDocButton.state = preferences.openDirectoryFollowsDocument ? .on : .off
         folderDropAsWorkspaceButton.state = preferences.folderDropOpensAsWorkspace ? .on : .off
         folderDropRecursiveOpenButton.state = preferences.folderDropRecursiveOpen ? .on : .off
@@ -1661,7 +1668,8 @@ final class PreferencesPanelController: NSWindowController, NSTableViewDelegate,
                 marginTop: Double(printMarginTopField.intValue),
                 marginBottom: Double(printMarginBottomField.intValue),
                 marginLeft: Double(printMarginLeftField.intValue),
-                marginRight: Double(printMarginRightField.intValue)
+                marginRight: Double(printMarginRightField.intValue),
+                printFormFeedPageBreak: printFormFeedPageBreakButton.state == .on
             ),
             delimiterLeft: delimiterLeftField.stringValue,
             delimiterRight: delimiterRightField.stringValue,

@@ -17,6 +17,12 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
     private var fsEventStream: FSEventStreamRef?
     private var reloadWorkspace: (() -> Void)?
 
+    /// Root path used as the expand-state key (Folder as Workspace / watched folder / workspace file).
+    private var expandStateRootPath: String?
+    private let expandStateStore = WorkspaceExpandStateStore()
+    /// Suppresses persist callbacks while programmatically restoring expand state.
+    private var isRestoringExpandState = false
+
     init(onOpenFile: @escaping (URL) -> Void) {
         self.onOpenFile = onOpenFile
 
@@ -49,12 +55,33 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         fatalError("init(coder:) is not supported")
     }
 
-    func show(workspace: WorkspaceDocument, url: URL? = nil) {
+    /// - Parameters:
+    ///   - workspace: Tree to display.
+    ///   - url: Optional workspace document URL (`.xml` project file).
+    ///   - expandStateRoot: Optional root used for expand/collapse persistence
+    ///     (Folder as Workspace directory). When nil, falls back to `url`, the
+    ///     watched folder, or the first project URL.
+    func show(workspace: WorkspaceDocument, url: URL? = nil, expandStateRoot: URL? = nil) {
+        // Capture expand state of the previous tree before replacing it (same-root reloads).
+        if let previousRoot = expandStateRootPath {
+            persistExpandedPaths(forRoot: previousRoot)
+        }
+
         self.workspace = workspace
-        self.currentWorkspaceURL = url
+        if url != nil {
+            self.currentWorkspaceURL = url
+        }
+
+        let resolvedRoot = resolveExpandStateRoot(
+            explicit: expandStateRoot,
+            workspaceURL: url ?? currentWorkspaceURL,
+            workspace: workspace
+        )
+        expandStateRootPath = resolvedRoot
+
         window?.title = url?.lastPathComponent ?? workspace.name
         outlineView.reloadData()
-        expandAll()
+        restoreExpandStateOrExpandAll()
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
     }
@@ -62,6 +89,9 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
     func startWatching(url: URL, reload: @escaping () -> Void) {
         stopFSEventStream()
         watchedURL = url
+        if expandStateRootPath == nil {
+            expandStateRootPath = url.standardizedFileURL.path
+        }
         reloadWorkspace = reload
 
         let path = url.path as CFString
@@ -123,11 +153,116 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
     }
 
     func clear() {
+        if let root = expandStateRootPath {
+            persistExpandedPaths(forRoot: root)
+        }
         stopFSEventStream()
         workspace = nil
+        expandStateRootPath = nil
         outlineView.reloadData()
         refreshLocalizedStrings()
         close()
+    }
+
+    // MARK: - Expand / collapse persistence (upstream FaW 8.9.7)
+
+    func outlineViewItemDidExpand(_ notification: Notification) {
+        guard !isRestoringExpandState else { return }
+        persistCurrentExpandState()
+    }
+
+    func outlineViewItemDidCollapse(_ notification: Notification) {
+        guard !isRestoringExpandState else { return }
+        persistCurrentExpandState()
+    }
+
+    private func resolveExpandStateRoot(
+        explicit: URL?,
+        workspaceURL: URL?,
+        workspace: WorkspaceDocument
+    ) -> String? {
+        if let explicit {
+            return explicit.standardizedFileURL.path
+        }
+        if let watchedURL {
+            return watchedURL.standardizedFileURL.path
+        }
+        if let workspaceURL {
+            return workspaceURL.standardizedFileURL.path
+        }
+        if let projectURL = workspace.projects.first?.url {
+            return projectURL.standardizedFileURL.path
+        }
+        return nil
+    }
+
+    private func restoreExpandStateOrExpandAll() {
+        guard let root = expandStateRootPath else {
+            expandAll()
+            return
+        }
+        let saved = expandStateStore.expandedPaths(forRoot: root)
+        if saved.isEmpty {
+            expandAll()
+            persistCurrentExpandState()
+            return
+        }
+        applyExpandedPaths(saved)
+    }
+
+    private func applyExpandedPaths(_ paths: Set<String>) {
+        isRestoringExpandState = true
+        defer { isRestoringExpandState = false }
+
+        func visit(_ nodes: [WorkspaceNode]) {
+            for node in nodes {
+                if let key = expandKey(for: node), paths.contains(key) {
+                    outlineView.expandItem(node)
+                }
+                if !node.children.isEmpty {
+                    visit(node.children)
+                }
+            }
+        }
+        visit(workspace?.projects ?? [])
+    }
+
+    private func persistCurrentExpandState() {
+        guard let root = expandStateRootPath else { return }
+        persistExpandedPaths(forRoot: root)
+    }
+
+    private func persistExpandedPaths(forRoot root: String) {
+        var paths = Set<String>()
+        collectExpandedPaths(from: workspace?.projects ?? [], into: &paths)
+        // Always record the root itself when anything is expanded, so reopening
+        // can distinguish "never saved" from "user collapsed everything".
+        if !paths.isEmpty {
+            paths.insert(root)
+        }
+        expandStateStore.setExpandedPaths(paths, forRoot: root)
+    }
+
+    private func collectExpandedPaths(from nodes: [WorkspaceNode], into paths: inout Set<String>) {
+        for node in nodes {
+            if outlineView.isItemExpanded(node), let key = expandKey(for: node) {
+                paths.insert(key)
+            }
+            if !node.children.isEmpty {
+                collectExpandedPaths(from: node.children, into: &paths)
+            }
+        }
+    }
+
+    private func expandKey(for node: WorkspaceNode) -> String? {
+        if let url = node.url {
+            return url.standardizedFileURL.path
+        }
+        // Project nodes without a URL (classic workspace XML): use name under root.
+        if node.kind == .project, let root = expandStateRootPath {
+            return root + "#project:" + node.name
+        }
+        return nil
     }
 
     @objc private func localizationDidChange(_ notification: Notification) {
@@ -562,6 +697,8 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
     }
 
     private func expandAll() {
+        isRestoringExpandState = true
+        defer { isRestoringExpandState = false }
         for project in workspace?.projects ?? [] {
             outlineView.expandItem(project, expandChildren: true)
         }

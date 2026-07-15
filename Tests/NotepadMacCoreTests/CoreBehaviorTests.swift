@@ -707,6 +707,54 @@ import Testing
     #expect(document.pages(linesPerPage: 0).map(\.lines) == [["one", "two", "three", "four"]])
 }
 
+@Test func printDocumentFormFeedForcesPageBreak() {
+    let ff = PrintDocument.formFeed
+    let document = PrintDocument(
+        title: "ff.txt",
+        text: "page one line\n\(ff)page two line\nmore",
+        languageDisplayName: "Plain Text",
+        encodingDisplayName: "UTF-8"
+    )
+
+    // Without option: form feed is stripped from lines.
+    #expect(document.normalizedLines == ["page one line", "page two line", "more"])
+
+    let pages = document.pages(linesPerPage: 10, formFeedPageBreak: true)
+    #expect(pages.count == 2)
+    #expect(pages[0].lines == ["page one line"])
+    #expect(pages[1].lines == ["page two line", "more"])
+    #expect(pages[0].totalPages == 2)
+
+    // Consecutive form feeds yield an empty intermediate page.
+    let multi = PrintDocument(
+        title: "m.txt",
+        text: "a\(ff)\(ff)b",
+        languageDisplayName: "Plain Text",
+        encodingDisplayName: "UTF-8"
+    )
+    let multiPages = multi.pages(linesPerPage: 10, formFeedPageBreak: true)
+    #expect(multiPages.count == 3)
+    #expect(multiPages[0].lines == ["a"])
+    #expect(multiPages[1].lines == [""])
+    #expect(multiPages[2].lines == ["b"])
+}
+
+@Test func workspaceExpandStateStoreRoundTripsPerRoot() {
+    let suite = "WorkspaceExpandStateStore.roundtrip.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+
+    let store = WorkspaceExpandStateStore(defaults: defaults)
+    let root = "/tmp/workspace-root"
+    store.setExpandedPaths([root, "\(root)/src", "\(root)/docs"], forRoot: root)
+
+    #expect(store.expandedPaths(forRoot: root) == Set([root, "\(root)/src", "\(root)/docs"]))
+    #expect(store.expandedPaths(forRoot: "/other").isEmpty)
+
+    store.setExpandedPaths([], forRoot: root)
+    #expect(store.expandedPaths(forRoot: root).isEmpty)
+}
+
 @Test func textEditMacroCommandDiffsAndReplaysInsertionsReplacementsAndDeletes() throws {
     let insert = try #require(MacroCommand.textEdit(from: "alpha", to: "alpha beta"))
     let replace = try #require(MacroCommand.textEdit(from: "alpha beta", to: "alpha BETA"))
@@ -1269,6 +1317,17 @@ import Testing
     #expect(BookmarkSet.linesContainingSearchMatches(matches, in: text) == [1, 2, 3])
     #expect(BookmarkSet.linesContainingSearchMatches(TextSearch.findAll("alpha", in: "alpha alpha\n"), in: "alpha alpha\n") == [1])
     #expect(BookmarkSet(lines: [2, 8]).addingSearchMatches(matches, in: text).sortedLines == [1, 2, 3, 8])
+}
+
+@Test func textSearchMatchOrdinalForIncrementalSearch() {
+    let text = "alpha beta alpha gamma alpha"
+    let matches = TextSearch.findAll("alpha", in: text, options: TextSearch.Options(matchCase: false))
+    #expect(matches.count == 3)
+    #expect(TextSearch.matchOrdinal(of: matches[0], in: matches) == 1)
+    #expect(TextSearch.matchOrdinal(of: matches[1], in: matches) == 2)
+    #expect(TextSearch.matchOrdinal(of: matches[2], in: matches) == 3)
+    #expect(TextSearch.matchOrdinal(of: NSRange(location: 0, length: 1), in: matches) == nil)
+    #expect(TextSearch.matchOrdinal(of: matches[0], in: []) == nil)
 }
 
 @Test func appPreferencesClampEditorFontSizeAndExposeSearchOptions() {

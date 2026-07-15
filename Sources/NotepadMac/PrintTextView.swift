@@ -2,13 +2,15 @@ import AppKit
 import NotepadMacCore
 
 /// A paginated NSTextView used as the print view for NSPrintOperation.
-/// Supports optional header/footer bands drawn in the page border area.
+/// Supports optional header/footer bands drawn in the page border area,
+/// and optional form-feed page breaks (upstream Notepad++ 8.9.7).
 @MainActor
 final class PrintTextView: NSTextView {
     private let settings: PrintSettings
     private let filePath: String?
     private let printDate: Date
     private var cachedTotalPages: Int = 1
+    private let pageContentHeight: CGFloat
 
     private static let bandHeight: CGFloat = 18
     private static let printableWidth: CGFloat = 540
@@ -32,21 +34,34 @@ final class PrintTextView: NSTextView {
             : max(fontSize, 9)
         let hasBands = !printSettings.header.isEmpty || !printSettings.footer.isEmpty
         let bandH: CGFloat = hasBands ? Self.bandHeight : 0
+        let pageContentH = max(Self.minimumPrintableHeight - bandH * 2, 120)
+        self.pageContentHeight = pageContentH
 
         let textColor: NSColor = printSettings.colorMode == 1 ? .black : .labelColor
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byWordWrapping
         paragraph.lineSpacing = 2
 
-        let text = document.renderedPlainText(includeLineNumbers: includeLineNumbers)
-        let attributed = NSAttributedString(
-            string: text,
-            attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: effectiveFontSize, weight: .regular),
-                .foregroundColor: textColor,
-                .paragraphStyle: paragraph
-            ]
-        )
+        let baseAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: effectiveFontSize, weight: .regular),
+            .foregroundColor: textColor,
+            .paragraphStyle: paragraph
+        ]
+
+        let attributed: NSAttributedString
+        if printSettings.printFormFeedPageBreak {
+            attributed = Self.formFeedAwareContent(
+                document: document,
+                includeLineNumbers: includeLineNumbers,
+                attributes: baseAttributes,
+                pageContentHeight: pageContentH,
+                printableWidth: Self.printableWidth
+            )
+        } else {
+            let text = document.renderedPlainText(includeLineNumbers: includeLineNumbers)
+            attributed = NSAttributedString(string: text, attributes: baseAttributes)
+        }
+
         let storage = NSTextStorage(attributedString: attributed)
         let layoutManager = NSLayoutManager()
         let textContainer = NSTextContainer(
@@ -68,19 +83,113 @@ final class PrintTextView: NSTextView {
         layoutManager.ensureLayout(for: textContainer)
 
         let usedRect = layoutManager.usedRect(for: textContainer)
-        let totalHeight = max(Self.minimumPrintableHeight, ceil(usedRect.height) + bandH * 2 + 24)
-        frame = NSRect(x: 0, y: 0, width: Self.printableWidth, height: totalHeight)
+        var totalHeight = max(Self.minimumPrintableHeight, ceil(usedRect.height) + bandH * 2 + 24)
 
-        // Precompute total pages from layout height vs page height
-        let pageContentH = Self.minimumPrintableHeight - bandH * 2
-        if pageContentH > 0 {
+        // When form-feed page breaks pad sections to page boundaries, height is already
+        // a multiple of pageContentH (plus insets). Snap total height for clean pagination.
+        if printSettings.printFormFeedPageBreak, pageContentH > 0 {
+            let contentH = ceil(usedRect.height)
+            let pages = max(1, Int(ceil(contentH / pageContentH)))
+            totalHeight = CGFloat(pages) * pageContentH + bandH * 2 + 24
+            cachedTotalPages = pages
+        } else if pageContentH > 0 {
             cachedTotalPages = max(1, Int(ceil(usedRect.height / pageContentH)))
         }
+
+        frame = NSRect(x: 0, y: 0, width: Self.printableWidth, height: totalHeight)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not supported")
+    }
+
+    // MARK: - Form-feed section layout
+
+    /// Builds content where each form-feed section is padded to a full page height so
+    /// automatic vertical pagination starts the next section on a new page.
+    private static func formFeedAwareContent(
+        document: PrintDocument,
+        includeLineNumbers: Bool,
+        attributes: [NSAttributedString.Key: Any],
+        pageContentHeight: CGFloat,
+        printableWidth: CGFloat
+    ) -> NSAttributedString {
+        let header = [document.title, document.languageDisplayName, document.encodingDisplayName]
+            .filter { !$0.isEmpty }
+            .joined(separator: "    ")
+        let headerBlock = header.isEmpty
+            ? ""
+            : "\(header)\n\(String(repeating: "=", count: max(header.count, 1)))\n"
+
+        let sections = document.formFeedSections
+        let allLineCount = max(sections.reduce(0) { $0 + $1.count }, 1)
+        let lineNumberWidth = max(String(allLineCount).count, 4)
+
+        let result = NSMutableAttributedString()
+        var globalLine = 0
+
+        // Header once at the top of the print job.
+        if !headerBlock.isEmpty {
+            result.append(NSAttributedString(string: headerBlock, attributes: attributes))
+        }
+
+        for (sectionIndex, section) in sections.enumerated() {
+            let sectionStart = result.length
+            var body = ""
+            if section.isEmpty {
+                body = includeLineNumbers ? "\(String(globalLine + 1).leftPadded(to: lineNumberWidth))  \n" : "\n"
+                globalLine += 1
+            } else {
+                for line in section {
+                    globalLine += 1
+                    if includeLineNumbers {
+                        body += "\(String(globalLine).leftPadded(to: lineNumberWidth))  \(line)\n"
+                    } else {
+                        body += "\(line)\n"
+                    }
+                }
+            }
+            result.append(NSAttributedString(string: body, attributes: attributes))
+
+            // Measure this section and pad remaining space to a page boundary
+            // (skip padding after the last section).
+            if sectionIndex < sections.count - 1 {
+                let sectionLength = result.length - sectionStart
+                let measured = measureHeight(
+                    of: result.attributedSubstring(from: NSRange(location: sectionStart, length: sectionLength)),
+                    width: printableWidth
+                )
+                let usedInPage = measured.truncatingRemainder(dividingBy: pageContentHeight)
+                let pad = usedInPage == 0 ? 0 : (pageContentHeight - usedInPage)
+                if pad > 1 {
+                    // Use paragraph spacing via a single line with large minimum line height.
+                    let padStyle = NSMutableParagraphStyle()
+                    padStyle.minimumLineHeight = pad
+                    padStyle.maximumLineHeight = pad
+                    var padAttrs = attributes
+                    padAttrs[.paragraphStyle] = padStyle
+                    padAttrs[.font] = NSFont.systemFont(ofSize: 1)
+                    result.append(NSAttributedString(string: "\n", attributes: padAttrs))
+                }
+            }
+        }
+
+        if result.length == 0 {
+            result.append(NSAttributedString(string: "\n", attributes: attributes))
+        }
+        return result
+    }
+
+    private static func measureHeight(of attributed: NSAttributedString, width: CGFloat) -> CGFloat {
+        let storage = NSTextStorage(attributedString: attributed)
+        let layoutManager = NSLayoutManager()
+        let textContainer = NSTextContainer(containerSize: NSSize(width: width, height: .greatestFiniteMagnitude))
+        textContainer.lineFragmentPadding = 0
+        layoutManager.addTextContainer(textContainer)
+        storage.addLayoutManager(layoutManager)
+        layoutManager.ensureLayout(for: textContainer)
+        return ceil(layoutManager.usedRect(for: textContainer).height)
     }
 
     // MARK: - Header / Footer
@@ -130,5 +239,12 @@ final class PrintTextView: NSTextView {
         path.line(to: NSPoint(x: pageWidth, y: lineY))
         path.lineWidth = 0.5
         path.stroke()
+    }
+}
+
+private extension String {
+    func leftPadded(to width: Int) -> String {
+        guard count < width else { return self }
+        return String(repeating: " ", count: width - count) + self
     }
 }
