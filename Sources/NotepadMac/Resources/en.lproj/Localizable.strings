@@ -718,11 +718,11 @@
 "documentMap.accessibility.goTo" = "Go to selected line";
 "menu.help" = "Help";
 "help.commandLineArguments" = "Command Line Arguments...";
-"help.home" = "Notepad++ Home";
-"help.projectPage" = "Notepad++ Project Page";
-"help.onlineUserManual" = "Notepad++ Online User Manual";
-"help.forum" = "Notepad++ Community (Forum)";
-"help.update" = "Update Notepad++";
+"help.home" = "Notepad Mac Home";
+"help.projectPage" = "Notepad Mac Project Page";
+"help.onlineUserManual" = "Notepad Mac Online User Manual";
+"help.forum" = "Notepad Mac Community (Forum)";
+"help.update" = "Update Notepad Mac";
 "help.setUpdaterProxy" = "Set Updater Proxy...";
 "help.setUpdaterProxy.title" = "Set Updater Proxy";
 "help.setUpdaterProxy.body" = "The proxy is used only for update checks.";
@@ -730,7 +730,7 @@
 "help.setUpdaterProxy.hostPlaceholder" = "Proxy host (e.g. 127.0.0.1)";
 "help.setUpdaterProxy.portPlaceholder" = "Port";
 "help.update.noChannel.title" = "No update channel configured";
-"help.update.noChannel.body" = "This build has no release feed yet. You can open the Notepad++ downloads page instead.";
+"help.update.noChannel.body" = "This build has no release feed yet. You can open the Notepad Mac downloads page instead.";
 "help.update.openDownloads" = "Open Downloads Page";
 "help.update.checkFailed.title" = "Update check failed";
 "help.update.unexpectedResponse" = "The update feed returned an unexpected response.";

@@ -1770,7 +1770,7 @@ private var appearanceObservation: NSKeyValueObservation?
                 .helpUpdateNoChannelTitle, default: "No update channel configured")
             alert.informativeText = Localization.string(
                 .helpUpdateNoChannelBody,
-                default: "This build has no release feed yet. You can open the Notepad++ downloads page instead.")
+                default: "This build has no release feed yet. You can open the Notepad Mac downloads page instead.")
             alert.addButton(withTitle: Localization.string(
                 .helpUpdateOpenDownloads, default: "Open Downloads Page"))
             alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))

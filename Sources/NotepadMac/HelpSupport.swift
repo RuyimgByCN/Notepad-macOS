@@ -16,9 +16,9 @@ enum HelpSupport {
         case .projectPage:
             URL(string: "https://github.com/RuyimgByCN/Notepad-macOS")!
         case .userManual:
-            URL(string: "https://npp-user-manual.org/")!
+            URL(string: "https://github.com/RuyimgByCN/Notepad-macOS#readme")!
         case .forum:
-            URL(string: "https://community.notepad-plus-plus.org/")!
+            URL(string: "https://github.com/RuyimgByCN/Notepad-macOS/issues")!
         case .downloads:
             URL(string: "https://github.com/RuyimgByCN/Notepad-macOS/releases")!
         }

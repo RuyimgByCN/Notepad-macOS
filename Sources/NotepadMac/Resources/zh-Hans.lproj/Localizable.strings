@@ -718,11 +718,11 @@
 "documentMap.accessibility.goTo" = "转到所选行";
 "menu.help" = "帮助";
 "help.commandLineArguments" = "命令行参数...";
-"help.home" = "Notepad++ 主页";
-"help.projectPage" = "Notepad++ 项目页面";
-"help.onlineUserManual" = "Notepad++ 在线用户手册";
-"help.forum" = "Notepad++ 社区（论坛）";
-"help.update" = "更新 Notepad++";
+"help.home" = "Notepad Mac 主页";
+"help.projectPage" = "Notepad Mac 项目页面";
+"help.onlineUserManual" = "Notepad Mac 在线用户手册";
+"help.forum" = "Notepad Mac 社区（论坛）";
+"help.update" = "更新 Notepad Mac";
 "help.setUpdaterProxy" = "设置更新代理...";
 "help.setUpdaterProxy.title" = "设置更新代理";
 "help.setUpdaterProxy.body" = "该代理仅用于检查更新。";
@@ -730,7 +730,7 @@
 "help.setUpdaterProxy.hostPlaceholder" = "代理主机(如 127.0.0.1)";
 "help.setUpdaterProxy.portPlaceholder" = "端口";
 "help.update.noChannel.title" = "尚未配置更新渠道";
-"help.update.noChannel.body" = "此构建尚无发布源。可改为打开 Notepad++ 下载页面。";
+"help.update.noChannel.body" = "此构建尚无发布源。可改为打开 Notepad Mac 下载页面。";
 "help.update.openDownloads" = "打开下载页面";
 "help.update.checkFailed.title" = "检查更新失败";
 "help.update.unexpectedResponse" = "更新源返回了意外的响应。";

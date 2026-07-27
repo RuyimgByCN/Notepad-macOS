@@ -55,8 +55,8 @@ struct HelpSupportTests {
     @Test func helpSupportExposesOnlineHelpLinks() {
         #expect(HelpSupport.url(for: .home).absoluteString == "https://github.com/RuyimgByCN/Notepad-macOS")
         #expect(HelpSupport.url(for: .projectPage).absoluteString == "https://github.com/RuyimgByCN/Notepad-macOS")
-        #expect(HelpSupport.url(for: .userManual).absoluteString == "https://npp-user-manual.org/")
-        #expect(HelpSupport.url(for: .forum).absoluteString == "https://community.notepad-plus-plus.org/")
+        #expect(HelpSupport.url(for: .userManual).absoluteString == "https://github.com/RuyimgByCN/Notepad-macOS#readme")
+        #expect(HelpSupport.url(for: .forum).absoluteString == "https://github.com/RuyimgByCN/Notepad-macOS/issues")
         #expect(HelpSupport.url(for: .downloads).absoluteString == "https://github.com/RuyimgByCN/Notepad-macOS/releases")
     }
 }

@@ -60,7 +60,10 @@ struct NativeLangTranslations: Sendable {
         }
 
         guard let rawValue else { return nil }
-        return NativeLangLookup.sanitized(rawValue)
+        let value = NativeLangLookup.sanitized(rawValue)
+        return NativeLangLookup.productBrandingKeys.contains(localizationKey)
+            ? value.replacingOccurrences(of: "Notepad++", with: "Notepad Mac")
+            : value
     }
 
     func localizedValue(forDefaultValue defaultValue: String) -> String? {
@@ -190,6 +193,15 @@ private enum NativeLangLookup {
         "preferences.panelTitle": .preferenceTitle,
         "preferences.section.localization": .preferenceGlobalItem("6123"),
         "preferences.localization": .preferenceGlobalItem("6123")
+    ]
+
+    static let productBrandingKeys: Set<String> = [
+        "help.home",
+        "help.projectPage",
+        "help.onlineUserManual",
+        "help.forum",
+        "help.update",
+        "help.about"
     ]
 
     static func sanitized(_ text: String) -> String {

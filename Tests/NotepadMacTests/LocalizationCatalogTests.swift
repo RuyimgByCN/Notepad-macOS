@@ -29,6 +29,35 @@ import Testing
     #expect(translations?.localizedValue(forDefaultValue: "Find...") == "Rechercher...")
 }
 
+@Test func nativeLangHelpMenuUsesNotepadMacBranding() {
+    let helpKeys = [
+        "help.home",
+        "help.projectPage",
+        "help.onlineUserManual",
+        "help.forum",
+        "help.update",
+        "help.about"
+    ]
+    for option in AppLocalizationCatalog.loadBundledOptions() {
+        let localized = NativeLangTranslations.load(
+            fileName: option.fileName,
+            bundle: Localization.resourceBundle
+        )
+        for key in helpKeys {
+            #expect(localized?.localizedValue(for: key)?.contains("Notepad++") != true)
+        }
+    }
+
+    let translations = NativeLangTranslations.load(
+        fileName: "chineseSimplified.xml",
+        bundle: Localization.resourceBundle
+    )
+
+    #expect(translations?.localizedValue(for: "help.home") == "Notepad Mac 官方主页")
+    #expect(translations?.localizedValue(for: "help.update") == "升级 Notepad Mac")
+    #expect(translations?.localizedValue(for: "help.about") == "关于 Notepad Mac")
+}
+
 @Test func localizationProvidesFrenchDialogFallbacks() {
     let translations = NativeLangTranslations.load(fileName: "french.xml", bundle: Localization.resourceBundle)
 

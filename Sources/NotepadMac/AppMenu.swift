@@ -1443,28 +1443,28 @@ enum AppMenu {
         ).target = delegate
         helpMenu.addItem(NSMenuItem.separator())
         helpMenu.addItem(
-            withTitle: Localization.string(.helpHome, default: "Notepad++ Home"),
+            withTitle: Localization.string(.helpHome, default: "Notepad Mac Home"),
             action: #selector(AppDelegate.openHomePage(_:)),
             keyEquivalent: ""
         ).target = delegate
         helpMenu.addItem(
-            withTitle: Localization.string(.helpProjectPage, default: "Notepad++ Project Page"),
+            withTitle: Localization.string(.helpProjectPage, default: "Notepad Mac Project Page"),
             action: #selector(AppDelegate.openProjectPage(_:)),
             keyEquivalent: ""
         ).target = delegate
         helpMenu.addItem(
-            withTitle: Localization.string(.helpOnlineUserManual, default: "Notepad++ Online User Manual"),
+            withTitle: Localization.string(.helpOnlineUserManual, default: "Notepad Mac Online User Manual"),
             action: #selector(AppDelegate.openOnlineUserManual(_:)),
             keyEquivalent: ""
         ).target = delegate
         helpMenu.addItem(
-            withTitle: Localization.string(.helpForum, default: "Notepad++ Community (Forum)"),
+            withTitle: Localization.string(.helpForum, default: "Notepad Mac Community (Forum)"),
             action: #selector(AppDelegate.openForum(_:)),
             keyEquivalent: ""
         ).target = delegate
         helpMenu.addItem(NSMenuItem.separator())
         helpMenu.addItem(
-            withTitle: Localization.string(.helpUpdate, default: "Update Notepad++"),
+            withTitle: Localization.string(.helpUpdate, default: "Update Notepad Mac"),
             action: #selector(AppDelegate.checkForUpdates(_:)),
             keyEquivalent: ""
         ).target = delegate
