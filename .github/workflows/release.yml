@@ -21,20 +21,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract version from upstream
+      - name: Extract version from release tag
         id: version
         run: |
-          # Read version from upstream notepad-plus-plus resource.h
-          RESOURCE_H="upstream/notepad-plus-plus/PowerEditor/src/resource.h"
-          NPP_VER=$(grep 'VERSION_PRODUCT_VALUE' "$RESOURCE_H" \
-            | sed 's/.*L"\(.*\)\\0".*/\1/')
-          # Fall back to git tag if resource.h not found or unparseable
-          if [[ -z "$NPP_VER" ]]; then
-            TAG="${GITHUB_REF_NAME}"
-            NPP_VER="${TAG#v}"
-          fi
+          TAG="${GITHUB_REF_NAME}"
+          NPP_VER="${TAG#v}"
           echo "version=$NPP_VER" >> "$GITHUB_OUTPUT"
-          echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       # upstream/notepad-plus-plus is not tracked in this repo (it is the full
       # Notepad++ tree). Fetch it at the pinned commit the app is built against
