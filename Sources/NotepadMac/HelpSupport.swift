@@ -80,7 +80,7 @@ enum HelpSupport {
         let locale = Locale.current.identifier
 
         var lines = [
-            "Notepad++ Mac \(appVersion) (build \(buildVersion))",
+            "Notepad Mac \(appVersion) (build \(buildVersion))",
             "Bundle ID: \(bundleID)",
             "",
             "OS: macOS \(osVersion)",

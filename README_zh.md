@@ -1,13 +1,13 @@
 [English](README.md) | [中文](README_zh.md)
 
-# Notepad++ Mac Native
+# Notepad Mac Native
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey.svg)](https://www.apple.com/macos)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://www.swift.org/)
 [![Upstream Notepad++](https://img.shields.io/badge/upstream-Notepad%2B%2B-90E59A.svg)](https://notepad-plus-plus.org/)
 
-**Notepad++ Mac Native** 是一款面向 **macOS** 的免费开源代码编辑器和记事本替代
+**Notepad Mac Native** 是一款面向 **macOS** 的免费开源代码编辑器和记事本替代
 方案，使用 Swift / AppKit 原生构建。它**不是** Wine 封装 —— Notepad++ 的 Win32
 GUI 层已用原生 macOS 代码重写，而上游平台无关的资源（语言模型、主题、API 表、
 图标）以及上游 Scintilla / Lexilla 编辑器则直接复用。
@@ -20,7 +20,7 @@ GUI 层已用原生 macOS 代码重写，而上游平台无关的资源（语言
 
 | 编辑器 | 查找与替换 |
 |---|---|
-| ![Notepad++ Mac Native 编辑 Rust 文件](docs/images/screenshots/editor-rust.png) | ![查找与替换面板](docs/images/screenshots/find-replace.png) |
+| ![Notepad Mac Native 编辑 Rust 文件](docs/images/screenshots/editor-rust.png) | ![查找与替换面板](docs/images/screenshots/find-replace.png) |
 
 | 偏好设置 | 样式配置器 |
 |---|---|
@@ -88,8 +88,8 @@ scripts/package-macos.sh
 
 打包脚本将生成：
 
-- `dist/Notepad++ Mac.app`
-- `dist/Notepad++ Mac.dmg`
+- `dist/Notepad Mac.app`
+- `dist/Notepad Mac.dmg`
 
 打包后运行 `scripts/smoke-packaged-app.sh`，将使用临时 Rust 文件启动应用，
 验证打包后的应用加载的是捆绑的 Scintilla 和 Lexilla 运行时，而非开发树或系统

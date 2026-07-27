@@ -54,12 +54,12 @@ private let sampleFeed = """
 [
   {
     "tag_name": "v1.4.0",
-    "name": "Notepad++ Mac 1.4.0",
+    "name": "Notepad Mac 1.4.0",
     "html_url": "https://github.com/owner/repo/releases/tag/v1.4.0",
     "draft": false,
     "prerelease": false,
     "assets": [
-      {"name": "Notepad++ Mac.dmg", "browser_download_url": "https://github.com/owner/repo/releases/download/v1.4.0/Notepad%2B%2B%20Mac.dmg"},
+      {"name": "Notepad Mac.dmg", "browser_download_url": "https://github.com/owner/repo/releases/download/v1.4.0/Notepad%20Mac.dmg"},
       {"name": "symbols.zip", "browser_download_url": "https://example.com/symbols.zip"}
     ]
   },

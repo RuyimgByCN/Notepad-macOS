@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEFAULT_APP_PATH="$ROOT_DIR/dist/Notepad++ Mac.app"
-DEFAULT_DMG_PATH="$ROOT_DIR/dist/Notepad++ Mac.dmg"
+DEFAULT_APP_PATH="$ROOT_DIR/dist/Notepad Mac.app"
+DEFAULT_DMG_PATH="$ROOT_DIR/dist/Notepad Mac.dmg"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 read -r -a REQUIRED_ARCHS <<< "${MACOS_VERIFY_REQUIRED_ARCHS:-x86_64 arm64}"
 LEXILLA_INSTALL_NAME="@rpath/liblexilla.dylib"
@@ -279,8 +279,8 @@ echo "  dmg: $DMG_PATH"
 
 echo "Checking Info.plist"
 plutil -lint "$PLIST_PATH"
-assert_plist_equals "$PLIST_PATH" CFBundleDisplayName "Notepad++ Mac"
-assert_plist_equals "$PLIST_PATH" CFBundleName "Notepad++ Mac"
+assert_plist_equals "$PLIST_PATH" CFBundleDisplayName "Notepad Mac"
+assert_plist_equals "$PLIST_PATH" CFBundleName "Notepad Mac"
 assert_plist_equals "$PLIST_PATH" CFBundleExecutable "NotepadMac"
 assert_plist_equals "$PLIST_PATH" CFBundleIdentifier "org.notepad-plus-plus.macnative"
 assert_plist_equals "$PLIST_PATH" CFBundlePackageType "APPL"

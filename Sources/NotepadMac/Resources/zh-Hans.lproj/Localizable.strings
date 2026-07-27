@@ -14,7 +14,7 @@
 "shortcutMapper.conflict.message" = "已被占用：";
 "shortcutMapper.recorder.hint" = "点击，然后按快捷键组合";
 "app.styleConfigurator" = "语言样式配置器...";
-"app.quit" = "退出 Notepad++ Mac";
+"app.quit" = "退出 Notepad Mac";
 "menu.settings" = "设置";
 "menu.file" = "文件";
 "file.new" = "新建";
@@ -173,7 +173,7 @@
 "editor.newDocumentPrefix" = "新文件";
 "editor.accessibility.statusBar" = "编辑器状态栏";
 "editor.untitledFileName" = "未命名.txt";
-"editor.windowTitleFormat" = "%@ - Notepad++ Mac";
+"editor.windowTitleFormat" = "%@ - Notepad Mac";
 "editor.resourceNotAvailable" = "资源不可用";
 "editor.missing.autoCompletionAPI" = "没有 %@ 可用的自动补全 API 文件。";
 "editor.missing.activeCall" = "插入点处没有带 API 元数据的函数调用。";
@@ -196,8 +196,8 @@
 "editor.status.bookmarks" = "%d 个书签";
 "editor.encoding.fallback" = "编码 %@";
 "fileChange.modified.title" = "磁盘上的文件已更改";
-"fileChange.modified.dirty.message" = "文件“%@”已在 Notepad++ Mac 外部更改。重新载入会丢弃此窗口中未保存的编辑。";
-"fileChange.modified.clean.message" = "文件“%@”已在 Notepad++ Mac 外部更改。重新载入可显示磁盘上的版本，也可以保留当前缓冲区。";
+"fileChange.modified.dirty.message" = "文件“%@”已在 Notepad Mac 外部更改。重新载入会丢弃此窗口中未保存的编辑。";
+"fileChange.modified.clean.message" = "文件“%@”已在 Notepad Mac 外部更改。重新载入可显示磁盘上的版本，也可以保留当前缓冲区。";
 "fileChange.deleted.title" = "文件已删除或移动";
 "fileChange.deleted.message" = "文件“%@”已不在保存路径中。保留当前缓冲区会将其标记为已修改，以便你重新保存。";
 "fileChange.reload" = "重新载入";
@@ -742,7 +742,7 @@
 "help.update.available.body" = "新版本 %1$@ 可用(当前版本 %2$@)。";
 "help.update.download" = "下载";
 "help.debugInfo" = "调试信息...";
-"help.about" = "关于 Notepad++ Mac";
+"help.about" = "关于 Notepad Mac";
 "help.about.subtitle" = "原生 macOS 原型";
 "help.commandLine.panelTitle" = "命令行参数";
 "help.debugInfo.panelTitle" = "调试信息";

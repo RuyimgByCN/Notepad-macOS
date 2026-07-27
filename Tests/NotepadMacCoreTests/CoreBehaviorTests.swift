@@ -987,7 +987,7 @@ import Testing
     let directories = PluginCatalog.defaultPluginDirectories()
 
     #expect(userPluginDirectory.lastPathComponent == "Plugins")
-    #expect(userPluginDirectory.deletingLastPathComponent().lastPathComponent == "Notepad++ Mac")
+    #expect(userPluginDirectory.deletingLastPathComponent().lastPathComponent == "Notepad Mac")
     #expect(directories.first == userPluginDirectory)
 }
 

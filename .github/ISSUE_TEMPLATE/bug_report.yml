@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to file a bug report for **Notepad++ Mac Native**.
+        Thanks for taking the time to file a bug report for **Notepad Mac Native**.
 
         A few things to keep in mind:
         - This is an **independent** native macOS port. It is **not** the official
@@ -35,7 +35,7 @@ body:
     attributes:
       label: App version
       description: |
-        The app version (visible in **Notepad++ Mac → About**), e.g. `8.9.6`.
+        The app version (visible in **Notepad Mac → About**), e.g. `8.9.6`.
         This tracks upstream Notepad++'s version number.
       placeholder: "8.9.6"
     validations:

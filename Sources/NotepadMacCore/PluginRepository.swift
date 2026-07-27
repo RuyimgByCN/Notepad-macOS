@@ -77,7 +77,7 @@ public enum PluginRepository {
         FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)
             .first!
-            .appending(path: "Notepad++ Mac/plugin-catalog-cache.json")
+            .appending(path: "Notepad Mac/plugin-catalog-cache.json")
             .standardizedFileURL
     }
 

@@ -1972,9 +1972,9 @@ private var appearanceObservation: NSKeyValueObservation?
     @objc func showAbout(_ sender: Any?) {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development"
         let alert = NSAlert()
-        alert.messageText = Localization.string(.helpAbout, default: "About Notepad++ Mac")
+        alert.messageText = Localization.string(.helpAbout, default: "About Notepad Mac")
         alert.informativeText = HelpSupport.aboutText(
-            appName: "Notepad++ Mac",
+            appName: "Notepad Mac",
             version: version,
             subtitle: Localization.string(.helpAboutSubtitle, default: "Native macOS prototype")
         )

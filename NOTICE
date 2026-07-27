@@ -1,5 +1,5 @@
-Notepad++ Mac Native
-Copyright (C) 2024-present Notepad++ Mac Native contributors.
+Notepad Mac Native
+Copyright (C) 2024-present Notepad Mac Native contributors.
 https://github.com/RuyimgByCN/Notepad-macOS
 
 A native macOS port of Notepad++ built with Swift / AppKit — not a Wine
@@ -16,7 +16,7 @@ FITNESS FOR A PARTICULAR PURPOSE.
 
 DERIVATIVE WORK NOTICE
 
-Notepad++ Mac Native is a derivative work of Notepad++
+Notepad Mac Native is a derivative work of Notepad++
 (© Don HO <don.h@free.fr>, https://notepad-plus-plus.org/, distributed under
 the GNU GPL v3) and bundles or reuses several third-party components under
 their own licenses. The full copyright and license notices for those
@@ -33,6 +33,6 @@ components are reproduced in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md):
 TRADEMARKS
 
 "Notepad++" is a trademark of its respective owner, used here only to
-identify the upstream project this editor is derived from. Notepad++ Mac
+identify the upstream project this editor is derived from. Notepad Mac
 Native is an independent derivative and is not affiliated with, sponsored
 by, or endorsed by the official Notepad++ project or its maintainers.

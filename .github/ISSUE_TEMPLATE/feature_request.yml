@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for suggesting a feature for **Notepad++ Mac Native**!
+        Thanks for suggesting a feature for **Notepad Mac Native**!
 
         - This is the **native macOS port**. Feature requests should be about the
           macOS app, not upstream Windows Notepad++.

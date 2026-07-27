@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEFAULT_APP_PATH="$ROOT_DIR/dist/Notepad++ Mac.app"
+DEFAULT_APP_PATH="$ROOT_DIR/dist/Notepad Mac.app"
 APP_PATH_INPUT="${1:-$DEFAULT_APP_PATH}"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 PROCESS_TIMEOUT="${SMOKE_PROCESS_TIMEOUT:-20}"
@@ -318,7 +318,7 @@ VMAP_ERROR="$TMP_DIR/vmmap.err"
 
 cat > "$RUST_FILE" <<'RUST'
 fn main() {
-    println!("packaged Notepad++ Mac smoke test");
+    println!("packaged Notepad Mac smoke test");
 }
 RUST
 

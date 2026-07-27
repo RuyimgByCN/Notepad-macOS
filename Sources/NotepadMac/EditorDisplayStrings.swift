@@ -15,7 +15,7 @@ struct EditorDisplayStrings {
         EditorDisplayStrings(
             untitledDocumentName: localize(.editorUntitledDocumentName, "Untitled"),
             untitledFileName: localize(.editorUntitledFileName, "Untitled.txt"),
-            windowTitleFormat: localize(.editorWindowTitleFormat, "%@ - Notepad++ Mac")
+            windowTitleFormat: localize(.editorWindowTitleFormat, "%@ - Notepad Mac")
         )
     }
 

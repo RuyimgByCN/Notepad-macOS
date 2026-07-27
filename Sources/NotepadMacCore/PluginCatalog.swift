@@ -232,7 +232,7 @@ public struct PluginCatalog: Equatable, Sendable {
         fileManager
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)
             .first?
-            .appending(path: "Notepad++ Mac/Plugins")
+            .appending(path: "Notepad Mac/Plugins")
             .standardizedFileURL
     }
 

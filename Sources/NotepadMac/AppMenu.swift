@@ -127,7 +127,7 @@ enum AppMenu {
         installSettingsMenuItems(in: appMenu, delegate: delegate)
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(
-            withTitle: Localization.string(.appQuit, default: "Quit Notepad++ Mac"),
+            withTitle: Localization.string(.appQuit, default: "Quit Notepad Mac"),
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
@@ -1480,7 +1480,7 @@ enum AppMenu {
             keyEquivalent: ""
         ).target = delegate
         helpMenu.addItem(
-            withTitle: Localization.string(.helpAbout, default: "About Notepad++ Mac"),
+            withTitle: Localization.string(.helpAbout, default: "About Notepad Mac"),
             action: #selector(AppDelegate.showAbout(_:)),
             keyEquivalent: ""
         ).target = delegate

@@ -199,7 +199,7 @@ public final class SnapshotStore {
     public static func defaultDirectory() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appending(path: "Library/Application Support")
-        return base.appending(path: "Notepad++ Mac/backup")
+        return base.appending(path: "Notepad Mac/backup")
     }
 }
 

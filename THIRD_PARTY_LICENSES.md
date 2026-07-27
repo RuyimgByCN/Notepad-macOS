@@ -1,6 +1,6 @@
 # Third-Party Software Licenses
 
-Notepad++ Mac Native bundles, links to, or reuses several third-party
+Notepad Mac Native bundles, links to, or reuses several third-party
 components. This file reproduces the copyright and license notices for each of
 them, as required by their respective licenses.
 

@@ -25,7 +25,7 @@ import Testing
     let strings = EditorDisplayStrings(
         untitledDocumentName: "Untitled",
         untitledFileName: "Untitled.txt",
-        windowTitleFormat: "%@ - Notepad++ Mac"
+        windowTitleFormat: "%@ - Notepad Mac"
     )
     let fileURL = URL(filePath: "/tmp/notes.md")
 
@@ -45,7 +45,7 @@ import Testing
     let english = EditorDisplayStrings(
         untitledDocumentName: "Untitled",
         untitledFileName: "Untitled.txt",
-        windowTitleFormat: "%@ - Notepad++ Mac"
+        windowTitleFormat: "%@ - Notepad Mac"
     )
 
     #expect(
@@ -115,10 +115,10 @@ import Testing
     let strings = EditorDisplayStrings(
         untitledDocumentName: "Untitled",
         untitledFileName: "Untitled.txt",
-        windowTitleFormat: "%@ - Notepad++ Mac"
+        windowTitleFormat: "%@ - Notepad Mac"
     )
 
-    #expect(strings.windowTitle(displayName: "notes.md", isDirty: true) == "*notes.md - Notepad++ Mac")
+    #expect(strings.windowTitle(displayName: "notes.md", isDirty: true) == "*notes.md - Notepad Mac")
 }
 
 @Test func editorDisplayStringsNormalizesLegacyUntitledFallbackNames() {

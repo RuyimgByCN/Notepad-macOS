@@ -261,7 +261,7 @@ private struct PluginCatalogInstallationFixture {
         rootURL = URL(filePath: NSTemporaryDirectory())
             .appending(path: "NotepadMacPluginInstallTests-\(UUID().uuidString)")
         sourceRootURL = rootURL.appending(path: "Source")
-        userPluginDirectory = rootURL.appending(path: "Application Support/Notepad++ Mac/Plugins")
+        userPluginDirectory = rootURL.appending(path: "Application Support/Notepad Mac/Plugins")
         try FileManager.default.createDirectory(at: sourceRootURL, withIntermediateDirectories: true)
     }
 

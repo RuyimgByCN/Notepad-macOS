@@ -14,7 +14,7 @@
 "shortcutMapper.conflict.title" = "Shortcut Conflict";
 "shortcutMapper.conflict.message" = "Already used by:";
 "shortcutMapper.recorder.hint" = "Click, then press a key combo";
-"app.quit" = "Quit Notepad++ Mac";
+"app.quit" = "Quit Notepad Mac";
 "menu.settings" = "Settings";
 "menu.file" = "File";
 "file.new" = "New";
@@ -173,7 +173,7 @@
 "editor.newDocumentPrefix" = "Untitled";
 "editor.accessibility.statusBar" = "Editor status bar";
 "editor.untitledFileName" = "Untitled.txt";
-"editor.windowTitleFormat" = "%@ - Notepad++ Mac";
+"editor.windowTitleFormat" = "%@ - Notepad Mac";
 "editor.resourceNotAvailable" = "Resource not available";
 "editor.missing.autoCompletionAPI" = "No auto-completion API file is available for %@.";
 "editor.missing.activeCall" = "No function call with API metadata is active at the insertion point.";
@@ -196,8 +196,8 @@
 "editor.status.bookmarks" = "Bookmarks %d";
 "editor.encoding.fallback" = "Encoding %@";
 "fileChange.modified.title" = "File changed on disk";
-"fileChange.modified.dirty.message" = "The file \"%@\" was changed outside Notepad++ Mac. Reloading will discard unsaved edits in this window.";
-"fileChange.modified.clean.message" = "The file \"%@\" was changed outside Notepad++ Mac. Reload to show the version on disk, or keep the current buffer.";
+"fileChange.modified.dirty.message" = "The file \"%@\" was changed outside Notepad Mac. Reloading will discard unsaved edits in this window.";
+"fileChange.modified.clean.message" = "The file \"%@\" was changed outside Notepad Mac. Reload to show the version on disk, or keep the current buffer.";
 "fileChange.deleted.title" = "File deleted or moved";
 "fileChange.deleted.message" = "The file \"%@\" no longer exists at its saved path. Keeping the current buffer will mark it as modified so you can save it again.";
 "fileChange.reload" = "Reload";
@@ -742,7 +742,7 @@
 "help.update.available.body" = "Version %1$@ is available (you have %2$@).";
 "help.update.download" = "Download";
 "help.debugInfo" = "Debug Info...";
-"help.about" = "About Notepad++ Mac";
+"help.about" = "About Notepad Mac";
 "help.about.subtitle" = "Native macOS prototype";
 "help.commandLine.panelTitle" = "Command Line Arguments";
 "help.debugInfo.panelTitle" = "Debug Info";

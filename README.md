@@ -1,13 +1,13 @@
 [English](README.md) | [中文](README_zh.md)
 
-# Notepad++ Mac Native
+# Notepad Mac Native
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey.svg)](https://www.apple.com/macos)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://www.swift.org/)
 [![Upstream Notepad++](https://img.shields.io/badge/upstream-Notepad%2B%2B-90E59A.svg)](https://notepad-plus-plus.org/)
 
-**Notepad++ Mac Native** is a free and open-source code editor and Notepad
+**Notepad Mac Native** is a free and open-source code editor and Notepad
 replacement for **macOS**, built natively with Swift / AppKit. It is **not**
 a Wine wrapper — the Win32 GUI layer of Notepad++ is rewritten in native
 macOS code, while platform-neutral upstream resources (language models, themes,
@@ -23,7 +23,7 @@ the Notepad++ team. The official Windows project lives at
 
 | Editor | Find and Replace |
 |---|---|
-| ![Notepad++ Mac Native editing a Rust file](docs/images/screenshots/editor-rust.png) | ![Find and Replace panel](docs/images/screenshots/find-replace.png) |
+| ![Notepad Mac Native editing a Rust file](docs/images/screenshots/editor-rust.png) | ![Find and Replace panel](docs/images/screenshots/find-replace.png) |
 
 | Preferences | Style Configurator |
 |---|---|
@@ -97,8 +97,8 @@ scripts/package-macos.sh
 
 The packaging script creates:
 
-- `dist/Notepad++ Mac.app`
-- `dist/Notepad++ Mac.dmg`
+- `dist/Notepad Mac.app`
+- `dist/Notepad Mac.dmg`
 
 After packaging, run `scripts/smoke-packaged-app.sh` to launch the app with a
 temporary Rust file and verify that the packaged app loads the bundled

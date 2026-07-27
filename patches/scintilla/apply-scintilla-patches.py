@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Apply Scintilla cocoa patches for macOS 26+ compatibility."""
+"""Apply Scintilla patches required by the native macOS app."""
+import os
 import re
 import sys
 
@@ -179,7 +180,41 @@ def apply_display_layer_patch(filepath):
     return True
 
 
+def apply_click_past_line_end_patch(filepath):
+    """Clamp ordinary clicks after a line's text to the line end."""
+    old = (
+        "const SelectionPosition clickPos = SPositionFromLocation(pt, false, false, "
+        "AllowVirtualSpace(virtualSpaceOptions, alt));"
+    )
+    new = (
+        "const SelectionPosition clickPos = SPositionFromLocation(pt, false, false, "
+        "alt && AllowVirtualSpace(virtualSpaceOptions, true));"
+    )
+
+    with open(filepath, 'r') as f:
+        content = f.read()
+
+    if new in content:
+        print(f"  Click-past-line-end patch already applied in {filepath}")
+        return True
+    if content.count(old) != 1:
+        print(f"  ERROR: Could not uniquely find click-position marker in {filepath}")
+        return False
+
+    with open(filepath, 'w') as f:
+        f.write(content.replace(old, new))
+
+    print(f"  Applied: ordinary clicks clamp to line end in {filepath}")
+    return True
+
+
 if __name__ == '__main__':
     scintilla_view = sys.argv[1] if len(sys.argv) > 1 else 'upstream/notepad-plus-plus/scintilla/cocoa/ScintillaView.mm'
+    editor_source = (
+        sys.argv[2]
+        if len(sys.argv) > 2
+        else os.path.normpath(os.path.join(os.path.dirname(scintilla_view), '..', 'src', 'Editor.cxx'))
+    )
     success = apply_display_layer_patch(scintilla_view)
+    success = apply_click_past_line_end_patch(editor_source) and success
     sys.exit(0 if success else 1)

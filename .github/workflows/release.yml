@@ -69,11 +69,11 @@ jobs:
 
       - name: Rename DMGs for release
         run: |
-          mv "dist/Notepad++ Mac.dmg" \
+          mv "dist/Notepad Mac.dmg" \
              "dist/Notepad-macOS-${{ steps.version.outputs.version }}.dmg"
-          mv "dist/Notepad++ Mac-arm64.dmg" \
+          mv "dist/Notepad Mac-arm64.dmg" \
              "dist/Notepad-macOS-${{ steps.version.outputs.version }}-arm64.dmg"
-          mv "dist/Notepad++ Mac-x86_64.dmg" \
+          mv "dist/Notepad Mac-x86_64.dmg" \
              "dist/Notepad-macOS-${{ steps.version.outputs.version }}-x86_64.dmg"
 
       - name: Compute SHA-256

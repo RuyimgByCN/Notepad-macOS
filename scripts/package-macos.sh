@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="Notepad++ Mac"
+APP_NAME="Notepad Mac"
 EXECUTABLE_NAME="NotepadMac"
 BUNDLE_ID="org.notepad-plus-plus.macnative"
 # ⚠️ 版本号必须跟随上游 Notepad++ 的 VERSION_PRODUCT_VALUE（resource.h），禁止随意追加小版本号。
