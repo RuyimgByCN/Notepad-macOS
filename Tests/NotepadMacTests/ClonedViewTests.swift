@@ -36,11 +36,20 @@ import Testing
     surface.view.frame = window.contentView?.bounds ?? .zero
     surface.text = "abc\nsecond line"
     surface.applyVirtualSpace(true)
+    surface.applyScrollBeyondLastLine(true)
+    surface.view.layoutSubtreeIfNeeded()
 
     let contentView = try #require(descendants(of: surface.view).first {
         NSStringFromClass(type(of: $0)).contains("SCIContentView")
     })
-    let clickPoint = contentView.convert(NSPoint(x: 300, y: 8), to: nil)
+    let scrollView = try #require(descendants(of: surface.view).compactMap { $0 as? NSScrollView }.first)
+    let clickPoint = scrollView.contentView.convert(
+        NSPoint(x: scrollView.contentView.bounds.maxX - 8, y: 8),
+        to: nil
+    )
+    let windowPoint = try #require(window.contentView?.convert(clickPoint, from: nil))
+    let hitView = try #require(window.contentView?.hitTest(windowPoint))
+    #expect(hitView === contentView)
     let event = try #require(NSEvent.mouseEvent(
         with: .leftMouseDown,
         location: clickPoint,
@@ -53,7 +62,7 @@ import Testing
         pressure: 1
     ))
 
-    contentView.mouseDown(with: event)
+    hitView.mouseDown(with: event)
 
     #expect(surface.selectedRange == NSRange(location: 3, length: 0))
 }
