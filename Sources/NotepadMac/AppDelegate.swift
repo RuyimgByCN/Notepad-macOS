@@ -3,6 +3,12 @@ import Carbon
 import NotepadMacCore
 import UniformTypeIdentifiers
 
+enum TabCloseDecision: Equatable {
+    case save
+    case discard
+    case cancel
+}
+
 private struct ThemeResourceLoadResult: Sendable {
     let themeCatalog: ThemeCatalog
     let styleCatalog: StyleCatalog
@@ -1272,9 +1278,10 @@ private var appearanceObservation: NSKeyValueObservation?
         case .close:
             // Closing a specific document from the windows dialog targets
             // individual tabs, not the whole app.
-            controllers.forEach {
-                $0.isClosingSingleTab = true
-                $0.window?.performClose(nil)
+            if controllers.count == 1, let controller = controllers.first {
+                closeTab(identity: controller.tabIdentity)
+            } else {
+                closeDocumentControllers(controllers)
             }
         case .copyFilename:
             let names = controllers.map(\.windowListSortName).joined(separator: "\n")
@@ -2348,6 +2355,51 @@ private var appearanceObservation: NSKeyValueObservation?
 
     private func closeTab(identity: EditorTabIdentity) {
         guard let controller = windows.first(where: { $0.tabIdentity == identity }) else { return }
+        guard controller.hasUnsavedChanges else {
+            closeTabForcibly(controller)
+            return
+        }
+
+        activate(controller)
+        let title = controller.tabItem.title
+        let alert = NSAlert()
+        alert.messageText = String(
+            format: Localization.string(.fileCloseUnsavedChangesTitle, default: "Save \"%@\"?"),
+            title
+        )
+        alert.informativeText = Self.quitUnsavedChangesInformativeText(documentTitle: title)
+        alert.addButton(withTitle: Localization.string(.fileSave, default: "Save"))
+        alert.addButton(withTitle: Localization.string(.alertDontSave, default: "Don't Save"))
+        alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
+
+        guard let window = controller.window else { return }
+        alert.beginSheetModal(for: window) { [weak self, weak controller] response in
+            guard let self, let controller else { return }
+            switch Self.tabCloseDecision(for: response) {
+            case .save:
+                controller.saveDocument { saved in
+                    if saved {
+                        DispatchQueue.main.async { self.closeTabForcibly(controller) }
+                    }
+                }
+            case .discard:
+                DispatchQueue.main.async { self.closeTabForcibly(controller) }
+            case .cancel:
+                break
+            }
+        }
+    }
+
+    static func tabCloseDecision(for response: NSApplication.ModalResponse) -> TabCloseDecision {
+        switch response {
+        case .alertFirstButtonReturn: .save
+        case .alertSecondButtonReturn: .discard
+        default: .cancel
+        }
+    }
+
+    private func closeTabForcibly(_ controller: EditorWindowController) {
+        guard windows.contains(where: { $0 === controller }) else { return }
         controller.isClosingSingleTab = true
         controller.window?.performClose(nil)
     }
@@ -2593,8 +2645,7 @@ private var appearanceObservation: NSKeyValueObservation?
             activate(controller)
         case .close:
             // Closing from the document list targets a single tab.
-            controller.isClosingSingleTab = true
-            controller.window?.performClose(nil)
+            closeTab(identity: controller.tabIdentity)
         case .closeOthers:
             closeDocumentControllers(windows.filter { $0 !== controller })
         case .save:

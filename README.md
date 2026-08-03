@@ -97,14 +97,17 @@ scripts/package-macos.sh
 
 The packaging script creates:
 
-- `dist/Notepad Mac.app`
 - `dist/Notepad Mac.dmg`
+- `dist/Notepad Mac-arm64.dmg`
+- `dist/Notepad Mac-x86_64.dmg`
 
-After packaging, run `scripts/smoke-packaged-app.sh` to launch the app with a
+The temporary `dist/Notepad Mac.app` bundle is removed after the DMGs are
+created. Set `MACOS_KEEP_APP_BUNDLE=1` when packaging if you need to run
+`scripts/smoke-packaged-app.sh` to launch the app with a
 temporary Rust file and verify that the packaged app loads the bundled
 Scintilla and Lexilla runtimes, rather than a development-tree or system copy.
 
-For static package validation before smoke testing, run
+With that retained bundle, run
 `scripts/verify-package.sh` to check the app bundle, bundled runtimes, signing,
 DMG checksum, and quarantine attributes. The verify and smoke scripts provide
 evidence that the packaged app is using the bundled Scintilla framework and

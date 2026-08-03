@@ -27,6 +27,7 @@ SCINTILLA_UNIVERSAL_ARCHS="${MACOS_SCINTILLA_UNIVERSAL_ARCHS:-arm64 x86_64}"
 LEXILLA_UNIVERSAL_ARCHS="${MACOS_LEXILLA_UNIVERSAL_ARCHS:-arm64 x86_64}"
 CODESIGN_IDENTITY="${MACOS_CODESIGN_IDENTITY:--}"
 CODESIGN_KEYCHAIN="${MACOS_CODESIGN_KEYCHAIN:-}"
+KEEP_APP_BUNDLE="${MACOS_KEEP_APP_BUNDLE:-0}"
 LIPO="$(xcrun --find lipo 2>/dev/null || true)"
 INSTALL_NAME_TOOL="$(xcrun --find install_name_tool 2>/dev/null || true)"
 
@@ -726,10 +727,16 @@ hdiutil create \
 codesign_target "$DMG_PATH"
 create_arch_specific_packages
 
+print_architecture_report
+if ! is_truthy "$KEEP_APP_BUNDLE"; then
+    rm -rf "$APP_PATH"
+fi
+
 echo "Created:"
-echo "  $APP_PATH"
+if [[ -d "$APP_PATH" ]]; then
+    echo "  $APP_PATH"
+fi
 echo "  $DMG_PATH"
 for package_path in "${ARCH_PACKAGE_PATHS[@]}"; do
     echo "  $package_path"
 done
-print_architecture_report

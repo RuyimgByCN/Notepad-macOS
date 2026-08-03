@@ -1,3 +1,4 @@
+import AppKit
 import Testing
 @testable import NotepadMac
 
@@ -20,4 +21,11 @@ import Testing
     #expect(!message.contains("%d"))
     #expect(!message.contains("%@"))
     #expect(!message.contains("%1$@"))
+}
+
+@MainActor
+@Test func tabClosePromptMapsSaveDiscardAndCancel() {
+    #expect(AppDelegate.tabCloseDecision(for: .alertFirstButtonReturn) == .save)
+    #expect(AppDelegate.tabCloseDecision(for: .alertSecondButtonReturn) == .discard)
+    #expect(AppDelegate.tabCloseDecision(for: .alertThirdButtonReturn) == .cancel)
 }

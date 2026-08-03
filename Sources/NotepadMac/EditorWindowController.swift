@@ -663,14 +663,22 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             hosted.saveDocument(sender)
             return
         }
+        saveDocument { _ in }
+    }
+
+    func saveDocument(completion: @escaping (Bool) -> Void) {
         guard let fileURL else {
-            saveDocumentAs(sender)
+            saveDocumentAs(completion: completion)
             return
         }
-        save(to: fileURL)
+        completion(save(to: fileURL))
     }
 
     @objc func saveDocumentAs(_ sender: Any?) {
+        saveDocumentAs { _ in }
+    }
+
+    private func saveDocumentAs(completion: @escaping (Bool) -> Void) {
         let panel = NSSavePanel()
         // Numbered tab name (新文件1 / Untitled2) + language extension
         // (upstream Notepad++ selects the matching filter + appends extension).
@@ -684,8 +692,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             panel.directoryURL = URL(fileURLWithPath: prefs.defaultSaveDirectory)
         }
         panel.beginSheetModal(for: window!) { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
-            self?.save(to: url)
+            guard response == .OK, let self, let url = panel.url else {
+                completion(false)
+                return
+            }
+            completion(self.save(to: url))
         }
     }
 
@@ -5366,7 +5377,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         startFileMonitoring(for: snapshot.originalFile)
     }
 
-    private func save(to url: URL) {
+    @discardableResult
+    private func save(to url: URL) -> Bool {
         if trimTrailingSpacesOnSave {
             let current = editorSurface.text
             let result = TextEditCommands.trimTrailingWhitespace(
@@ -5409,8 +5421,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             highlight()
             updateStatus()
             startFileMonitoring(for: url)
+            return true
         } catch {
             presentError(error)
+            return false
         }
     }
 
