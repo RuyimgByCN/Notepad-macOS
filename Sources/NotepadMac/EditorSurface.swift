@@ -58,6 +58,7 @@ protocol EditorSurface: AnyObject {
     var displayName: String { get }
     var supportsFolding: Bool { get }
     var supportsAdvancedViewOptions: Bool { get }
+    var requiresHighlightAfterTextChange: Bool { get }
     var foldState: FoldState { get }
 
     func setSelectedRange(_ range: NSRange)
@@ -199,7 +200,7 @@ protocol EditorSurface: AnyObject {
     var supportsAutoPair: Bool { get }
     func setAutoPairHandler(_ handler: ((Character) -> Void)?)
     func setCharAddedHandler(_ handler: ((Character) -> Void)?)
-    func insertAutoPairClose(_ close: Character)
+    func insertAutoPairClose(_ close: String)
 
     // MARK: - Clickable URL highlighting
     var supportsUrlHighlight: Bool { get }
@@ -307,6 +308,7 @@ final class TextViewEditorSurface: EditorSurface {
     var displayName: String { "NSTextView" }
     var supportsFolding: Bool { false }
     var supportsAdvancedViewOptions: Bool { false }
+    var requiresHighlightAfterTextChange: Bool { true }
     var foldState: FoldState { FoldState() }
 
     var text: String {
@@ -563,7 +565,7 @@ final class TextViewEditorSurface: EditorSurface {
     var supportsAutoPair: Bool { false }
     func setAutoPairHandler(_ handler: ((Character) -> Void)?) {}
     func setCharAddedHandler(_ handler: ((Character) -> Void)?) {}
-    func insertAutoPairClose(_ close: Character) {}
+    func insertAutoPairClose(_ close: String) {}
 
     var supportsUrlHighlight: Bool { false }
     func applyUrlHighlights(ranges: [NSRange], style: Int) {}
@@ -788,6 +790,7 @@ final class ScintillaEditorSurface: EditorSurface {
     var displayName: String { "Scintilla" }
     var supportsFolding: Bool { true }
     var supportsAdvancedViewOptions: Bool { true }
+    var requiresHighlightAfterTextChange: Bool { false }
     var foldState: FoldState {
         guard let lineCount = bridge.getGeneralProperty(ScintillaMessage.getLineCount, parameter: 0),
               lineCount > 0
@@ -2577,23 +2580,25 @@ final class ScintillaEditorSurface: EditorSurface {
         charAddedHandler = handler
     }
 
-    func insertAutoPairClose(_ close: Character) {
+    func insertAutoPairClose(_ close: String) {
         guard let caretPos = bridge.getGeneralProperty(ScintillaMessage.getCurrentPos, parameter: 0) else { return }
         let docLen = bridge.getGeneralProperty(ScintillaMessage.getLength, parameter: 0) ?? 0
 
         // Check next char: if it's the same close char, skip over it
-        if caretPos < docLen,
+        if close.count == 1,
+           let closeCharacter = close.first,
+           caretPos < docLen,
            let nextCode = bridge.getGeneralProperty(ScintillaMessage.getCharAt, parameter: caretPos),
            nextCode > 0,
            let scalar = Unicode.Scalar(UInt32(nextCode)),
-           Character(scalar) == close
+           Character(scalar) == closeCharacter
         {
             bridge.setGeneralProperty(ScintillaMessage.gotoPos, parameter: caretPos + 1, value: 0)
             return
         }
 
-        // Insert the close character at current position
-        String(close).withCString { ptr in
+        // Insert the close text at current position
+        close.withCString { ptr in
             bridge.setReferenceProperty(ScintillaMessage.insertText, parameter: caretPos, value: UnsafeRawPointer(ptr))
         }
     }

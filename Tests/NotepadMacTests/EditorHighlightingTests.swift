@@ -89,6 +89,33 @@ import Testing
 }
 
 @MainActor
+@Test func scintillaXmlFoldStaysCollapsedAfterEditingAndAutoCloseInsertion() throws {
+    let controller = EditorWindowController(
+        languageCatalog: try LanguageCatalog.load(from: upstreamLanguageModelURL()),
+        styleCatalog: try StyleCatalog.load(from: upstreamStyleModelURL())
+    )
+    defer { controller.editorSurface.teardown() }
+
+    controller.editorSurface.text = "<root>\n  <child>value</child>\n</root>\n"
+    controller.setLanguage(named: "xml")
+    #expect(controller.editorSurface.toggleFold(atLine: 1))
+    #expect(controller.editorSurface.foldState.isCollapsed(line: 1))
+
+    NotificationCenter.default.post(
+        name: NSText.didChangeNotification,
+        object: controller.editorSurface.notificationObject,
+        userInfo: [EditorSurfaceNotificationKey.programmaticTextChange: false]
+    )
+
+    #expect(controller.editorSurface.foldState.isCollapsed(line: 1))
+
+    controller.editorSurface.setSelectedRange(NSRange(location: controller.editorSurface.text.utf16.count, length: 0))
+    controller.editorSurface.insertAutoPairClose("</tail>")
+
+    #expect(controller.editorSurface.foldState.isCollapsed(line: 1))
+}
+
+@MainActor
 @Test func fallbackXmlHighlightUsesUpstreamStringColor() throws {
     let languageCatalog = try LanguageCatalog.load(from: upstreamLanguageModelURL())
     let language = try #require(languageCatalog.language(named: "xml"))

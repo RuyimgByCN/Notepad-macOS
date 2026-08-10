@@ -591,11 +591,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.applyBookmarkMarginVisible(showsBookmarkMargin)
         updateFirstLineTabName()
         updateTitle()
-        highlight()
-        // Programmatic text changes (file load/reload) trigger this handler
-        // asynchronously. The async highlight() computes fold levels, and
-        // on initial load we want all folds expanded — matching upstream
-        // Notepad++ behavior. For user edits, fold state is preserved.
+        if editorSurface.requiresHighlightAfterTextChange {
+            highlight()
+        }
+        // Programmatic file loads apply highlighting before this deferred
+        // notification. Start those documents expanded; user edits keep the
+        // fold state maintained incrementally by Scintilla.
         if isProgrammaticChange {
             editorSurface.unfoldAll()
         }
@@ -1342,11 +1343,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             }
         case ">":
             if htmlXmlCloseTagEnabled, let closeTag = xmlCloseTagToInsert(text: text, caretPos: caretPos) {
-                // Insert the close tag string char by char via the surface
-                let nsText = editorSurface.text as NSString
                 let curPos = editorSurface.selectedRange.location
-                let newText = (nsText.substring(to: curPos) + closeTag + nsText.substring(from: curPos)) as NSString
-                editorSurface.text = newText as String
+                editorSurface.insertAutoPairClose(closeTag)
                 editorSurface.setSelectedRange(NSRange(location: curPos + closeTag.utf16.count, length: 0))
             }
         default:
@@ -1359,7 +1357,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                       pair[0] != pair[1] else { continue }
                 if isNextBlank || isNextCloseSymbol,
                    let closeChar = pair[1].first {
-                    editorSurface.insertAutoPairClose(closeChar)
+                    editorSurface.insertAutoPairClose(String(closeChar))
                 }
                 break
             }
