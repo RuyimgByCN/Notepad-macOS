@@ -219,8 +219,10 @@ public final class SessionStore {
         static let folds = "notepadMac.session.folds"
         static let tabStates = "notepadMac.session.tabStates"
         static let caretPositions = "notepadMac.session.caretPositions"
-        static let legacyMigrationCompleted = "notepadMac.session.legacyMigrationCompleted"
+        static let legacyMigrationVersion = "notepadMac.session.legacyMigrationVersion"
     }
+
+    private static let currentLegacyMigrationVersion = 2
 
     private let defaults: UserDefaults
     private let legacyDefaults: UserDefaults?
@@ -232,19 +234,23 @@ public final class SessionStore {
 
     public func load() -> AppSession {
         let session = load(from: defaults)
-        guard defaults.object(forKey: Key.legacyMigrationCompleted) == nil,
+        guard defaults.integer(forKey: Key.legacyMigrationVersion) < Self.currentLegacyMigrationVersion,
               let legacyDefaults else {
             return session
         }
 
-        defaults.set(true, forKey: Key.legacyMigrationCompleted)
         let legacySession = load(from: legacyDefaults)
-        guard !hasRestorableContent(session), hasRestorableContent(legacySession) else {
+        guard hasRestorableContent(legacySession) else {
+            finishLegacyMigration()
             return session
         }
 
-        save(legacySession)
-        return legacySession
+        let migratedSession = hasRestorableContent(session)
+            ? merge(session, with: legacySession)
+            : legacySession
+        save(migratedSession)
+        finishLegacyMigration()
+        return migratedSession
     }
 
     private func load(from defaults: UserDefaults) -> AppSession {
@@ -280,6 +286,38 @@ public final class SessionStore {
         !session.snapshots.isEmpty || session.openFiles.contains {
             FileManager.default.fileExists(atPath: $0.path)
         }
+    }
+
+    private func merge(_ current: AppSession, with legacy: AppSession) -> AppSession {
+        let currentBookmarkIdentities = Set(current.bookmarks.map(\.identity))
+        let currentFoldIdentities = Set(current.folds.map(\.identity))
+        let currentTabStateIdentities = Set(current.tabStates.map(\.identity))
+        let currentCaretIdentities = Set(current.caretPositions.map(\.identity))
+
+        return AppSession(
+            openFiles: current.openFiles + legacy.openFiles,
+            activeFile: current.activeFile ?? legacy.activeFile,
+            snapshots: current.snapshots + legacy.snapshots,
+            activeSnapshotID: current.activeSnapshotID
+                ?? (current.activeFile == nil ? legacy.activeSnapshotID : nil),
+            bookmarks: current.bookmarks + legacy.bookmarks.filter {
+                !currentBookmarkIdentities.contains($0.identity)
+            },
+            folds: current.folds + legacy.folds.filter {
+                !currentFoldIdentities.contains($0.identity)
+            },
+            tabStates: current.tabStates + legacy.tabStates.filter {
+                !currentTabStateIdentities.contains($0.identity)
+            },
+            caretPositions: current.caretPositions + legacy.caretPositions.filter {
+                !currentCaretIdentities.contains($0.identity)
+            }
+        )
+    }
+
+    private func finishLegacyMigration() {
+        defaults.set(Self.currentLegacyMigrationVersion, forKey: Key.legacyMigrationVersion)
+        defaults.synchronize()
     }
 
     public func save(_ session: AppSession) {

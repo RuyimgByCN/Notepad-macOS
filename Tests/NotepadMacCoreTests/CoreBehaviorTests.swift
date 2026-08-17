@@ -1496,6 +1496,48 @@ import Testing
     #expect(SessionStore(defaults: currentDefaults).load() == legacySession)
 }
 
+@Test func legacySessionMigrationMergesMissingFilesWithoutReplacingCurrentState() throws {
+    let currentSuite = "NotepadMacCoreTests.current.\(UUID().uuidString)"
+    let legacySuite = "NotepadMacCoreTests.legacy.\(UUID().uuidString)"
+    let currentDefaults = try #require(UserDefaults(suiteName: currentSuite))
+    let legacyDefaults = try #require(UserDefaults(suiteName: legacySuite))
+    defer {
+        currentDefaults.removePersistentDomain(forName: currentSuite)
+        legacyDefaults.removePersistentDomain(forName: legacySuite)
+    }
+
+    let directory = FileManager.default.temporaryDirectory
+        .appending(path: "notepad-session-merge-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let currentFile = directory.appending(path: "current.txt")
+    let legacyFile = directory.appending(path: "legacy.txt")
+    try Data().write(to: currentFile)
+    try Data().write(to: legacyFile)
+
+    let currentSession = AppSession(
+        openFiles: [currentFile],
+        activeFile: currentFile,
+        caretPositions: [SessionCaretRecord(identity: .file(currentFile), caretLocation: 10)]
+    )
+    let legacySession = AppSession(
+        openFiles: [currentFile, legacyFile],
+        activeFile: legacyFile,
+        caretPositions: [
+            SessionCaretRecord(identity: .file(currentFile), caretLocation: 99),
+            SessionCaretRecord(identity: .file(legacyFile), caretLocation: 20)
+        ]
+    )
+    SessionStore(defaults: currentDefaults).save(currentSession)
+    SessionStore(defaults: legacyDefaults).save(legacySession)
+
+    let migrated = SessionStore(defaults: currentDefaults, legacyDefaults: legacyDefaults).load()
+    #expect(migrated.openFiles == [currentFile, legacyFile])
+    #expect(migrated.activeFile == currentFile)
+    #expect(migrated.caretLocation(for: .file(currentFile)) == 10)
+    #expect(migrated.caretLocation(for: .file(legacyFile)) == 20)
+}
+
 @Test func storesAndLoadsAppSessionTabStateAndCaretPositions() throws {
     // tabStates and caretPositions were declared on AppSession but omitted
     // from Codable, so they were silently dropped on every restart. Verify
