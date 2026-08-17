@@ -59,4 +59,13 @@ struct HelpSupportTests {
         #expect(HelpSupport.url(for: .forum).absoluteString == "https://github.com/RuyimgByCN/Notepad-macOS/issues")
         #expect(HelpSupport.url(for: .downloads).absoluteString == "https://github.com/RuyimgByCN/Notepad-macOS/releases")
     }
+
+    @Test func packagedSmokeTestDoesNotPersistItsTemporarySession() {
+        #expect(CommandLineArgs.shouldPersistSession(["NotepadMac", "/tmp/user.txt"]))
+        #expect(!CommandLineArgs.shouldPersistSession([
+            "NotepadMac",
+            CommandLineArgs.smokeSessionIsolationArgument,
+            "/tmp/smoke.rs"
+        ]))
+    }
 }

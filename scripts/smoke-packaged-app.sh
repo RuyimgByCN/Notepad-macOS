@@ -170,7 +170,7 @@ launch_packaged_app() {
 
     BASELINE_PIDS="$(process_pids)"
 
-    if open -n "$APP_PATH" --args "$RUST_FILE"; then
+    if open -n "$APP_PATH" --args --smoke-no-session-persistence "$RUST_FILE"; then
         if wait_for_new_process; then
             return 0
         fi
@@ -186,7 +186,7 @@ launch_packaged_app() {
     fi
 
     echo "Falling back to direct packaged executable launch because SMOKE_ALLOW_DIRECT_FALLBACK=1."
-    "$executable_path" "$RUST_FILE" >"$TMP_DIR/app.stdout" 2>"$stderr_path" &
+    "$executable_path" --smoke-no-session-persistence "$RUST_FILE" >"$TMP_DIR/app.stdout" 2>"$stderr_path" &
     LAUNCHED_PIDS+=("$!")
 
     sleep 1

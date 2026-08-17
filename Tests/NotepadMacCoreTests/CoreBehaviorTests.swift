@@ -1473,6 +1473,29 @@ import Testing
     #expect(store.load() == .empty)
 }
 
+@Test func migratesRestorableSessionFromLegacyBundleDefaults() throws {
+    let currentSuite = "NotepadMacCoreTests.current.\(UUID().uuidString)"
+    let legacySuite = "NotepadMacCoreTests.legacy.\(UUID().uuidString)"
+    let currentDefaults = try #require(UserDefaults(suiteName: currentSuite))
+    let legacyDefaults = try #require(UserDefaults(suiteName: legacySuite))
+    defer {
+        currentDefaults.removePersistentDomain(forName: currentSuite)
+        legacyDefaults.removePersistentDomain(forName: legacySuite)
+    }
+
+    let file = FileManager.default.temporaryDirectory
+        .appending(path: "notepad-session-migration-\(UUID().uuidString).txt")
+    try Data().write(to: file)
+    defer { try? FileManager.default.removeItem(at: file) }
+
+    let legacySession = AppSession(openFiles: [file], activeFile: file)
+    SessionStore(defaults: legacyDefaults).save(legacySession)
+
+    let store = SessionStore(defaults: currentDefaults, legacyDefaults: legacyDefaults)
+    #expect(store.load() == legacySession)
+    #expect(SessionStore(defaults: currentDefaults).load() == legacySession)
+}
+
 @Test func storesAndLoadsAppSessionTabStateAndCaretPositions() throws {
     // tabStates and caretPositions were declared on AppSession but omitted
     // from Codable, so they were silently dropped on every restart. Verify

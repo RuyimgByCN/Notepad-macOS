@@ -38,7 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var styleCatalog = StyleCatalog.empty
     private let preferencesStore = PreferencesStore()
     private let stylePreferencesStore = StylePreferencesStore()
-    private let sessionStore = SessionStore()
+    private let sessionStore = SessionStore(
+        legacyDefaults: UserDefaults(suiteName: "org.notepad-plus-plus.macnative")
+    )
     private let snapshotStore = SnapshotStore()
     private let workspaceStore = WorkspaceStore()
     private var currentWorkspaceURL: URL?
@@ -3417,6 +3419,7 @@ private var appearanceObservation: NSKeyValueObservation?
     }
 
     private func saveSession() {
+        guard CommandLineArgs.shouldPersistSession(CommandLine.arguments) else { return }
         // During termination, document windows close one by one (each firing
         // its onClose → saveSession). The terminal snapshot is already taken in
         // beginTermination() while windows were still alive, so skip here to

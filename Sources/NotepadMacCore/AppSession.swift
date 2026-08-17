@@ -219,15 +219,35 @@ public final class SessionStore {
         static let folds = "notepadMac.session.folds"
         static let tabStates = "notepadMac.session.tabStates"
         static let caretPositions = "notepadMac.session.caretPositions"
+        static let legacyMigrationCompleted = "notepadMac.session.legacyMigrationCompleted"
     }
 
     private let defaults: UserDefaults
+    private let legacyDefaults: UserDefaults?
 
-    public init(defaults: UserDefaults = .standard) {
+    public init(defaults: UserDefaults = .standard, legacyDefaults: UserDefaults? = nil) {
         self.defaults = defaults
+        self.legacyDefaults = legacyDefaults
     }
 
     public func load() -> AppSession {
+        let session = load(from: defaults)
+        guard defaults.object(forKey: Key.legacyMigrationCompleted) == nil,
+              let legacyDefaults else {
+            return session
+        }
+
+        defaults.set(true, forKey: Key.legacyMigrationCompleted)
+        let legacySession = load(from: legacyDefaults)
+        guard !hasRestorableContent(session), hasRestorableContent(legacySession) else {
+            return session
+        }
+
+        save(legacySession)
+        return legacySession
+    }
+
+    private func load(from defaults: UserDefaults) -> AppSession {
         let openFiles = defaults.stringArray(forKey: Key.openFiles)?
             .map { URL(fileURLWithPath: $0) } ?? []
         let activeFile = defaults.string(forKey: Key.activeFile)
@@ -254,6 +274,12 @@ public final class SessionStore {
             tabStates: tabStates,
             caretPositions: caretPositions
         )
+    }
+
+    private func hasRestorableContent(_ session: AppSession) -> Bool {
+        !session.snapshots.isEmpty || session.openFiles.contains {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
     }
 
     public func save(_ session: AppSession) {

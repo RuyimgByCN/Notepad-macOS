@@ -1,6 +1,8 @@
 import Foundation
 
 struct CommandLineArgs {
+    static let smokeSessionIsolationArgument = "--smoke-no-session-persistence"
+
     let fileURLs: [URL]
     /// File paths passed on the command line that do not exist yet.
     let newFileURLs: [URL]
@@ -20,6 +22,10 @@ struct CommandLineArgs {
     let openSessionURL: URL?
     /// When true, print usage and exit without launching the app
     let printHelpAndExit: Bool
+
+    static func shouldPersistSession(_ args: some Collection<String>) -> Bool {
+        !args.contains(smokeSessionIsolationArgument)
+    }
 
     static func parse(_ args: any Collection<String>) -> CommandLineArgs {
         var fileURLs: [URL] = []
