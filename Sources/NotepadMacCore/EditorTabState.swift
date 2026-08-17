@@ -63,7 +63,7 @@ public struct EditorTabState: Codable, Equatable, Sendable {
         if let normalizedActive, seen.contains(normalizedActive) {
             self.activeIdentity = normalizedActive
         } else {
-            self.activeIdentity = normalizedItems.first?.identity
+            self.activeIdentity = normalizedItems.last?.identity
         }
     }
 

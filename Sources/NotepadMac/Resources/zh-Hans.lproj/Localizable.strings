@@ -230,8 +230,7 @@
 "rectangularSelection.validation.endColumn" = "结束列必须至少为 %d。";
 "rectangularSelection.preview.loaded" = "已将当前选择载入为替换预览。";
 "columnEditor.panelTitle" = "列编辑器";
-"columnEditor.range.singleLine" = "第 %d 行";
-"columnEditor.range.multipleLines" = "第 %d-%d 行";
+"columnEditor.label.lineRange" = "行范围";
 "columnEditor.mode.text" = "插入文本";
 "columnEditor.mode.number" = "插入数字";
 "columnEditor.label.text" = "文本";
@@ -252,7 +251,8 @@
 "columnEditor.padding.zeros" = "补零";
 "columnEditor.padding.spaces" = "补空格";
 "columnEditor.apply.insert" = "插入";
-"columnEditor.accessibility.range" = "已选行范围";
+"columnEditor.accessibility.startLine" = "起始行";
+"columnEditor.accessibility.endLine" = "结束行";
 "columnEditor.accessibility.textMode" = "文本插入模式";
 "columnEditor.accessibility.numberMode" = "数字插入模式";
 "columnEditor.accessibility.textField" = "要插入的文本";

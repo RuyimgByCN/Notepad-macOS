@@ -14,7 +14,10 @@ final class ColumnEditorPanelController: NSObject {
         backing: .buffered,
         defer: false
     )
-    private let rangeField = NSTextField(labelWithString: "")
+    private let rangeLabel = NSTextField(labelWithString: "")
+    private let startLineField = NSTextField(string: "1")
+    private let rangeSeparator = NSTextField(labelWithString: "–")
+    private let endLineField = NSTextField(string: "1")
     private let textLabel = NSTextField(labelWithString: "")
     private let columnLabel = NSTextField(labelWithString: "")
     private let initialLabel = NSTextField(labelWithString: "")
@@ -43,7 +46,8 @@ final class ColumnEditorPanelController: NSObject {
     private let paddingPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let widthField = NSTextField(string: "1")
     private let applyButton = NSButton(title: "", target: nil, action: nil)
-    private var onApply: ((ColumnEditorOperation, Int) -> Void)?
+    private var lineCount = 1
+    private var onApply: ((ColumnEditorOperation, ClosedRange<Int>, Int) -> Void)?
 
     override init() {
         super.init()
@@ -65,16 +69,11 @@ final class ColumnEditorPanelController: NSObject {
         NotificationCenter.default.removeObserver(self)
     }
 
-    func show(lineRange: ClosedRange<Int>, column: Int, onApply: @escaping (ColumnEditorOperation, Int) -> Void) {
+    func show(lineCount: Int, column: Int, onApply: @escaping (ColumnEditorOperation, ClosedRange<Int>, Int) -> Void) {
         self.onApply = onApply
-        rangeField.stringValue = lineRange.lowerBound == lineRange.upperBound
-            ? localizedString(.columnEditorRangeSingleLine, default: "Line %d", lineRange.lowerBound)
-            : localizedString(
-                .columnEditorRangeMultipleLines,
-                default: "Lines %d-%d",
-                lineRange.lowerBound,
-                lineRange.upperBound
-            )
+        self.lineCount = max(1, lineCount)
+        startLineField.integerValue = 1
+        endLineField.integerValue = self.lineCount
         columnField.integerValue = max(1, column)
         columnStepper.integerValue = columnField.integerValue
         panel.center()
@@ -90,8 +89,12 @@ final class ColumnEditorPanelController: NSObject {
 
     private func refreshLocalizedStrings() {
         panel.title = Localization.string(.columnEditorPanelTitle, default: "Column Editor")
-        rangeField.setAccessibilityLabel(
-            Localization.string(.columnEditorRangeAccessibilityLabel, default: "Selected line range")
+        rangeLabel.stringValue = Localization.string(.columnEditorLineRangeLabel, default: "Lines")
+        startLineField.setAccessibilityLabel(
+            Localization.string(.columnEditorStartLineAccessibilityLabel, default: "Start line")
+        )
+        endLineField.setAccessibilityLabel(
+            Localization.string(.columnEditorEndLineAccessibilityLabel, default: "End line")
         )
         textLabel.stringValue = Localization.string(.columnEditorTextLabel, default: "Text")
         columnLabel.stringValue = Localization.string(.columnEditorColumnLabel, default: "Column")
@@ -166,7 +169,7 @@ final class ColumnEditorPanelController: NSObject {
         textModeButton.state = .on
         numberModeButton.target = self
         numberModeButton.action = #selector(modeChanged(_:))
-        [columnField, initialField, incrementField, repeatField, widthField].forEach {
+        [startLineField, endLineField, columnField, initialField, incrementField, repeatField, widthField].forEach {
             $0.formatter = integerFormatter
         }
         columnStepper.minValue = 1
@@ -179,7 +182,10 @@ final class ColumnEditorPanelController: NSObject {
         applyButton.bezelStyle = .rounded
 
         let views: [NSView] = [
-            rangeField,
+            rangeLabel,
+            startLineField,
+            rangeSeparator,
+            endLineField,
             textModeButton,
             numberModeButton,
             textLabel,
@@ -207,14 +213,25 @@ final class ColumnEditorPanelController: NSObject {
         }
 
         NSLayoutConstraint.activate([
-            rangeField.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 18),
-            rangeField.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -18),
-            rangeField.topAnchor.constraint(equalTo: root.topAnchor, constant: 16),
+            rangeLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 18),
+            rangeLabel.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
+            rangeLabel.widthAnchor.constraint(equalToConstant: 82),
 
-            textModeButton.leadingAnchor.constraint(equalTo: rangeField.leadingAnchor),
-            textModeButton.topAnchor.constraint(equalTo: rangeField.bottomAnchor, constant: 18),
+            startLineField.leadingAnchor.constraint(equalTo: rangeLabel.trailingAnchor, constant: 12),
+            startLineField.centerYAnchor.constraint(equalTo: rangeLabel.centerYAnchor),
+            startLineField.widthAnchor.constraint(equalToConstant: 74),
 
-            textLabel.leadingAnchor.constraint(equalTo: rangeField.leadingAnchor, constant: 18),
+            rangeSeparator.leadingAnchor.constraint(equalTo: startLineField.trailingAnchor, constant: 8),
+            rangeSeparator.centerYAnchor.constraint(equalTo: rangeLabel.centerYAnchor),
+
+            endLineField.leadingAnchor.constraint(equalTo: rangeSeparator.trailingAnchor, constant: 8),
+            endLineField.centerYAnchor.constraint(equalTo: rangeLabel.centerYAnchor),
+            endLineField.widthAnchor.constraint(equalToConstant: 74),
+
+            textModeButton.leadingAnchor.constraint(equalTo: rangeLabel.leadingAnchor),
+            textModeButton.topAnchor.constraint(equalTo: rangeLabel.bottomAnchor, constant: 18),
+
+            textLabel.leadingAnchor.constraint(equalTo: rangeLabel.leadingAnchor, constant: 18),
             textLabel.topAnchor.constraint(equalTo: textModeButton.bottomAnchor, constant: 10),
             textLabel.widthAnchor.constraint(equalToConstant: 82),
 
@@ -222,7 +239,7 @@ final class ColumnEditorPanelController: NSObject {
             textField.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -18),
             textField.centerYAnchor.constraint(equalTo: textLabel.centerYAnchor),
 
-            numberModeButton.leadingAnchor.constraint(equalTo: rangeField.leadingAnchor),
+            numberModeButton.leadingAnchor.constraint(equalTo: rangeLabel.leadingAnchor),
             numberModeButton.topAnchor.constraint(equalTo: textLabel.bottomAnchor, constant: 18),
 
             initialLabel.leadingAnchor.constraint(equalTo: textLabel.leadingAnchor),
@@ -307,10 +324,25 @@ final class ColumnEditorPanelController: NSObject {
         }
 
         if textModeButton.state == .on {
-            onApply?(.text(textField.stringValue), max(1, columnField.integerValue))
+            onApply?(.text(textField.stringValue), selectedLineRange, max(1, columnField.integerValue))
         } else {
-            onApply?(.number(numberOptions()), max(1, columnField.integerValue))
+            onApply?(.number(numberOptions()), selectedLineRange, max(1, columnField.integerValue))
         }
+    }
+
+    private var selectedLineRange: ClosedRange<Int> {
+        Self.normalizedLineRange(
+            start: startLineField.integerValue,
+            end: endLineField.integerValue,
+            lineCount: lineCount
+        )
+    }
+
+    static func normalizedLineRange(start: Int, end: Int, lineCount: Int) -> ClosedRange<Int> {
+        let lastLine = max(1, lineCount)
+        let start = min(max(1, start), lastLine)
+        let end = min(max(1, end), lastLine)
+        return min(start, end)...max(start, end)
     }
 
     private func updateModeControls() {
@@ -365,13 +397,5 @@ final class ColumnEditorPanelController: NSObject {
         let formatter = NumberFormatter()
         formatter.numberStyle = .none
         return formatter
-    }
-
-    private func localizedString(_ key: Localization.Key, default defaultValue: String, _ arguments: CVarArg...) -> String {
-        String(
-            format: Localization.string(key, default: defaultValue),
-            locale: Locale.current,
-            arguments: arguments
-        )
     }
 }

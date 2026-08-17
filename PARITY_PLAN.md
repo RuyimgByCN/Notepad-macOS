@@ -1,7 +1,7 @@
 # Notepad++ 功能补齐计划 (native-macos)
 
 > ✅ 主计划条目已全部完成（2026-06-13）。此后按上游小版本增量补齐。
-> 当前构建基准：**v8.9.7.0**，CI `NPP_COMMIT` = `00fa5df0da1d4f6b334317aa979db13ac77ee24d`
+> 当前构建基准：**v8.9.7.0**，CI `NPP_COMMIT` = `af5a1baef269127fb02931a63818d1bdcddbdb46`
 > （见 `.github/workflows/release.yml` / `scripts/package-macos.sh`）。
 
 基于 2026-06 对 `Sources/` 与上游 `PowerEditor` 菜单/功能集的差距分析。
@@ -350,10 +350,10 @@ swift test 490 项全过。
 
 | 项 | 值 |
 |----|-----|
-| `NPP_COMMIT`（`release.yml`） | `00fa5df0da1d4f6b334317aa979db13ac77ee24d` |
+| `NPP_COMMIT`（`release.yml`） | `af5a1baef269127fb02931a63818d1bdcddbdb46` |
 | 默认 `MACOS_APP_VERSION`（`package-macos.sh`） | `8.9.7.0` |
-| Scintilla | **5.6.4**（本地重建 framework） |
-| Lexilla | **5.5.1**（universal dylib；含 LexBaan OOB、HTML/XML CDATA 样式） |
+| Scintilla | **5.6.6**（本地重建 framework） |
+| Lexilla | **5.5.3**（universal dylib；含 LexBaan OOB、HTML/XML CDATA 样式、5.5.2/5.5.3 的 LexProgress/LexCPP/LexHTML/LexRuby 修复） |
 | 打包资源 | 自动跟上游 `langs.model.xml`、`APIs/css.xml` / `php.xml` 等 |
 
 发版 tag 须为 **`v8.9.7.0`**（与 `resource.h` 一致，禁止自拟小版本号）。

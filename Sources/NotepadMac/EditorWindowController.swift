@@ -3946,9 +3946,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     @objc func showColumnEditor(_ sender: Any?) {
-        let lineRange = selectedLineRange()
         let column = lineAndColumn(at: editorSurface.selectedRange.location).column
-        columnEditorPanel.show(lineRange: lineRange, column: column) { [weak self] operation, column in
+        columnEditorPanel.show(lineCount: documentLineCount(), column: column) { [weak self] operation, lineRange, column in
             self?.performColumnEdit(operation, lineRange: lineRange, column: column)
         }
     }

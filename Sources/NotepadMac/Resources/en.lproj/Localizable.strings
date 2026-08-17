@@ -230,8 +230,7 @@
 "rectangularSelection.validation.endColumn" = "Through column must be at least %d.";
 "rectangularSelection.preview.loaded" = "Loaded current selection as a replacement preview.";
 "columnEditor.panelTitle" = "Column Editor";
-"columnEditor.range.singleLine" = "Line %d";
-"columnEditor.range.multipleLines" = "Lines %d-%d";
+"columnEditor.label.lineRange" = "Lines";
 "columnEditor.mode.text" = "Text to Insert";
 "columnEditor.mode.number" = "Number to Insert";
 "columnEditor.label.text" = "Text";
@@ -252,7 +251,8 @@
 "columnEditor.padding.zeros" = "Zeros";
 "columnEditor.padding.spaces" = "Spaces";
 "columnEditor.apply.insert" = "Insert";
-"columnEditor.accessibility.range" = "Selected line range";
+"columnEditor.accessibility.startLine" = "Start line";
+"columnEditor.accessibility.endLine" = "End line";
 "columnEditor.accessibility.textMode" = "Text insertion mode";
 "columnEditor.accessibility.numberMode" = "Number insertion mode";
 "columnEditor.accessibility.textField" = "Text to insert";

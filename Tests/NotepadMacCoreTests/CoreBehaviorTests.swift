@@ -1567,7 +1567,7 @@ import Testing
     #expect(session.snapshotFileFallbacks(missingSnapshotIDs: ["draft-2"]).isEmpty)
 }
 
-@Test func editorTabStateDeduplicatesDocumentsAndNormalizesActiveTab() {
+@Test func editorTabStateDeduplicatesDocumentsAndDefaultsToLastTab() {
     let first = URL(filePath: "/tmp/one.txt")
     let second = URL(filePath: "/tmp/two.txt")
     let duplicateFirst = URL(filePath: "/tmp/../tmp/one.txt")
@@ -1583,7 +1583,7 @@ import Testing
     )
 
     #expect(state.items.map(\.title) == ["one.txt", "Unsaved", "two.txt"])
-    #expect(state.activeIdentity == .file(first.standardizedFileURL))
+    #expect(state.activeIdentity == .file(second.standardizedFileURL))
 }
 
 @Test func editorTabStatePreservesTabMetadataWhileNormalizing() throws {

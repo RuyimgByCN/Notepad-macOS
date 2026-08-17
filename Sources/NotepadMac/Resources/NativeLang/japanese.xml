@@ -5,7 +5,7 @@ Translation note:
 2. All the comments are for explanation, they are not for translation.
 -->
 <NotepadPlus>
-	<Native-Langue name="Japanese" filename="japanese.xml" version="8.9.5">
+	<Native-Langue name="Japanese" filename="japanese.xml" version="8.9.7">
 		<Menu>
 			<Main>
 				<!-- Main Menu Entries -->
@@ -90,6 +90,7 @@ Translation note:
 					<Item id="41002" name="開く(&amp;O)..."/>
 					<Item id="41019" name="エクスプローラー"/>
 					<Item id="41020" name="コマンドプロンプト"/>
+					<Item id="41027" name="PowerShell"/>
 					<Item id="41025" name="フォルダーをワークスペースとして開く(&amp;K)"/>
 					<Item id="41003" name="閉じる(&amp;C)"/>
 					<Item id="41004" name="すべて閉じる(&amp;E)"/>
@@ -404,6 +405,7 @@ Translation note:
 					<Item id="48511" name="ファイルから生成..."/>
 					<Item id="48512" name="選択範囲から生成しクリップボードへ出力"/>
 					<Item id="49000" name="ファイル名を指定して実行(&amp;R)..."/>
+					<Item id="49001" name="shortcuts.xml を承認する"/>
 
 					<Item id="50000" name="関数名補完"/>
 					<Item id="50001" name="単語補完"/>
@@ -445,6 +447,7 @@ Translation note:
 				<Item CMDID="1" name="開く"/>
 				<Item CMDID="41019" name="ファイルの場所をエクスプローラーで開く"/>
 				<Item CMDID="41020" name="ファイルの場所をコマンドプロンプトで開く"/>
+				<Item CMDID="41027" name="ファイルの場所をPowerShellで開く"/>
 				<Item CMDID="41025" name="ファイルを含むフォルダーをワークスペースとして開く"/>
 				<Item CMDID="41023" name="既定のアプリで開く"/>
 				<Item CMDID="41017" name="名前の変更..."/>
@@ -535,6 +538,7 @@ Translation note:
 				<Item id="1681" name="検索文字列:"/>
 				<Item id="1685" name="大/小文字を区別(&amp;C)"/>
 				<Item id="1690" name="すべてハイライト(&amp;H)"/>
+				<Item id="1691" name="一致数を表示(&amp;O)"/>
 			</IncrementalFind>
 
 			<FindCharsInRange title="文字範囲を指定して検索...">
@@ -614,7 +618,7 @@ Translation note:
 				<Item id="2" name="閉じる(&amp;C)"/>
 			</SHA512FromTextDlg>
 
-			<PluginsAdminDlg title="プラグイン管理" titleAvailable="利用可能" titleUpdates="アップデート" titleInstalled="インストール済み" titleIncompatible="互換性がない">
+			<PluginsAdminDlg title="プラグイン管理" titleAvailable="利用可能" titleUpdates="アップデート" titleInstalled="インストール済み" titleIncompatible="互換性がない" titleDisabled="無効化済み">
 				<ColumnPlugin name="プラグイン"/>
 				<ColumnVersion name="バージョン"/>
 				<Item id="5501" name="検索(&amp;S)："/>
@@ -624,6 +628,8 @@ Translation note:
 				<Item id="5508" name="次を検索(&amp;N)"/>
 				<Item id="5509" name="プラグインリストのバージョン："/>
 				<Item id="5511" name="プラグインリストのレポジトリ"/>
+				<Item id="5512" name="無効化する(&amp;E)"/>
+				<Item id="5513" name="有効にする(&amp;A)"/>
 				<Item id="2" name="閉じる"/>
 			</PluginsAdminDlg>
 
@@ -689,6 +695,8 @@ Translation note:
 				<MainCommandNames>
 					<Item id="41019" name="このファイルのあるフォルダーをエクスプローラーで開く"/>
 					<Item id="41020" name="このファイルのあるフォルダーをコマンドプロンプトで開く"/>
+					<Item id="41027" name="このファイルのあるフォルダーをPowerShellで開く"/>
+					<Item id="41025" name="このファイルのあるフォルダーをワークスペースとして開く"/>
 					<Item id="41021" name="直前に閉じたファイルを開く"/>
 					<Item id="45001" name="改行コードを Windows (CR LF) に変換"/>
 					<Item id="45002" name="改行コードを Unix (LF) に変換"/>
@@ -1185,6 +1193,7 @@ Translation note:
 
 				<Print title="印刷">
 					<Item id="6601" name="行番号を印刷する(&amp;U)"/>
+					<Item id="6616" name="formfeed制御文字を改ページとして扱う(&amp;S)"/>
 					<Item id="6602" name="色"/>
 					<Item id="6603" name="編集画面の表示のまま(&amp;Y)"/>
 					<Item id="6604" name="反転(&amp;N)"/>
@@ -1464,7 +1473,18 @@ Translation note:
 				<Item id="7" name="いいえ(&amp;N)"/>
 				<Item id="4" name="常に はい(&amp;A)"/>
 			</DoSaveAll><!-- HowToReproduce: Check the 'Enable Save All confirm dialog' checkbox in Preference->MISC, now click 'Save all' -->
+			<NetworkPathWarning title="Notepad++ セッションの読み込み" title2="クリックできる file:// リンク">
+				<Item id="1771" name="ネットワークパスの警告:
 
+$STR_REPLACE$
+
+この読み込みを続けると、Windowsが自動的にこのサーバーと認証を行うため、Windowsのログイン情報が漏洩する恐れがあります。
+読み込みを続けますか？"/>
+				<Item id="2" name="スキップ(&amp;S)"/>
+				<Item id="6" name="読み込む(&amp;L)"/>
+				<Item id="7" name="常にネットワークパスをスキップ(&amp;A)"/>
+				<Item id="4" name="常にネットワークパスを読み込む(&amp;E)"/>
+			</NetworkPathWarning>
 			<DebugInfo title="デバッグ情報">
 				<Item id="1752" name="情報をクリップボードにコピー（&amp;C）"/>
 				<Item id="1" name="OK"/>
@@ -1494,8 +1514,7 @@ Translation note:
 本当に開きますか?"/>
 			<SettingsOnCloudError title="警告: クラウド設定" message="クラウドのパスが、読み込み専用ドライブか、書き込み権限が必要なフォルダーに設定されています。
 クラウドの設定はキャンセルされます。環境設定画面で正しい場所を指定し直して下さい。"/>
-
-			<FilePathNotFoundWarning title="警告: ファイルを開く" message="指定されたファイルは存在しません。"/>
+			<FilePathNotFoundWarning title="警告: パスを開く" message="指定されたパスは存在しません。"/>
 			<SessionFileInvalidError title="セッションを読み込めません" message="セッションファイルが破損しているか、正しい形式ではありません。"/>
 			<DroppingFolderAsProjectModeWarning title="無効な操作です" message="「フォルダーをプロジェクトとして開く」設定になっているため、ファイルとフォルダーを同時にドロップして開くことはできません。
 この操作を使いたい場合、「環境設定」を開き、「既定のディレクトリ」の「フォルダーをドロップした時、ワークスペースとせずに すべてのファイルを開く」を有効にして下さい。"/>
@@ -1532,7 +1551,6 @@ Notepad++ で行った変更は破棄されますが、再読み込みします�
 			<PrehistoricSystemDetected title="古いシステムです" message="システムが古いため、この機能は利用できません。"/>
 			<XpUpdaterProblem title="Notepad++ アップデーター" message="Notepad++ アップデーターは XP では利用できません。これは XP のセキュリティー機能が古いためです。
 Notepad++ のダウンロードページを開きますか？"/>
-			<GUpProxyConfNeedAdminMode title="プロキシ設定" message="プロキシ設定を変更するには、Notepad++ を管理者権限で実行してください。"/>
 			<DocTooDirtyToMonitor title="ファイル監視" message="この文書は変更されています。監視を始める前に保存をして下さい。"/>
 			<DocNoExistToMonitor title="ファイル監視" message="監視対象のファイルが存在しません。"/>
 			<FileTooBigToOpen title="ファイルサイズ" message="ファイルサイズが大きいため Notepad++ で開けません。"/>
@@ -1620,6 +1638,12 @@ OKボタンを押すと検索ダイアログが開きます。
 			<ReadOnlyFileCannotBeSaved title="保存に失敗しました - 読み取り専用です" message="「$STR_REPLACE$」
 このファイルが読み取り専用のため、保存できませんでした。
 読み取り専用を解除してから保存を行ってください。"/>
+			<ShortcutsXmlHMACMissing title="セキュリティー警告" message="shortcuts.xml についてのセキュリティー情報が、config.xml に見つかりません。
+
+セキュリティーのため、shortcuts.xml の完全性が都度検証されます。設定したコマンドを実行するには、まず shortcuts.xml の内容が意図したものであるかを確認してください。問題なければ、「実行」メニューから「shortcuts.xml を承認する」を押してください。"/>
+			<ShortcutsXmlTampered title="セキュリティー警告" message="shortcuts.xml が手動で変更されたようです。
+
+セキュリティーのため、shortcuts.xml の内容が意図したものであるかを確認してください。問題なければ、「実行」メニューから「shortcuts.xml を承認する」を押してください。"/>
 		</MessageBox>
 		<ClipboardHistory>
 			<PanelTitle name="クリップボード履歴"/>
@@ -1677,6 +1701,7 @@ OKボタンを押すと検索ダイアログが開きます。
 				<Item id="3518" name="エクスプローラーを開く"/>
 				<Item id="3519" name="コマンドプロンプトを開く"/>
 				<Item id="3520" name="ファイル名をコピー"/>
+				<Item id="3521" name="PowerShellを開く"/>
 			</Menu>
 		</FolderAsWorkspace>
 		<ProjectManager>
@@ -1800,6 +1825,7 @@ OKボタンを押すと検索ダイアログが開きます。
 			<common-ok value="OK"/>
 			<common-cancel value="ｷｬﾝｾﾙ"/>
 			<common-name value="名前"/>
+			<common-error value="エラー"/>
 			<tabrename-title value="現ﾀﾌﾞのﾌｧｲﾙ名を変更"/>
 			<tabrename-newname value="新ﾌｧｲﾙ名"/>
 			<splitter-rotate-left value="左回りに回す"/>
@@ -1821,6 +1847,7 @@ OKボタンを押すと検索ダイアログが開きます。
 			<progress-hits-title value="一致件数:"/>
 			<progress-cancel-info value="キャンセルしています。お待ちください..."/>
 			<find-in-files-progress-title value="複数ファイル内を検索中..."/>
+			<discover-file-candidates-title value="対象のファイルを列挙中..."/>
 			<replace-in-files-confirm-title value="本当によろしいですか？"/>
 			<replace-in-files-confirm-directory value="下記ディレクトリ内の該当箇所をすべて置換しようとしています。よろしいですか？"/>
 			<replace-in-files-confirm-filetype value="ファイルの種類："/>
@@ -1846,7 +1873,6 @@ OKボタンを押すと検索ダイアログが開きます。
 			<tab-untitled-string value="新規"/>
 			<file-save-assign-type value="拡張子をつける(&amp;A)"/>
 			<close-panel-tip value="閉じる"/>
-			<IncrementalFind-FSFound value="$INT_REPLACE$ 件の一致"/>
 			<IncrementalFind-FSNotFound value="見つかりません"/>
 			<IncrementalFind-FSTopReached value="文書の先頭に達したため、末尾から検索しました"/>
 			<IncrementalFind-FSEndReached value="文書の末尾に達したため、先頭から検索しました"/>
