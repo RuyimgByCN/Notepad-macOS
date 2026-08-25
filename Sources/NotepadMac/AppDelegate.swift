@@ -38,9 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var styleCatalog = StyleCatalog.empty
     private let preferencesStore = PreferencesStore()
     private let stylePreferencesStore = StylePreferencesStore()
-    private let sessionStore = SessionStore(
-        legacyDefaults: UserDefaults(suiteName: "org.notepad-plus-plus.macnative")
-    )
+    private let sessionStore = SessionStore()
     private let snapshotStore = SnapshotStore()
     private let workspaceStore = WorkspaceStore()
     private var currentWorkspaceURL: URL?
@@ -169,6 +167,14 @@ private var appearanceObservation: NSKeyValueObservation?
     func finishLaunchingIfNeeded() {
         guard !didCompleteLaunch else { return }
         didCompleteLaunch = true
+
+        if CommandLineArgs.shouldPersistSession(CommandLine.arguments) {
+            do {
+                try LegacyInstallationMigrator().migrate()
+            } catch {
+                NSLog("Notepad Mac legacy installation migration failed: \(error)")
+            }
+        }
 
         if CommandLine.arguments.contains("--smoke-diff") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
