@@ -36,7 +36,7 @@ jobs:
       # version comes from the git tag, not upstream resource.h.
       - name: Restore upstream Notepad++ source
         run: |
-          NPP_COMMIT="af5a1baef269127fb02931a63818d1bdcddbdb46"
+          NPP_COMMIT="40f896e6f6c49a29b6ca3f559696dd786f40152d"
           git clone --filter=blob:none \
             https://github.com/notepad-plus-plus/notepad-plus-plus.git \
             upstream/notepad-plus-plus

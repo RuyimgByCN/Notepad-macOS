@@ -187,9 +187,13 @@ public struct WorkspaceDocument: Codable, Equatable, Sendable {
         return WorkspaceDocument(name: name, projects: remove(projects))
     }
 
-    public static func folderWorkspace(from rootURL: URL) throws -> WorkspaceDocument {
+    public static func folderWorkspace(
+        from rootURL: URL,
+        showHiddenFiles: Bool? = nil
+    ) throws -> WorkspaceDocument {
         let root = rootURL.standardizedFileURL
-        let children = try workspaceChildren(in: root)
+        let includesHiddenFiles = showHiddenFiles ?? WorkspacePanelSettingsStore().load().showHiddenFiles
+        let children = try workspaceChildren(in: root, showHiddenFiles: includesHiddenFiles)
         // Attach root URL so Folder-as-Workspace expand state can key off the project node.
         let project = WorkspaceNode(
             name: root.lastPathComponent,
@@ -223,12 +227,15 @@ public struct WorkspaceDocument: Codable, Equatable, Sendable {
         }
     }
 
-    private static func workspaceChildren(in directory: URL) throws -> [WorkspaceNode] {
+    private static func workspaceChildren(
+        in directory: URL,
+        showHiddenFiles: Bool = false
+    ) throws -> [WorkspaceNode] {
         let resourceKeys: [URLResourceKey] = [.isDirectoryKey, .isRegularFileKey]
         let urls = try FileManager.default.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: resourceKeys,
-            options: [.skipsHiddenFiles]
+            options: showHiddenFiles ? [] : [.skipsHiddenFiles]
         )
 
         let sortedURLs = try urls.sorted { lhs, rhs in
@@ -251,7 +258,8 @@ public struct WorkspaceDocument: Codable, Equatable, Sendable {
                     WorkspaceNode(
                         name: url.lastPathComponent,
                         kind: .folder,
-                        children: try workspaceChildren(in: url)
+                        url: url,
+                        children: try workspaceChildren(in: url, showHiddenFiles: showHiddenFiles)
                     )
                 )
             } else if values.isRegularFile == true {

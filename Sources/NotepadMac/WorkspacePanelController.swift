@@ -4,9 +4,19 @@ import NotepadMacCore
 
 @MainActor
 final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSource, NSOutlineViewDelegate {
+    private enum ColumnIdentifier {
+        static let name = NSUserInterfaceItemIdentifier("WorkspaceColumn")
+        static let size = NSUserInterfaceItemIdentifier("WorkspaceSizeColumn")
+        static let type = NSUserInterfaceItemIdentifier("WorkspaceTypeColumn")
+        static let dateModified = NSUserInterfaceItemIdentifier("WorkspaceDateModifiedColumn")
+    }
+
     private let outlineView = NSOutlineView()
     private let scrollView = NSScrollView()
-    private let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("WorkspaceColumn"))
+    private let column = NSTableColumn(identifier: ColumnIdentifier.name)
+    private let sizeColumn = NSTableColumn(identifier: ColumnIdentifier.size)
+    private let typeColumn = NSTableColumn(identifier: ColumnIdentifier.type)
+    private let dateModifiedColumn = NSTableColumn(identifier: ColumnIdentifier.dateModified)
     private let onOpenFile: (URL) -> Void
     var onFindInFiles: ((URL) -> Void)?
 
@@ -14,14 +24,22 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
     /// URL the current workspace was loaded from / last saved to. Nil if never saved.
     private var currentWorkspaceURL: URL?
     private var watchedURL: URL?
+    private var folderWorkspaceRootURL: URL?
     private var fsEventStream: FSEventStreamRef?
     private var reloadWorkspace: (() -> Void)?
 
     /// Root path used as the expand-state key (Folder as Workspace / watched folder / workspace file).
     private var expandStateRootPath: String?
     private let expandStateStore = WorkspaceExpandStateStore()
+    private let settingsStore = WorkspacePanelSettingsStore()
     /// Suppresses persist callbacks while programmatically restoring expand state.
     private var isRestoringExpandState = false
+    private lazy var dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     init(onOpenFile: @escaping (URL) -> Void) {
         self.onOpenFile = onOpenFile
@@ -67,6 +85,15 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
             persistExpandedPaths(forRoot: previousRoot)
         }
 
+        if let expandStateRoot {
+            folderWorkspaceRootURL = expandStateRoot.standardizedFileURL
+        } else {
+            stopFSEventStream()
+            watchedURL = nil
+            folderWorkspaceRootURL = nil
+            reloadWorkspace = nil
+        }
+
         self.workspace = workspace
         if url != nil {
             self.currentWorkspaceURL = url
@@ -89,6 +116,7 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
     func startWatching(url: URL, reload: @escaping () -> Void) {
         stopFSEventStream()
         watchedURL = url
+        folderWorkspaceRootURL = url.standardizedFileURL
         if expandStateRootPath == nil {
             expandStateRootPath = url.standardizedFileURL.path
         }
@@ -127,8 +155,12 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
     }
 
     private func handleFSEvent() {
-        guard let reload = reloadWorkspace else { return }
-        reload()
+        reloadFolderWorkspaceIfActive()
+    }
+
+    func reloadFolderWorkspaceIfActive() {
+        guard folderWorkspaceRootURL != nil else { return }
+        reloadWorkspace?()
     }
 
     func locateFile(_ url: URL) {
@@ -157,6 +189,9 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
             persistExpandedPaths(forRoot: root)
         }
         stopFSEventStream()
+        watchedURL = nil
+        folderWorkspaceRootURL = nil
+        reloadWorkspace = nil
         workspace = nil
         expandStateRootPath = nil
         outlineView.reloadData()
@@ -290,10 +325,14 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
         guard let node = node(from: item) else { return nil }
 
-        let identifier = NSUserInterfaceItemIdentifier("WorkspaceCell")
-        let cell = outlineView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView ?? makeCell(identifier: identifier)
-        cell.textField?.stringValue = node.name
-        cell.imageView?.image = image(for: node)
+        let columnIdentifier = tableColumn?.identifier ?? ColumnIdentifier.name
+        let identifier = NSUserInterfaceItemIdentifier("WorkspaceCell.\(columnIdentifier.rawValue)")
+        let isNameColumn = columnIdentifier == ColumnIdentifier.name
+        let cell = outlineView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView
+            ?? (isNameColumn ? makeCell(identifier: identifier) : makeDetailCell(identifier: identifier))
+        cell.textField?.stringValue = isNameColumn ? node.name : detailText(for: columnIdentifier, node: node)
+        cell.textField?.alignment = columnIdentifier == ColumnIdentifier.size ? .right : .left
+        cell.imageView?.image = isNameColumn ? image(for: node) : nil
         return cell
     }
 
@@ -377,8 +416,13 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         let btnAddProject = makeToolbarButton(image: "shippingbox.fill", tip: "Add Project...",         selector: #selector(addProject(_:)))
         let btnAddFiles  = makeToolbarButton(image: "doc.badge.plus",    tip: "Add Files...",           selector: #selector(addFilesFromToolbar(_:)))
         let btnAddFolder = makeToolbarButton(image: "folder.badge.plus", tip: "Add Folder...",          selector: #selector(addFolderFromToolbar(_:)))
+        let btnOptions   = makeToolbarButton(
+            image: "ellipsis.circle",
+            tip: Localization.string(.workspaceOptions, default: "Workspace View Options"),
+            selector: #selector(showWorkspaceOptions(_:))
+        )
 
-        for btn in [btnNew, btnOpen, btnReload, btnSave, btnSaveAs, btnSaveCopy, btnAddProject, btnAddFiles, btnAddFolder] {
+        for btn in [btnNew, btnOpen, btnReload, btnSave, btnSaveAs, btnSaveCopy, btnAddProject, btnAddFiles, btnAddFolder, btnOptions] {
             toolbarView.addSubview(btn)
         }
 
@@ -434,6 +478,11 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
             btnAddFolder.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
             btnAddFolder.widthAnchor.constraint(equalToConstant: btnW),
             btnAddFolder.heightAnchor.constraint(equalToConstant: btnW),
+
+            btnOptions.leadingAnchor.constraint(equalTo: btnAddFolder.trailingAnchor, constant: spacing),
+            btnOptions.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor),
+            btnOptions.widthAnchor.constraint(equalToConstant: btnW),
+            btnOptions.heightAnchor.constraint(equalToConstant: btnW),
         ])
 
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -442,9 +491,14 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         scrollView.borderType = .noBorder
 
         column.title = Localization.string(.workspaceColumnTitle)
+        column.minWidth = 140
+        column.width = 220
+        column.resizingMask = [.autoresizingMask, .userResizingMask]
         outlineView.addTableColumn(column)
+        configureDetailColumn(sizeColumn, title: sizeColumnTitle, width: 80)
+        configureDetailColumn(typeColumn, title: typeColumnTitle, width: 110)
+        configureDetailColumn(dateModifiedColumn, title: dateModifiedColumnTitle, width: 140)
         outlineView.outlineTableColumn = column
-        outlineView.headerView = nil
         outlineView.rowSizeStyle = .medium
         outlineView.delegate = self
         outlineView.dataSource = self
@@ -452,6 +506,7 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         outlineView.target = self
         outlineView.setAccessibilityLabel(Localization.string(.workspaceOutlineAccessibilityLabel))
         outlineView.menu = buildContextMenu()
+        applyColumnVisibility(settingsStore.load().visibleDetailColumns)
 
         scrollView.documentView = outlineView
         contentView.addSubview(scrollView)
@@ -664,7 +719,86 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
             window?.title = Localization.string(.workspacePanelTitle)
         }
         column.title = Localization.string(.workspaceColumnTitle)
+        sizeColumn.title = sizeColumnTitle
+        typeColumn.title = typeColumnTitle
+        dateModifiedColumn.title = dateModifiedColumnTitle
         outlineView.setAccessibilityLabel(Localization.string(.workspaceOutlineAccessibilityLabel))
+    }
+
+    private var sizeColumnTitle: String {
+        Localization.string(.workspaceColumnSize, default: "Size")
+    }
+
+    private var typeColumnTitle: String {
+        Localization.string(.workspaceColumnType, default: "Type")
+    }
+
+    private var dateModifiedColumnTitle: String {
+        Localization.string(.workspaceColumnDateModified, default: "Date Modified")
+    }
+
+    private func configureDetailColumn(_ column: NSTableColumn, title: String, width: CGFloat) {
+        column.title = title
+        column.minWidth = 60
+        column.width = width
+        column.resizingMask = .userResizingMask
+        outlineView.addTableColumn(column)
+    }
+
+    private func applyColumnVisibility(_ visibleColumns: Set<WorkspaceDetailColumn>) {
+        sizeColumn.isHidden = !visibleColumns.contains(.size)
+        typeColumn.isHidden = !visibleColumns.contains(.type)
+        dateModifiedColumn.isHidden = !visibleColumns.contains(.dateModified)
+    }
+
+    @objc private func showWorkspaceOptions(_ sender: NSButton) {
+        let settings = settingsStore.load()
+        let menu = NSMenu()
+        if folderWorkspaceRootURL != nil {
+            let hiddenItem = menu.addItem(
+                withTitle: Localization.string(.workspaceShowHiddenFiles, default: "Show Hidden Files"),
+                action: #selector(toggleHiddenFiles(_:)),
+                keyEquivalent: ""
+            )
+            hiddenItem.target = self
+            hiddenItem.state = settings.showHiddenFiles ? .on : .off
+            menu.addItem(.separator())
+        }
+        addColumnMenuItem(title: sizeColumnTitle, column: .size, settings: settings, to: menu)
+        addColumnMenuItem(title: typeColumnTitle, column: .type, settings: settings, to: menu)
+        addColumnMenuItem(title: dateModifiedColumnTitle, column: .dateModified, settings: settings, to: menu)
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY), in: sender)
+    }
+
+    private func addColumnMenuItem(
+        title: String,
+        column: WorkspaceDetailColumn,
+        settings: WorkspacePanelSettings,
+        to menu: NSMenu
+    ) {
+        let item = menu.addItem(withTitle: title, action: #selector(toggleDetailColumn(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = column.rawValue
+        item.state = settings.visibleDetailColumns.contains(column) ? .on : .off
+    }
+
+    @objc private func toggleHiddenFiles(_ sender: NSMenuItem) {
+        guard folderWorkspaceRootURL != nil else { return }
+        let showHiddenFiles = !settingsStore.load().showHiddenFiles
+        settingsStore.setShowHiddenFiles(showHiddenFiles)
+        reloadFolderWorkspaceIfActive()
+    }
+
+    @objc private func toggleDetailColumn(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let column = WorkspaceDetailColumn(rawValue: rawValue)
+        else { return }
+        var visibleColumns = settingsStore.load().visibleDetailColumns
+        if visibleColumns.remove(column) == nil {
+            visibleColumns.insert(column)
+        }
+        settingsStore.setVisibleDetailColumns(visibleColumns)
+        applyColumnVisibility(visibleColumns)
     }
 
     private func makeCell(identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
@@ -694,6 +828,44 @@ final class WorkspacePanelController: NSWindowController, NSOutlineViewDataSourc
         ])
 
         return cell
+    }
+
+    private func makeDetailCell(identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
+        let cell = NSTableCellView()
+        cell.identifier = identifier
+        let textField = NSTextField(labelWithString: "")
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        textField.lineBreakMode = .byTruncatingTail
+        cell.addSubview(textField)
+        cell.textField = textField
+        NSLayoutConstraint.activate([
+            textField.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+            textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+            textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+        ])
+        return cell
+    }
+
+    private func detailText(for column: NSUserInterfaceItemIdentifier, node: WorkspaceNode) -> String {
+        guard let url = node.url,
+              let values = try? url.resourceValues(forKeys: [
+                  .fileSizeKey,
+                  .localizedTypeDescriptionKey,
+                  .contentModificationDateKey
+              ])
+        else { return "" }
+
+        switch column {
+        case ColumnIdentifier.size:
+            guard node.kind == .file, let size = values.fileSize else { return "" }
+            return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+        case ColumnIdentifier.type:
+            return values.localizedTypeDescription ?? ""
+        case ColumnIdentifier.dateModified:
+            return values.contentModificationDate.map(dateFormatter.string(from:)) ?? ""
+        default:
+            return ""
+        }
     }
 
     private func expandAll() {

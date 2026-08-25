@@ -43,6 +43,32 @@ public enum TextSearch {
         public let count: Int
     }
 
+    public static func contextQuery(in text: String, at selection: NSRange) -> String? {
+        let nsText = text as NSString
+        guard selection.location >= 0,
+              selection.length >= 0,
+              selection.location <= nsText.length,
+              selection.length <= nsText.length - selection.location
+        else { return nil }
+
+        if selection.length > 0 {
+            let query = nsText.substring(with: selection)
+            guard query.utf8.count < 1024,
+                  !query.contains(where: { $0.isNewline })
+            else { return nil }
+            return query
+        }
+
+        var start = selection.location
+        var end = selection.location
+        while start > 0, isWordCharacter(at: start - 1, in: nsText) { start -= 1 }
+        while end < nsText.length, isWordCharacter(at: end, in: nsText) { end += 1 }
+        guard end > start else { return nil }
+
+        let query = nsText.substring(with: NSRange(location: start, length: end - start))
+        return query.utf8.count < 1024 ? query : nil
+    }
+
     public static func findNext(
         _ query: String,
         in text: String,

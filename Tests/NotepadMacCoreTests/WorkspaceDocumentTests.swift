@@ -126,4 +126,39 @@ import Foundation
         #expect(loaded.projects[0].name == "Project A")
         #expect(loaded.projects[0].children.count == 2)
     }
+
+    @Test func folderWorkspaceCanIncludeHiddenFilesRecursively() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let visibleFolder = root.appendingPathComponent("Sources")
+        try FileManager.default.createDirectory(at: visibleFolder, withIntermediateDirectories: true)
+        try "visible".write(to: root.appendingPathComponent("README.md"), atomically: true, encoding: .utf8)
+        try "hidden".write(to: root.appendingPathComponent(".env"), atomically: true, encoding: .utf8)
+        try "nested".write(to: visibleFolder.appendingPathComponent(".nested"), atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let hiddenExcluded = try WorkspaceDocument.folderWorkspace(from: root, showHiddenFiles: false)
+        let hiddenIncluded = try WorkspaceDocument.folderWorkspace(from: root, showHiddenFiles: true)
+
+        #expect(hiddenExcluded.projects[0].children.map(\.name) == ["Sources", "README.md"])
+        #expect(hiddenExcluded.projects[0].children[0].url == visibleFolder.standardizedFileURL)
+        #expect(hiddenExcluded.projects[0].children[0].children.isEmpty)
+        #expect(hiddenIncluded.projects[0].children.map(\.name) == ["Sources", ".env", "README.md"])
+        #expect(hiddenIncluded.projects[0].children[0].children.map(\.name) == [".nested"])
+    }
+
+    @Test func workspacePanelSettingsRoundTrip() throws {
+        let suiteName = "WorkspacePanelSettings.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = WorkspacePanelSettingsStore(defaults: defaults)
+
+        #expect(store.load() == WorkspacePanelSettings())
+        store.setShowHiddenFiles(true)
+        store.setVisibleDetailColumns([.size, .dateModified])
+
+        #expect(store.load() == WorkspacePanelSettings(
+            showHiddenFiles: true,
+            visibleDetailColumns: [.size, .dateModified]
+        ))
+    }
 }

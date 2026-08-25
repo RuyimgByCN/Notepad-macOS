@@ -225,20 +225,44 @@ final class TextEditCommandsTests: XCTestCase {
         )
     }
 
-    func testTextEditCommandsSortSelectedLinesNoOpsOnCurrentLineAndEmptyDocument() {
-        let currentLine = TextEditCommands.sortSelectedLinesAscending(
-            in: "alpha\nbravo",
-            selectedRange: NSRange(location: "alpha\nbr".utf16.count, length: 0)
+    func testTextEditCommandsSortsEntireDocumentAscendingWithoutSelectionAndNoOpsOnEmptyDocument() {
+        let entireDocument = TextEditCommands.sortSelectedLinesAscending(
+            in: "bravo\nalpha",
+            selectedRange: NSRange(location: "bravo\nal".utf16.count, length: 0)
         )
         let empty = TextEditCommands.sortSelectedLinesDescending(
             in: "",
             selectedRange: NSRange(location: 0, length: 0)
         )
 
-        XCTAssertEqual(currentLine.text, "alpha\nbravo")
-        XCTAssertEqual(currentLine.selectedRange, NSRange(location: "alpha\nbr".utf16.count, length: 0))
+        XCTAssertEqual(entireDocument.text, "alpha\nbravo")
+        XCTAssertEqual(entireDocument.selectedRange, NSRange(location: 0, length: "alpha\nbravo".utf16.count))
         XCTAssertEqual(empty.text, "")
         XCTAssertEqual(empty.selectedRange, NSRange(location: 0, length: 0))
+    }
+
+    func testTextEditCommandsSortsEntireDocumentByNumberWithoutSelection() {
+        let text = "3\n10\n-2\n"
+
+        let result = TextEditCommands.sortSelectedLinesAsIntegersDescending(
+            in: text,
+            selectedRange: NSRange(location: 2, length: 0)
+        )
+
+        XCTAssertEqual(result.text, "10\n3\n-2\n")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: "10\n3\n-2\n".utf16.count))
+    }
+
+    func testTextEditCommandsSortsEntireDocumentByLengthWithoutSelection() {
+        let text = "medium\nx\nlongest\n"
+
+        let result = TextEditCommands.sortSelectedLinesByLengthAscending(
+            in: text,
+            selectedRange: NSRange(location: "medium\nx".utf16.count, length: 0)
+        )
+
+        XCTAssertEqual(result.text, "x\nmedium\nlongest\n")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: "x\nmedium\nlongest\n".utf16.count))
     }
 
     func testTextEditCommandsSortsSelectedLinesAsIntegersAscendingAndMovesBlankLinesFirst() {

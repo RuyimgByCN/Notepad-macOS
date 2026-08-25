@@ -756,6 +756,11 @@
 "workspace.close" = "关闭工作区";
 "workspace.panelTitle" = "工作区";
 "workspace.column.title" = "工作区";
+"workspace.column.size" = "大小";
+"workspace.column.type" = "类型";
+"workspace.column.dateModified" = "修改日期";
+"workspace.options" = "工作区视图选项";
+"workspace.showHiddenFiles" = "显示隐藏文件";
 "workspace.fallbackName" = "工作区";
 "workspace.accessibility.outline" = "工作区文件";
 "workspace.accessibility.projectIcon" = "工作区项目";

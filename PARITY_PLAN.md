@@ -1,7 +1,7 @@
 # Notepad++ 功能补齐计划 (native-macos)
 
 > ✅ 主计划条目已全部完成（2026-06-13）。此后按上游小版本增量补齐。
-> 当前构建基准：**v8.9.7.0**，CI `NPP_COMMIT` = `af5a1baef269127fb02931a63818d1bdcddbdb46`
+> 当前构建基准：**v8.9.8.0**，CI `NPP_COMMIT` = `40f896e6f6c49a29b6ca3f559696dd786f40152d`
 > （见 `.github/workflows/release.yml` / `scripts/package-macos.sh`）。
 
 基于 2026-06 对 `Sources/` 与上游 `PowerEditor` 菜单/功能集的差距分析。
@@ -319,7 +319,7 @@ swift test 490 项全过。
 ## 全量对等审计 + Mac Cyrillic 编码补齐（2026-06-13）✅ 已完成
 
 以当时本地 `upstream/notepad-plus-plus/`（**v8.9.6.4**, 历史 pin `6ab5c211`；
-现已前移至 v8.9.7.0，见下文）为基准，逐域
+现已前移至 v8.9.8.0，见下文）为基准，逐域
 核对了 `menuCmdID.h` 的 567 个命令 ID 与本地实现：
 
 - **语言**（95 `IDM_LANG_*`）：`ScintillaLexilla.lexerNames` 覆盖全部命名语言，
@@ -350,7 +350,7 @@ swift test 490 项全过。
 
 | 项 | 值 |
 |----|-----|
-| `NPP_COMMIT`（`release.yml`） | `af5a1baef269127fb02931a63818d1bdcddbdb46` |
+| `NPP_COMMIT`（`release.yml`） | `a6c46fd4cb0fa115ced3b3bfb1ff53fbdb8989f3`（2026-08-21 前移，含 8.9.7 后 master 的会话加载/UIPI 安全修复；`VERSION_PRODUCT_VALUE` 仍为 `8.9.7.0`） |
 | 默认 `MACOS_APP_VERSION`（`package-macos.sh`） | `8.9.7.0` |
 | Scintilla | **5.6.6**（本地重建 framework） |
 | Lexilla | **5.5.3**（universal dylib；含 LexBaan OOB、HTML/XML CDATA 样式、5.5.2/5.5.3 的 LexProgress/LexCPP/LexHTML/LexRuby 修复） |
@@ -386,6 +386,22 @@ swift test 490 项全过。
 - FaW 符号链接冻死 / 条目消失等 Win32 TreeView 特有 bug 补丁（本机用
   `NSOutlineView` + 文件系统 API，按需另修）
 - pugixml 升级、Windows 颜色选择器 16 自定义色、TaskDialog 深色消息框等
+
+## 对齐上游 v8.9.8.0（2026-08-25）✅ 已完成
+
+- CI `NPP_COMMIT` 与本地打包基线统一到
+  `40f896e6f6c49a29b6ca3f559696dd786f40152d`，默认版本改为 `8.9.8.0`。
+- 排序命令与 Notepad++ / NotepadNext 对齐：有选区时处理选中完整行，
+  无选区时处理全文；普通、数字、locale、长度、反转和随机排序共用同一范围规则。
+- Folder as Workspace 新增持久化的“显示隐藏文件”开关，以及可选的大小、类型、
+  修改日期列；隐藏文件枚举对整个目录树递归生效。
+- Select and Find Next/Previous 支持空选区时取光标所在单词，并拒绝多行或
+  UTF-8 长度达到 1024 字节的上下文查询。
+- 上游 `c268dfee5` 的 `config.xml` 面板命令白名单修复仅适用于 Win32
+  `WM_COMMAND` 恢复路径；本项目使用强类型 `AppSession` / `WorkspaceDocument`，
+  无对应的动态命令执行入口，因此不移植。
+- NotepadNext 的 Qt 像素缩放、通知标志与 Finder 内部重构不直接移植；本项目继续
+  使用 AppKit/Swift 自有实现及已同步的 Scintilla 5.6.6、Lexilla 5.5.3。
 
 ## 明确不做(Won't do)
 

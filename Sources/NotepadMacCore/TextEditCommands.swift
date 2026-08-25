@@ -992,6 +992,15 @@ public enum TextEditCommands {
         return start...end
     }
 
+    private static func sortLineBlock(containing range: NSRange, in lines: [TextEditLine]) -> ClosedRange<Int> {
+        guard range.length == 0 else {
+            return lineBlock(containing: range, in: lines)
+        }
+
+        let documentRange = NSRange(location: 0, length: lines[lines.count - 1].fullRange.endLocation)
+        return lineBlock(containing: documentRange, in: lines)
+    }
+
     private static func currentLineDeletionRange(at index: Int, in lines: [TextEditLine]) -> NSRange {
         let current = lines[index]
         if current.endingRange.length > 0 || index == 0 {
@@ -1177,7 +1186,7 @@ public enum TextEditCommands {
         let range = clamped(selectedRange, in: text)
         let nsText = text as NSString
         let lines = splitLines(in: nsText)
-        let block = lineBlock(containing: range, in: lines)
+        let block = sortLineBlock(containing: range, in: lines)
         guard block.lowerBound < block.upperBound else {
             return TextEditCommandResult(text: text, selectedRange: range)
         }
@@ -1221,7 +1230,7 @@ public enum TextEditCommands {
         let range = clamped(selectedRange, in: text)
         let nsText = text as NSString
         let lines = splitLines(in: nsText)
-        let block = lineBlock(containing: range, in: lines)
+        let block = sortLineBlock(containing: range, in: lines)
         guard block.lowerBound < block.upperBound else {
             return TextEditCommandResult(text: text, selectedRange: range)
         }
@@ -1366,7 +1375,7 @@ public enum TextEditCommands {
         let range = clamped(selectedRange, in: text)
         let nsText = text as NSString
         let lines = splitLines(in: nsText)
-        let block = lineBlock(containing: range, in: lines)
+        let block = sortLineBlock(containing: range, in: lines)
         guard block.lowerBound < block.upperBound else {
             return TextEditCommandResult(text: text, selectedRange: range)
         }

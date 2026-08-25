@@ -756,6 +756,11 @@
 "workspace.close" = "Close Workspace";
 "workspace.panelTitle" = "Workspace";
 "workspace.column.title" = "Workspace";
+"workspace.column.size" = "Size";
+"workspace.column.type" = "Type";
+"workspace.column.dateModified" = "Date Modified";
+"workspace.options" = "Workspace View Options";
+"workspace.showHiddenFiles" = "Show Hidden Files";
 "workspace.fallbackName" = "Workspace";
 "workspace.accessibility.outline" = "Workspace files";
 "workspace.accessibility.projectIcon" = "Workspace project";

@@ -2293,35 +2293,24 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     // MARK: - Select and Find
 
     @objc func selectAndFindNext(_ sender: Any?) {
-        let selection = editorSurface.selectedRange
-        guard selection.length > 0 else {
-            beepIfEnabled()
-            return
-        }
-        let text = editorSurface.text
-        let query = (text as NSString).substring(with: selection)
-        lastFindQuery = query
-        let options = TextSearch.Options(matchCase: true, wholeWord: false, wraps: true, direction: .down)
-        let fromRange = NSRange(location: NSMaxRange(selection), length: 0)
-        guard let range = TextSearch.findNext(query, in: text, from: fromRange, options: options) else {
-            beepIfEnabled()
-            return
-        }
-        editorSurface.setSelectedRange(range)
-        updateStatus()
+        selectAndFind(direction: .down)
     }
 
     @objc func selectAndFindPrevious(_ sender: Any?) {
+        selectAndFind(direction: .up)
+    }
+
+    private func selectAndFind(direction: TextSearch.Direction) {
         let selection = editorSurface.selectedRange
-        guard selection.length > 0 else {
+        let text = editorSurface.text
+        guard let query = TextSearch.contextQuery(in: text, at: selection) else {
             beepIfEnabled()
             return
         }
-        let text = editorSurface.text
-        let query = (text as NSString).substring(with: selection)
         lastFindQuery = query
-        let options = TextSearch.Options(matchCase: true, wholeWord: false, wraps: true, direction: .up)
-        let fromRange = NSRange(location: selection.location, length: 0)
+        let options = TextSearch.Options(matchCase: true, wholeWord: false, wraps: true, direction: direction)
+        let start = direction == .down ? NSMaxRange(selection) : selection.location
+        let fromRange = NSRange(location: start, length: 0)
         guard let range = TextSearch.findNext(query, in: text, from: fromRange, options: options) else {
             beepIfEnabled()
             return
