@@ -2,6 +2,43 @@ import Foundation
 import Testing
 @testable import NotepadMacCore
 
+@Test func textFileCodecValidatesMappedUTF8WithoutDecodingWholeFile() throws {
+    let directory = URL(filePath: NSTemporaryDirectory()).appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let fileURL = directory.appending(path: "direct-utf8.txt")
+    let content = "第一行 😀\r\nsecond\r\nthird\n"
+    try (Data([0xEF, 0xBB, 0xBF]) + Data(content.utf8)).write(to: fileURL)
+
+    let candidate = try TextFileCodec.readUTF8DataIfValid(fileURL)
+    let loaded = try #require(candidate)
+    #expect(loaded.hasByteOrderMark)
+    #expect(loaded.contentOffset == 3)
+    #expect(loaded.lineEnding == .crlf)
+    #expect(String(decoding: loaded.data.dropFirst(loaded.contentOffset), as: UTF8.self) == content)
+}
+
+@Test func textFileCodecRejectsInvalidUTF8DirectLoad() throws {
+    let directory = URL(filePath: NSTemporaryDirectory()).appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let fileURL = directory.appending(path: "legacy.txt")
+    let invalidSequences: [[UInt8]] = [
+        [0x61, 0xC3, 0x28],             // bad continuation
+        [0xC0, 0xAF],                   // overlong sequence
+        [0xED, 0xA0, 0x80],             // UTF-16 surrogate
+        [0xF4, 0x90, 0x80, 0x80],       // above U+10FFFF
+        [0xE2, 0x82],                   // truncated sequence
+        [0x80]                          // lone continuation
+    ]
+    for bytes in invalidSequences {
+        try Data(bytes).write(to: fileURL)
+        #expect(try TextFileCodec.readUTF8DataIfValid(fileURL) == nil)
+    }
+}
+
 @Test func textFileCodecDetectsUtf8ByteOrderMarkWithoutAddingMarkerCharacter() throws {
     let directory = URL(filePath: NSTemporaryDirectory()).appending(path: UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

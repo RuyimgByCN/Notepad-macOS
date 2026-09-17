@@ -54,6 +54,8 @@ protocol EditorSurface: AnyObject {
     var firstResponder: NSResponder { get }
     var text: String { get set }
     var selectedRange: NSRange { get }
+    /// Number of lines touched by the current selection when cheaply available.
+    var selectedLineCount: Int? { get }
     var liveRectangularSelection: RectangularSelectionLiveMetadata? { get }
     var displayName: String { get }
     var supportsFolding: Bool { get }
@@ -61,7 +63,11 @@ protocol EditorSurface: AnyObject {
     var requiresHighlightAfterTextChange: Bool { get }
     var foldState: FoldState { get }
 
+    func replaceText(withUTF8Data data: Data, contentOffset: Int)
     func setSelectedRange(_ range: NSRange)
+    /// Searches and selects a match without materializing the full document.
+    /// Returns nil when the surface or search mode requires the host fallback.
+    func findAndSelect(_ query: String, options: TextSearch.Options) -> Bool?
     func applyDiscontiguousSelections(_ ranges: [NSRange], mainSelectionIndex: Int) -> Bool
     func applyRectangularSelection(_ selection: RectangularSelectionLiveMetadata) -> Bool
     func applyFont(size: CGFloat)
@@ -324,6 +330,12 @@ final class TextViewEditorSurface: EditorSurface {
         textView.selectedRange()
     }
 
+    var selectedLineCount: Int? { nil }
+
+    func replaceText(withUTF8Data data: Data, contentOffset: Int) {
+        text = String(decoding: data.dropFirst(contentOffset), as: UTF8.self)
+    }
+
     var liveRectangularSelection: RectangularSelectionLiveMetadata? {
         nil
     }
@@ -332,6 +344,8 @@ final class TextViewEditorSurface: EditorSurface {
         textView.setSelectedRange(range)
         textView.scrollRangeToVisible(range)
     }
+
+    func findAndSelect(_ query: String, options: TextSearch.Options) -> Bool? { nil }
 
     func applyDiscontiguousSelections(_ ranges: [NSRange], mainSelectionIndex: Int) -> Bool {
         false
@@ -841,6 +855,16 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.selectedRange()
     }
 
+    var selectedLineCount: Int? {
+        let start = bridge.getGeneralProperty(ScintillaMessage.getSelectionStart, parameter: 0) ?? 0
+        let end = bridge.getGeneralProperty(ScintillaMessage.getSelectionEnd, parameter: 0) ?? start
+        guard end > start,
+              let startLine = bridge.getGeneralProperty(ScintillaMessage.lineFromPosition, parameter: start),
+              let endLine = bridge.getGeneralProperty(ScintillaMessage.lineFromPosition, parameter: end)
+        else { return nil }
+        return Int(endLine - startLine) + 1
+    }
+
     private func documentText() -> String {
         if let cachedDocumentText, didConfigureNotificationDelegate {
             return cachedDocumentText
@@ -865,6 +889,32 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     private func replaceDocumentText(_ newValue: String) {
+        let utf8 = newValue.utf8
+        let appendedFromStringStorage = utf8.withContiguousStorageIfAvailable { buffer -> Bool in
+            replaceDocumentBytes(buffer.baseAddress.map { UnsafeRawPointer($0) }, count: buffer.count)
+            return true
+        } ?? false
+
+        if !appendedFromStringStorage {
+            let bytes = Array(utf8)
+            bytes.withUnsafeBytes { replaceDocumentBytes($0.baseAddress, count: $0.count) }
+        }
+        if didConfigureNotificationDelegate {
+            cachedDocumentText = newValue
+        }
+    }
+
+    func replaceText(withUTF8Data data: Data, contentOffset: Int) {
+        isProgrammaticTextSet = true
+        defer { isProgrammaticTextSet = false }
+        data.withUnsafeBytes { rawBuffer in
+            let offset = min(max(0, contentOffset), rawBuffer.count)
+            replaceDocumentBytes(rawBuffer.baseAddress?.advanced(by: offset), count: rawBuffer.count - offset)
+        }
+        cachedDocumentText = nil
+    }
+
+    private func replaceDocumentBytes(_ baseAddress: UnsafeRawPointer?, count: Int) {
         let wasReadOnly = isReadOnly
         if wasReadOnly {
             isReadOnly = false
@@ -878,16 +928,13 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setUndoCollection, parameter: 0, value: 0)
         bridge.setGeneralProperty(ScintillaMessage.clearAll, parameter: 0, value: 0)
 
-        let bytes = Array(newValue.utf8)
-        if !bytes.isEmpty {
-            bridge.setGeneralProperty(ScintillaMessage.allocate, parameter: CLong(bytes.count), value: 0)
-            bytes.withUnsafeBytes { rawBuffer in
-                bridge.setReferenceProperty(
-                    ScintillaMessage.appendText,
-                    parameter: CLong(bytes.count),
-                    value: rawBuffer.baseAddress
-                )
-            }
+        if count > 0 {
+            bridge.setGeneralProperty(ScintillaMessage.allocate, parameter: CLong(count), value: 0)
+            bridge.setReferenceProperty(
+                ScintillaMessage.appendText,
+                parameter: CLong(count),
+                value: baseAddress
+            )
         }
 
         bridge.setGeneralProperty(ScintillaMessage.setUndoCollection, parameter: 1, value: 0)
@@ -943,6 +990,82 @@ final class ScintillaEditorSurface: EditorSurface {
             value: scintillaRange.anchor
         )
         bridge.setGeneralProperty(ScintillaMessage.scrollCaret, parameter: 0, value: 0)
+    }
+
+    func findAndSelect(_ query: String, options: TextSearch.Options) -> Bool? {
+        guard options.searchMode == .normal else { return nil }
+        guard !query.isEmpty else { return false }
+
+        let documentEnd = bridge.getGeneralProperty(ScintillaMessage.getLength, parameter: 0) ?? 0
+        let selectionStart = bridge.getGeneralProperty(ScintillaMessage.getSelectionStart, parameter: 0) ?? 0
+        let selectionEnd = bridge.getGeneralProperty(ScintillaMessage.getSelectionEnd, parameter: 0) ?? selectionStart
+        let scope: (start: CLong, end: CLong)
+        if let range = options.searchRange {
+            guard range.location >= 0, range.length >= 0,
+                  range.location <= Int.max - range.length,
+                  let startOffset = CLong(exactly: range.location),
+                  let endOffset = CLong(exactly: range.location + range.length),
+                  let start = bridge.integerMessage(
+                    ScintillaMessage.positionRelativeCodeUnits,
+                    wParam: 0,
+                    lParam: startOffset
+                  ),
+                  let end = bridge.integerMessage(
+                    ScintillaMessage.positionRelativeCodeUnits,
+                    wParam: 0,
+                    lParam: endOffset
+                  ),
+                  start < end
+            else { return false }
+            scope = (start, end)
+        } else {
+            scope = (0, documentEnd)
+        }
+        bridge.setGeneralProperty(
+            ScintillaMessage.setSearchFlags,
+            parameter: buildSearchFlags(matchCase: options.matchCase, wholeWord: options.wholeWord),
+            value: 0
+        )
+
+        let queryBytes = Array(query.utf8)
+        func search(from start: CLong, to end: CLong) -> Bool {
+            bridge.setGeneralProperty(ScintillaMessage.setTargetStart, parameter: start, value: 0)
+            bridge.setGeneralProperty(ScintillaMessage.setTargetEnd, parameter: end, value: 0)
+            let found = queryBytes.withUnsafeBytes { rawBuffer in
+                bridge.message(
+                    ScintillaMessage.searchInTarget,
+                    wParam: CLong(queryBytes.count),
+                    lParam: rawBuffer.baseAddress
+                )
+            }
+            guard let found, found >= 0,
+                  let matchStart = bridge.getGeneralProperty(ScintillaMessage.getTargetStart, parameter: 0),
+                  let matchEnd = bridge.getGeneralProperty(ScintillaMessage.getTargetEnd, parameter: 0)
+            else { return false }
+
+            bridge.setGeneralProperty(
+                ScintillaMessage.setSelection,
+                parameter: matchEnd,
+                value: matchStart
+            )
+            bridge.setGeneralProperty(ScintillaMessage.scrollCaret, parameter: 0, value: 0)
+            return true
+        }
+
+        switch options.direction {
+        case .down:
+            let searchStart = min(max(selectionEnd, scope.start), scope.end)
+            if search(from: searchStart, to: scope.end) { return true }
+            return options.wraps && searchStart > scope.start
+                ? search(from: scope.start, to: searchStart)
+                : false
+        case .up:
+            let searchEnd = min(max(selectionStart, scope.start), scope.end)
+            if search(from: searchEnd, to: scope.start) { return true }
+            return options.wraps && searchEnd < scope.end
+                ? search(from: scope.end, to: searchEnd)
+                : false
+        }
     }
 
     func applyDiscontiguousSelections(_ ranges: [NSRange], mainSelectionIndex: Int = 0) -> Bool {
@@ -3484,6 +3607,14 @@ private final class ScintillaDynamicBridge {
         return function(target, selector, UInt32(bitPattern: message), UInt(bitPattern: wParam), Int(bitPattern: lParam))
     }
 
+    func integerMessage(_ message: Int32, wParam: CLong, lParam: CLong) -> CLong? {
+        let selector = NSSelectorFromString("message:wParam:lParam:")
+        guard target.responds(to: selector), let method = target.method(for: selector) else { return nil }
+        typealias Function = @convention(c) (AnyObject, Selector, UInt32, UInt, Int) -> Int
+        let function = unsafeBitCast(method, to: Function.self)
+        return function(target, selector, UInt32(bitPattern: message), UInt(bitPattern: wParam), Int(lParam))
+    }
+
     func setDelegate(_ delegate: AnyObject?) -> Bool {
         let selector = NSSelectorFromString("setDelegate:")
         guard target.responds(to: selector), let method = target.method(for: selector) else {
@@ -3683,6 +3814,7 @@ private enum ScintillaMessage {
     static let setTargetStart: Int32 = 2190
     static let setTargetEnd: Int32 = 2192
     static let searchInTarget: Int32 = 2197
+    static let positionRelativeCodeUnits: Int32 = 2716
     static let getTargetStart: Int32 = 2191
     static let getTargetEnd: Int32 = 2193
     static let replaceTarget: Int32 = 2194

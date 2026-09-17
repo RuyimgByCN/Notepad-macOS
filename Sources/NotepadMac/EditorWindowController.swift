@@ -574,7 +574,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc private func editorTextDidChange(_ notification: Notification) {
         guard editorSurface.shouldHandleTextChangeNotification(notification) else { return }
-        recordMacroTextChangeIfNeeded(to: editorSurface.text)
+        if macroBaselineText != nil {
+            recordMacroTextChangeIfNeeded(to: editorSurface.text)
+        }
         bookmarks = bookmarks.clamped(toLineCount: documentLineCount())
         editorSurface.syncBookmarkMarkers(bookmarks)
         // Programmatic buffer replacements (file load/reload, command-driven
@@ -4183,6 +4185,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     func performFind(query: String, options: TextSearch.Options) -> Bool {
         lastFindQuery = query.isEmpty ? nil : query
+        if let found = editorSurface.findAndSelect(query, options: options) {
+            if found { updateStatus() }
+            return found
+        }
         guard let range = TextSearch.findNext(query, in: editorSurface.text, from: editorSurface.selectedRange, options: options) else {
             return false
         }
@@ -5302,24 +5308,43 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func load(_ url: URL) throws {
         let preferences = preferencesStore.load()
-        let loaded = try TextFileCodec.read(url, openAnsiAsUtf8: preferences.openAnsiAsUtf8)
+        let fileByteCount = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
+        isLargeFile = fileByteCount.map { preferences.shouldUseLargeFileMode(byteCount: $0) } ?? false
+        let utf8File = isLargeFile ? try TextFileCodec.readUTF8DataIfValid(url) : nil
+        let loaded: LoadedTextFile?
+        if utf8File == nil {
+            loaded = try TextFileCodec.read(url, openAnsiAsUtf8: preferences.openAnsiAsUtf8)
+        } else {
+            loaded = nil
+        }
+        if fileByteCount == nil, let loaded {
+            isLargeFile = preferences.shouldUseLargeFileMode(byteCount: loaded.text.utf8.count)
+        }
         fileURL = url
         snapshotID = nil
-        encoding = loaded.encoding
-        savePolicy = TextFileSavePolicy.loaded(loaded)
-        lineEnding = loaded.lineEnding
-        language = LanguageDetector.detect(url: url, content: loaded.text, in: languageCatalog)
-        isLargeFile = preferences.shouldUseLargeFileMode(
-            byteCount: loaded.text.utf8.count,
-            languageName: language.name
-        )
+        if let utf8File {
+            encoding = .utf8
+            savePolicy = TextFileSavePolicy(preservesByteOrderMark: utf8File.hasByteOrderMark)
+            lineEnding = utf8File.lineEnding
+        } else if let loaded {
+            encoding = loaded.encoding
+            savePolicy = TextFileSavePolicy.loaded(loaded)
+            lineEnding = loaded.lineEnding
+        }
+        language = isLargeFile
+            ? LanguageDetector.detect(url: url, in: languageCatalog)
+            : LanguageDetector.detect(url: url, content: loaded?.text ?? "", in: languageCatalog)
         if isLargeFile {
             editorSurface.clearLexer()
         }
         if isLargeFile && preferences.largeFileSuppressWordWrap {
             editorSurface.applyLineWrapping(false, width: window?.contentView?.bounds.width ?? 0)
         }
-        editorSurface.text = loaded.text
+        if let utf8File {
+            editorSurface.replaceText(withUTF8Data: utf8File.data, contentOffset: utf8File.contentOffset)
+        } else if let loaded {
+            editorSurface.text = loaded.text
+        }
         bookmarks = bookmarks.clamped(toLineCount: documentLineCount())
         editorSurface.syncBookmarkMarkers(bookmarks)
         isDirty = false
@@ -5328,8 +5353,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             highlight()
         }
         updateStatus()
-        updateStatus()
-        if !isLargeFile {
+        if !isLargeFile, let loaded {
             scheduleUrlHighlightUpdate(preloadedText: loaded.text)
         }
         startFileMonitoring(for: url)
@@ -5732,10 +5756,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 statusCharacterCount()
             ),
         ]
-        let selLen = editorSurface.selectedRange.length
+        let selection = editorSurface.selectedRange
+        let selLen = selection.length
         if selLen > 0 {
-            let selText = (editorSurface.text as NSString).substring(with: editorSurface.selectedRange)
-            let selLines = selText.components(separatedBy: "\n").count
+            let selLines = editorSurface.selectedLineCount ?? (editorSurface.text as NSString)
+                .substring(with: selection)
+                .components(separatedBy: "\n")
+                .count
             if selLines > 1 {
                 parts.append(String(
                     format: Localization.string(.editorStatusSelectionMultiLine, default: "Sel: %d | %d lines"),
@@ -5849,26 +5876,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func documentLineCount() -> Int {
-        let text = editorSurface.text
-        guard !text.isEmpty else { return 1 }
-
-        var count = 1
-        var previousWasCarriageReturn = false
-        for scalar in text.unicodeScalars {
-            switch scalar {
-            case "\n":
-                if !previousWasCarriageReturn {
-                    count += 1
-                }
-                previousWasCarriageReturn = false
-            case "\r":
-                count += 1
-                previousWasCarriageReturn = true
-            default:
-                previousWasCarriageReturn = false
-            }
-        }
-        return count
+        max(1, editorSurface.lineCount)
     }
 
     func goToLine(_ line: Int) {

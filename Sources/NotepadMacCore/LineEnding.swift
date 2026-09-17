@@ -15,10 +15,33 @@ public enum LineEnding: String, CaseIterable, Codable, Sendable {
     }
 
     public static func detect(in text: String) -> LineEnding {
-        let crlfCount = text.countOccurrences(of: "\r\n")
-        let withoutCRLF = text.replacingOccurrences(of: "\r\n", with: "")
-        let lfCount = withoutCRLF.countOccurrences(of: "\n")
-        let crCount = withoutCRLF.countOccurrences(of: "\r")
+        var crlfCount = 0
+        var lfCount = 0
+        var crCount = 0
+        var pendingCR = false
+
+        // Newline bytes are identical in UTF-8, so one byte pass avoids the
+        // temporary whole-document copies previously created for CRLF removal.
+        for byte in text.utf8 {
+            if pendingCR {
+                if byte == 0x0A {
+                    crlfCount += 1
+                    pendingCR = false
+                    continue
+                }
+                crCount += 1
+                pendingCR = false
+            }
+
+            if byte == 0x0D {
+                pendingCR = true
+            } else if byte == 0x0A {
+                lfCount += 1
+            }
+        }
+        if pendingCR {
+            crCount += 1
+        }
 
         if crlfCount == 0, lfCount == 0, crCount == 0 {
             return .lf
@@ -38,19 +61,5 @@ public enum LineEnding: String, CaseIterable, Codable, Sendable {
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
             .replacingOccurrences(of: "\n", with: rawValue)
-    }
-}
-
-private extension String {
-    func countOccurrences(of needle: String) -> Int {
-        guard !needle.isEmpty else { return 0 }
-
-        var count = 0
-        var searchStart = startIndex
-        while let range = self[searchStart...].range(of: needle) {
-            count += 1
-            searchStart = range.upperBound
-        }
-        return count
     }
 }

@@ -20,6 +20,15 @@ public struct LoadedTextFile: Equatable, Sendable {
     }
 }
 
+/// A validated UTF-8 file that can be copied straight into Scintilla without
+/// first materializing the whole document as a Swift String.
+public struct LoadedUTF8FileData: Sendable {
+    public let data: Data
+    public let contentOffset: Int
+    public let lineEnding: LineEnding
+    public let hasByteOrderMark: Bool
+}
+
 public struct TextFileSavePolicy: Equatable, Sendable {
     public static let newFile = TextFileSavePolicy(preservesByteOrderMark: false)
 
@@ -446,6 +455,91 @@ public enum TextFileCodec {
         case unsupportedEncoding
     }
 
+    public static func readUTF8DataIfValid(_ url: URL) throws -> LoadedUTF8FileData? {
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
+        let hasByteOrderMark = data.hasUTF8ByteOrderMark
+        let contentOffset = hasByteOrderMark ? 3 : 0
+        guard let lineEnding = validateUTF8AndDetectLineEnding(data, contentOffset: contentOffset) else {
+            return nil
+        }
+        return LoadedUTF8FileData(
+            data: data,
+            contentOffset: contentOffset,
+            lineEnding: lineEnding,
+            hasByteOrderMark: hasByteOrderMark
+        )
+    }
+
+    private static func validateUTF8AndDetectLineEnding(_ data: Data, contentOffset: Int) -> LineEnding? {
+        data.withUnsafeBytes { rawBuffer in
+            let bytes = rawBuffer.bindMemory(to: UInt8.self)
+            var index = contentOffset
+            var crlfCount = 0
+            var lfCount = 0
+            var crCount = 0
+            var pendingCR = false
+
+            func isContinuation(_ byte: UInt8) -> Bool {
+                byte & 0xC0 == 0x80
+            }
+
+            while index < bytes.count {
+                let byte = bytes[index]
+                if byte == 0x0D {
+                    if pendingCR { crCount += 1 }
+                    pendingCR = true
+                    index += 1
+                    continue
+                }
+                if byte == 0x0A {
+                    if pendingCR {
+                        crlfCount += 1
+                        pendingCR = false
+                    } else {
+                        lfCount += 1
+                    }
+                    index += 1
+                    continue
+                }
+                if pendingCR {
+                    crCount += 1
+                    pendingCR = false
+                }
+
+                if byte < 0x80 {
+                    index += 1
+                } else if byte >= 0xC2, byte <= 0xDF {
+                    guard index + 1 < bytes.count, isContinuation(bytes[index + 1]) else { return nil }
+                    index += 2
+                } else if byte >= 0xE0, byte <= 0xEF {
+                    guard index + 2 < bytes.count,
+                          isContinuation(bytes[index + 1]),
+                          isContinuation(bytes[index + 2]),
+                          (byte != 0xE0 || bytes[index + 1] >= 0xA0),
+                          (byte != 0xED || bytes[index + 1] <= 0x9F)
+                    else { return nil }
+                    index += 3
+                } else if byte >= 0xF0, byte <= 0xF4 {
+                    guard index + 3 < bytes.count,
+                          isContinuation(bytes[index + 1]),
+                          isContinuation(bytes[index + 2]),
+                          isContinuation(bytes[index + 3]),
+                          (byte != 0xF0 || bytes[index + 1] >= 0x90),
+                          (byte != 0xF4 || bytes[index + 1] <= 0x8F)
+                    else { return nil }
+                    index += 4
+                } else {
+                    return nil
+                }
+            }
+
+            if pendingCR { crCount += 1 }
+            if crlfCount == 0, lfCount == 0, crCount == 0 { return .lf }
+            if crlfCount >= lfCount, crlfCount >= crCount { return .crlf }
+            return lfCount >= crCount ? .lf : .cr
+        }
+    }
+
     /// Read a file with optional ANSI-as-UTF8 reinterpretation.
     /// When `openAnsiAsUtf8` is true and the detected encoding is a legacy single-byte
     /// encoding (not UTF-8/UTF-16), try to re-decode as UTF-8 first.
@@ -462,7 +556,7 @@ public enum TextFileCodec {
                 || result.encoding == .utf16BigEndian
 
             if !isUnicode {
-                let data = try Data(contentsOf: url)
+                let data = try Data(contentsOf: url, options: .mappedIfSafe)
                 if let utf8Text = String(data: data, encoding: .utf8) {
                     return LoadedTextFile(
                         text: utf8Text,
@@ -478,7 +572,7 @@ public enum TextFileCodec {
     }
 
     public static func read(_ url: URL) throws -> LoadedTextFile {
-        let data = try Data(contentsOf: url)
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
         let legacySingleByteCandidates: [String.Encoding] = [
             .ascii,
             .windowsCP1252,
@@ -562,7 +656,7 @@ public enum TextFileCodec {
 
     /// Read a file forcing a specific encoding (for "Reload as Encoding").
     public static func read(_ url: URL, forcingEncoding option: TextEncodingOption) throws -> LoadedTextFile {
-        let data = try Data(contentsOf: url)
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
         guard let text = decode(data, encoding: option.encoding) else {
             throw ReadError.unsupportedEncoding
         }

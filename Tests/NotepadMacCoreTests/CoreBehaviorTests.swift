@@ -6,6 +6,7 @@ import Testing
     #expect(LineEnding.detect(in: "one\r\ntwo\r\nthree\n") == .crlf)
     #expect(LineEnding.detect(in: "one\ntwo\nthree\r\n") == .lf)
     #expect(LineEnding.detect(in: "one\rtwo\rthree") == .cr)
+    #expect(LineEnding.detect(in: "one\r") == .cr)
 }
 
 @Test func normalizesTextToSelectedLineEnding() {
