@@ -66,9 +66,8 @@ public final class BoostRegexEngine {
 
     // MARK: - Offset mapping
 
-    private func prepare(text: String) {
-        if lastSearchedText == text { return }
-        lastSearchedText = text
+    private func prepare(text: String) -> Bool {
+        if lastSearchedText == text { return true }
         scalars.removeAll(keepingCapacity: true)
         utf16Offsets.removeAll(keepingCapacity: true)
         scalars.reserveCapacity(text.unicodeScalars.count)
@@ -80,6 +79,15 @@ public final class BoostRegexEngine {
             utf16Position += scalar.value > 0xFFFF ? 2 : 1
         }
         utf16Offsets.append(utf16Position)
+        let status = scalars.withUnsafeBufferPointer { buffer in
+            npboost_regex_set_text(handle, buffer.baseAddress, buffer.count)
+        }
+        guard status == 0 else {
+            lastSearchedText = nil
+            return false
+        }
+        lastSearchedText = text
+        return true
     }
 
     private func scalarIndex(forUTF16 offset: Int) -> Int? {
@@ -110,7 +118,11 @@ public final class BoostRegexEngine {
         range searchRange: NSRange,
         dotMatchesLineSeparators: Bool = false
     ) -> Match? {
-        prepare(text: text)
+        guard prepare(text: text) else { return nil }
+        return firstPreparedMatch(range: searchRange, dotMatchesLineSeparators: dotMatchesLineSeparators)
+    }
+
+    private func firstPreparedMatch(range searchRange: NSRange, dotMatchesLineSeparators: Bool) -> Match? {
         guard let startScalar = scalarIndex(forUTF16: searchRange.location),
               let endScalar = scalarIndex(forUTF16: NSMaxRange(searchRange))
         else { return nil }
@@ -120,20 +132,16 @@ public final class BoostRegexEngine {
         var ends = [Int](repeating: 0, count: groupSlots)
         var groupCount = 0
 
-        let status = scalars.withUnsafeBufferPointer { buffer in
-            npboost_regex_search(
-                handle,
-                buffer.baseAddress,
-                buffer.count,
-                startScalar,
-                endScalar,
-                dotMatchesLineSeparators ? 0 : 1,
-                &begins,
-                &ends,
-                groupSlots,
-                &groupCount
-            )
-        }
+        let status = npboost_regex_search(
+            handle,
+            startScalar,
+            endScalar,
+            dotMatchesLineSeparators ? 0 : 1,
+            &begins,
+            &ends,
+            groupSlots,
+            &groupCount
+        )
         guard status == 1 else { return nil }
 
         let reported = min(groupCount, groupSlots)
@@ -157,17 +165,24 @@ public final class BoostRegexEngine {
         range searchRange: NSRange? = nil,
         dotMatchesLineSeparators: Bool = false
     ) -> [Match] {
-        prepare(text: text)
+        guard prepare(text: text) else { return [] }
         let fullRange = NSRange(location: 0, length: utf16Offsets.last ?? 0)
         var window = searchRange ?? fullRange
         let windowEnd = NSMaxRange(window)
         var matches: [Match] = []
         while window.location <= windowEnd {
-            guard let match = firstMatch(
-                in: text, range: window, dotMatchesLineSeparators: dotMatchesLineSeparators
+            if Task.isCancelled { break }
+            guard let match = firstPreparedMatch(
+                range: window, dotMatchesLineSeparators: dotMatchesLineSeparators
             ) else { break }
             matches.append(match)
-            let advance = max(NSMaxRange(match.range), match.range.location + 1)
+            let advance: Int
+            if match.range.length == 0 {
+                guard let scalar = scalarIndex(forUTF16: match.range.location), scalar < scalars.count else { break }
+                advance = utf16Offsets[scalar + 1]
+            } else {
+                advance = NSMaxRange(match.range)
+            }
             guard advance <= windowEnd else { break }
             window = NSRange(location: advance, length: windowEnd - advance)
         }

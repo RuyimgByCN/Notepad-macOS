@@ -5,7 +5,7 @@ Translation note:
 2. All the comments are for explanation, they are not for translation.
 -->
 <NotepadPlus>
-	<Native-Langue name="Français" filename="french.xml" version="8.9.7">
+	<Native-Langue name="Français" filename="french.xml" version="8.9.8">
 		<Menu>
 			<Main>
 				<!-- Main Menu Entries -->
@@ -43,12 +43,12 @@ Translation note:
 					<Item subMenuId="edit-multiSelectNext" name="Multi-sélection Suivant"/>
 					<Item subMenuId="edit-readonlyInNotepad++" name="Lecture seule dans Notepad++"/>
 					<Item subMenuId="search-changeHistory" name="Historique de modification"/>
-					<Item subMenuId="search-markAll" name="Marquer tout"/>
-					<Item subMenuId="search-markOne" name="Marquer uniquement la sélection"/>
-					<Item subMenuId="search-unmarkAll" name="Enlever toutes les marques"/>
-					<Item subMenuId="search-jumpUp" name="Aller vers le haut"/>
-					<Item subMenuId="search-jumpDown" name="Aller vers le bas"/>
-					<Item subMenuId="search-copyStyledText" name="Copier le texte marqué"/>
+					<Item subMenuId="search-markAll" name="Styler toutes les occurrences"/>
+					<Item subMenuId="search-markOne" name="Styler uniquement la sélection"/>
+					<Item subMenuId="search-unmarkAll" name="Enlever les styles"/>
+					<Item subMenuId="search-jumpUp" name="Monter vers style ou marque"/>
+					<Item subMenuId="search-jumpDown" name="Descendre vers style ou marque"/>
+					<Item subMenuId="search-copyStyledText" name="Copier le texte stylé ou marqué"/>
 					<Item subMenuId="search-bookmark" name="Signet"/>
 					<Item subMenuId="view-currentFileIn" name="Afficher le fichier dans"/>
 					<Item subMenuId="view-showSymbol" name="Symboles spéciaux"/>
@@ -225,11 +225,11 @@ Translation note:
 					<Item id="43006" name="Signet suivant"/>
 					<Item id="43007" name="Signet précédent"/>
 					<Item id="43008" name="Enlever tous les signets"/>
-					<Item id="43018" name="Couper les lignes marquées"/>
-					<Item id="43019" name="Copier les lignes marquées"/>
-					<Item id="43020" name="Coller pour remplacer les lignes marquées"/>
-					<Item id="43021" name="Supprimer les lignes marquées"/>
-					<Item id="43051" name="Supprimer les lignes non marquées"/>
+					<Item id="43018" name="Couper les lignes avec signet"/>
+					<Item id="43019" name="Copier les lignes avec signet"/>
+					<Item id="43020" name="Coller pour remplacer les lignes avec signet"/>
+					<Item id="43021" name="Supprimer les lignes avec signet"/>
+					<Item id="43051" name="Supprimer les lignes sans signet"/>
 					<Item id="43050" name="Inverser les signets"/>
 					<Item id="43052" name="Rechercher des caractères dans une plage..."/>
 					<Item id="43053" name="Sélectionner tout entre les 2   { } ou [ ] ou ( )"/>
@@ -240,35 +240,35 @@ Translation note:
 					<Item id="43014" name="Recherche volatile suivante"/>
 					<Item id="43015" name="Recherche volatile précédente"/>
 					<Item id="43022" name="Appliquer le style 1"/>
-					<Item id="43023" name="Dégager le style 1"/>
+					<Item id="43023" name="Enlever le style 1"/>
 					<Item id="43024" name="Appliquer le style 2"/>
-					<Item id="43025" name="Dégager le style 2"/>
+					<Item id="43025" name="Enlever le style 2"/>
 					<Item id="43026" name="Appliquer le style 3"/>
-					<Item id="43027" name="Dégager le style 3"/>
+					<Item id="43027" name="Enlever le style 3"/>
 					<Item id="43028" name="Appliquer le style 4"/>
-					<Item id="43029" name="Dégager le style 4"/>
+					<Item id="43029" name="Enlever le style 4"/>
 					<Item id="43030" name="Appliquer le style 5"/>
-					<Item id="43031" name="Dégager le style 5"/>
-					<Item id="43032" name="Dégager tous les styles"/>
+					<Item id="43031" name="Enlever le style 5"/>
+					<Item id="43032" name="Enlever tous les styles"/>
 					<Item id="43033" name="Style 1"/>
 					<Item id="43034" name="Style 2"/>
 					<Item id="43035" name="Style 3"/>
 					<Item id="43036" name="Style 4"/>
 					<Item id="43037" name="Style 5"/>
-					<Item id="43038" name="Style de recherche"/>
+					<Item id="43038" name="Marque de recherche"/>
 					<Item id="43039" name="Style 1"/>
 					<Item id="43040" name="Style 2"/>
 					<Item id="43041" name="Style 3"/>
 					<Item id="43042" name="Style 4"/>
 					<Item id="43043" name="Style 5"/>
-					<Item id="43044" name="Style de recherche"/>
+					<Item id="43044" name="Marque de recherche"/>
 					<Item id="43055" name="Style 1"/>
 					<Item id="43056" name="Style 2"/>
 					<Item id="43057" name="Style 3"/>
 					<Item id="43058" name="Style 4"/>
 					<Item id="43059" name="Style 5"/>
-					<Item id="43060" name="Tous"/>
-					<Item id="43061" name="Style de Marquer tout"/>
+					<Item id="43060" name="Styles 1 à 5"/>
+					<Item id="43061" name="Marque de recherche"/>
 					<Item id="43062" name="Appliquer le style 1"/>
 					<Item id="43063" name="Appliquer le style 2"/>
 					<Item id="43064" name="Appliquer le style 3"/>
@@ -1400,6 +1400,7 @@ Translation note:
 					<Item id="6346" name="Aperçu à commutateur de documents"/>
 					<Item id="6360" name="Chut !"/>
 					<Item id="6361" name="Activer la confirmation pour la commande « Enregistrer tout »"/>
+					<Item id="6366" name="Autoriser le chargement des liens symboliques dans « Dossier en tant qu’espace de travail »"/>
 				</MISC>
 			</Preference>
 			<MultiMacro title="Exécuter une macro en boucle">
@@ -1467,7 +1468,7 @@ Vous pourrez réactiver cette boîte de dialogue dans les Préférences ultérie
 				<Item id="7" name="&amp;Non"/>
 				<Item id="4" name="Toujours Oui"/>
 			</DoSaveAll><!-- HowToReproduce: Check the 'Enable Save All confirm dialog' checkbox in Preference->MISC, now click 'Save all' -->
-			<NetworkPathWarning title="Notepad++ : chargement de la session" title2="Le lien file:// cliquable">
+			<NetworkPathWarning title="Notepad++ : chargement de la session" title2="Le lien file:// cliquable" title3="Chargement de toolbarButtonsConf.xml" title4="Chargement du fichier XML du panneau de projet">
 				<Item id="1771" name="Avertissement concernant le chemin réseau :
 
 $STR_REPLACE$
@@ -1475,7 +1476,7 @@ $STR_REPLACE$
 Le charger amènera Windows à s'authentifier automatiquement auprès de ce serveur, ce qui risque d'exposer vos informations de connexion Windows.
 Charger quand même ?"/>
 				<Item id="2" name="&amp;Ignorer"/>
-				<Item id="6" name="&amp;Charger"/>
+				<Item id="6" name="Toujours &amp;charger depuis ce serveur"/>
 				<Item id="7" name="&amp;Toujours ignorer les chemins réseau"/>
 				<Item id="4" name="Toujours charger les chemins &amp;réseau"/>
 			</NetworkPathWarning>
@@ -1645,6 +1646,9 @@ Si son contenu est correct, utilisez « Valider shortcuts.xml » dans le men
 
 Pour des raisons de sécurité, veuillez examiner le fichier shortcuts.xml ouvert.
 Si son contenu est correct, utilisez « Valider shortcuts.xml » dans le menu &quot;Exécution&quot; pour le confirmer."/>
+			<SymlinkLoadingWarning title="Avertissement : le chargement des liens symboliques peut provoquer un blocage" message="Activer le chargement des liens symboliques dans « Dossier en tant qu’espace de travail » peut entraîner une boucle infinie et provoquer le blocage de Notepad++.
+Ce problème peut survenir lorsque des liens symboliques de répertoires se résolvent vers des dossiers parents ou créent des références circulaires.
+N’avancez que si vous comprenez les risques."/>
 		</MessageBox>
 		<ClipboardHistory>
 			<PanelTitle name="Historique du presse-papier"/>
@@ -1943,6 +1947,9 @@ Si vous sélectionnez le mode avancé sans modifier les fichiers des langues men
 			<max-len-on-save-tip value="La longueur de votre saisie est très longue et il se peut qu'elle ne soit pas enregistrée pour votre prochaine session."/>
 			<goto-setting-tip value="Réglage du paramètre ici"/>
 			<tabbar-tabcompactlabellen-tip value="Limiter la longueur du libellé pour compacter l'onglet. Appuyez sur Entrée pour appliquer la valeur indiquée. Valeurs possibles : 1 à 257 caractères (0 désactive la troncature)."/>
+			<networkpathwarning-serverwhitelist-tip value="Ajoute le serveur du fichier actuel dans serverWhiteList.xml de Notepad++.
+
+Pour plus d'informations, cliquez sur ce bouton pour ouvrir la section correspondante du manuel utilisateur."/>
 		</MiscStrings>
 	</Native-Langue>
 </NotepadPlus>

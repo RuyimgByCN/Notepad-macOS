@@ -33,7 +33,10 @@ let package = Package(
             cxxSettings: [
                 .headerSearchPath("include"),
                 .headerSearchPath("../../upstream/notepad-plus-plus/boostregex"),
-                .define("BOOST_REGEX_STANDALONE")
+                .define("BOOST_REGEX_STANDALONE"),
+                // Standalone Boost omits platform config; enable its native
+                // cache locks for concurrent editor and background searches.
+                .define("BOOST_HAS_THREADS")
             ],
             linkerSettings: [
                 .linkedLibrary("c++")

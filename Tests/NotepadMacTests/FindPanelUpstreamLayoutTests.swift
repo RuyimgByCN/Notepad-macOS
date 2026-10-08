@@ -103,6 +103,74 @@ private func findTabView(in view: NSView?) -> NSTabView? {
 }
 
 @MainActor
+private func searchControls<T: NSView>(_ type: T.Type, in view: NSView?) -> [T] {
+    guard let view else { return [] }
+    return (view as? T).map { [$0] } ?? []
+        + view.subviews.flatMap { searchControls(type, in: $0) }
+}
+
+@MainActor
+@Test func findPanelRunsFileSearchAsynchronouslyAndCancelsOnClose() async throws {
+    let (panel, editor, _) = makePanel()
+    defer { editor.editorSurface.teardown() }
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try "hit".write(to: directory.appending(path: "sample.txt"), atomically: true, encoding: .utf8)
+    let root = panel.window?.contentView
+    findTabView(in: root)?.selectTabViewItem(at: 2)
+    let fields = searchControls(NSComboBox.self, in: root)
+    #expect(fields.count == 4)
+    guard fields.count == 4 else { return }
+    fields[0].stringValue = "hit"
+    fields[2].stringValue = directory.path
+    fields[3].stringValue = "*.txt"
+    let replace = try #require(searchControls(NSButton.self, in: root).first {
+        $0.action == NSSelectorFromString("findInFilesReplaceAll:")
+    })
+    panel.perform(NSSelectorFromString("findInFilesFindAll:"), with: nil)
+    #expect(!replace.isEnabled)
+    for _ in 0..<200 where !replace.isEnabled { try await Task.sleep(for: .milliseconds(5)) }
+    #expect(replace.isEnabled)
+    panel.perform(NSSelectorFromString("findInFilesFindAll:"), with: nil)
+    #expect(!replace.isEnabled)
+    panel.window?.close()
+    #expect(replace.isEnabled)
+}
+
+@MainActor
+@Test func fileSearchPanelPublishesOnlyTheLatestBackgroundSearch() async throws {
+    let (_, editor, _) = makePanel()
+    defer { editor.editorSurface.teardown() }
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try ("first\n" + String(repeating: "hit\n", count: 1_000))
+        .write(to: directory.appending(path: "sample.txt"), atomically: true, encoding: .utf8)
+    let store = FindInFilesResultsStore()
+    var publications = 0
+    let panel = FindInFilesPanelController(editor: editor, resultsStore: store) { publications += 1 }
+    let fields = searchControls(NSTextField.self, in: panel.window?.contentView)
+    let query = try #require(fields.first {
+        $0.placeholderString == Localization.string(.findInFilesFindPlaceholder, default: "Search term")
+    })
+    let directoryField = try #require(fields.first {
+        $0.placeholderString == Localization.string(.findInFilesDirectoryPlaceholder, default: "Directory path")
+    })
+    directoryField.stringValue = directory.path
+    query.stringValue = "hit"
+    panel.perform(NSSelectorFromString("performFind:"), with: nil)
+    #expect(publications == 0)
+    query.stringValue = "first"
+    panel.perform(NSSelectorFromString("performFind:"), with: nil)
+    for _ in 0..<200 where publications == 0 { try await Task.sleep(for: .milliseconds(5)) }
+    #expect(publications == 1)
+    #expect(store.matches.count == 1)
+    #expect(store.matches.first?.lineText == "first")
+    panel.window?.close()
+}
+
+@MainActor
 @Test func findComboBoxFillsAvailableWidthOnFirstOpen() {
     let (panel, controller, _) = makePanel()
     defer { controller.editorSurface.teardown() }

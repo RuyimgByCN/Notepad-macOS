@@ -29,6 +29,16 @@ public extension LanguageDefinition {
                 .sorted { $0.index < $1.index }
         }
 
+        if name.lowercased() == "fcst" {
+            return keywordGroups
+                .compactMap { name, words -> (Int, [String])? in
+                    let index = keywordGroupPriority(name)
+                    guard index < 6, !words.isEmpty else { return nil }
+                    return (index, words)
+                }
+                .sorted { $0.index < $1.index }
+        }
+
         return keywordGroups
             .sorted { keywordGroupPriority($0.key) < keywordGroupPriority($1.key) }
             .filter { !$1.isEmpty }
@@ -200,6 +210,7 @@ public enum NotepadPlusLexillaMapping {
         // Hardware description
         "vhdl": "vhdl",
         "verilog": "verilog",
+        "fcst": "fcST",
         // Assembly / low level
         "asm": "asm",
         "mmixal": "mmixal",

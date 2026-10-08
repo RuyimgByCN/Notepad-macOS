@@ -2,7 +2,7 @@ import AppKit
 import NotepadMacCore
 
 @MainActor
-final class FindInFilesPanelController: NSWindowController {
+final class FindInFilesPanelController: NSWindowController, NSWindowDelegate {
     private enum SearchScope {
         case directory
         case fileList([URL], title: String)
@@ -12,6 +12,8 @@ final class FindInFilesPanelController: NSWindowController {
     private let resultsStore: FindInFilesResultsStore
     private var onResultsUpdated: (() -> Void)?
     private var searchScope: SearchScope = .directory
+    private var searchTask: Task<[FindInFilesMatch], Never>?
+    private var searchID = UUID()
 
     private let findField = NSTextField(string: "")
     private let directoryField = NSTextField(string: "")
@@ -57,6 +59,7 @@ final class FindInFilesPanelController: NSWindowController {
         panel.minSize = NSSize(width: 500, height: 350)
 
         super.init(window: panel)
+        panel.delegate = self
         configureContent()
         refreshLocalizedStrings()
         NotificationCenter.default.addObserver(
@@ -68,7 +71,19 @@ final class FindInFilesPanelController: NSWindowController {
     }
 
     deinit {
+        searchTask?.cancel()
         NotificationCenter.default.removeObserver(self)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        cancelSearch()
+    }
+
+    private func cancelSearch() {
+        searchTask?.cancel()
+        searchTask = nil
+        searchID = UUID()
+        replaceAllButton.isEnabled = true
     }
 
     @available(*, unavailable)
@@ -77,6 +92,7 @@ final class FindInFilesPanelController: NSWindowController {
     }
 
     func show(searchRoot: URL? = nil) {
+        cancelSearch()
         searchScope = .directory
         applySearchScopeUI()
         refreshLocalizedStrings()
@@ -92,6 +108,7 @@ final class FindInFilesPanelController: NSWindowController {
     }
 
     func show(fileURLs: [URL], title: String) {
+        cancelSearch()
         searchScope = .fileList(fileURLs, title: title)
         applySearchScopeUI()
         refreshLocalizedStrings()
@@ -335,6 +352,11 @@ final class FindInFilesPanelController: NSWindowController {
         let wholeWord = wholeWordButton.state == .on
         let modes: [TextSearch.SearchMode] = [.normal, .extended, .regex]
         let searchMode = modes[max(0, min(searchModeControl.selectedSegment, modes.count - 1))]
+
+        if searchMode == .regex, let problem = TextSearch.regexPatternProblem(query) {
+            statusField.stringValue = String(format: Localization.string(.findStatusInvalidRegex, default: "Invalid regex — %@"), problem)
+            return
+        }
         let filters = FindInFilesSearch.parseFilters(filterField.stringValue)
         let options = TextSearch.Options(matchCase: matchCase, wholeWord: wholeWord, wraps: false, direction: .down, searchMode: searchMode)
 
@@ -369,6 +391,7 @@ final class FindInFilesPanelController: NSWindowController {
     }
 
     @objc private func performFind(_ sender: Any?) {
+        cancelSearch()
         let query = findField.stringValue
         guard !query.isEmpty else {
             NSSound.beepUnlessMuted()
@@ -380,11 +403,18 @@ final class FindInFilesPanelController: NSWindowController {
         let modes: [TextSearch.SearchMode] = [.normal, .extended, .regex]
         let searchMode = modes[max(0, min(searchModeControl.selectedSegment, modes.count - 1))]
 
+        if searchMode == .regex, let problem = TextSearch.regexPatternProblem(query) {
+            statusField.stringValue = String(format: Localization.string(.findStatusInvalidRegex, default: "Invalid regex — %@"), problem)
+            return
+        }
+
         statusField.stringValue = Localization.string(.findInFilesSearching, default: "Searching...")
         results.removeAll()
         resultsTable.reloadData()
 
-        let foundResults: [FindInFilesMatch]
+        let perLine = editor?.preferencesStore.load().perLineResultInFind ?? false
+        let purge = purgeBeforeSearchButton.state == .on
+        let task: Task<[FindInFilesMatch], Never>
         switch searchScope {
         case .directory:
             let directory = directoryField.stringValue
@@ -401,46 +431,49 @@ final class FindInFilesPanelController: NSWindowController {
             }
             let skipPaths: Set<String> = ignoreUnsavedButton.state == .on
                 ? (getDirtyFilePaths?() ?? []) : []
-            let perLine = editor?.preferencesStore.load().perLineResultInFind ?? false
-            foundResults = FindInFilesSearch.searchInDirectory(
-                dirURL,
-                query: query,
-                filters: FindInFilesSearch.parseFilters(filterField.stringValue),
-                matchCase: matchCase,
-                wholeWord: wholeWord,
-                searchMode: searchMode,
-                skipPaths: skipPaths,
-                perLineResult: perLine
-            )
+            let filters = FindInFilesSearch.parseFilters(filterField.stringValue)
+            task = Task.detached(priority: .userInitiated) {
+                FindInFilesSearch.searchInDirectory(
+                    dirURL, query: query, filters: filters, matchCase: matchCase,
+                    wholeWord: wholeWord, searchMode: searchMode,
+                    skipPaths: skipPaths, perLineResult: perLine
+                )
+            }
         case let .fileList(urls, _):
             guard !urls.isEmpty else {
                 statusField.stringValue = Localization.string(.findInFilesNoResults, default: "No results found")
                 return
             }
-            let perLine = editor?.preferencesStore.load().perLineResultInFind ?? false
-            foundResults = FindInFilesSearch.searchInFiles(
-                urls,
-                query: query,
-                matchCase: matchCase,
-                wholeWord: wholeWord,
-                searchMode: searchMode,
-                perLineResult: perLine
-            )
+            task = Task.detached(priority: .userInitiated) {
+                FindInFilesSearch.searchInFiles(
+                    urls, query: query, matchCase: matchCase, wholeWord: wholeWord,
+                    searchMode: searchMode, perLineResult: perLine
+                )
+            }
         }
 
-        results = foundResults
-        resultsTable.reloadData()
-        fitResultsColumnToContent()
-        resultsStore.setResults(foundResults, purgeFirst: purgeBeforeSearchButton.state == .on)
-        onResultsUpdated?()
+        searchTask = task
+        let currentSearchID = searchID
+        replaceAllButton.isEnabled = false
+        Task { [weak self] in
+            let foundResults = await task.value
+            guard let self, self.searchID == currentSearchID, !task.isCancelled else { return }
+            self.searchTask = nil
+            self.replaceAllButton.isEnabled = true
+            self.results = foundResults
+            self.resultsTable.reloadData()
+            self.fitResultsColumnToContent()
+            self.resultsStore.setResults(foundResults, purgeFirst: purge)
+            self.onResultsUpdated?()
 
-        if results.isEmpty {
-            statusField.stringValue = Localization.string(.findInFilesNoResults, default: "No results found")
-        } else {
-            statusField.stringValue = String(
-                format: Localization.string(.findInFilesResultCount, default: "%d result(s) found"),
-                results.count
-            )
+            if foundResults.isEmpty {
+                self.statusField.stringValue = Localization.string(.findInFilesNoResults, default: "No results found")
+            } else {
+                self.statusField.stringValue = String(
+                    format: Localization.string(.findInFilesResultCount, default: "%d result(s) found"),
+                    foundResults.count
+                )
+            }
         }
     }
 

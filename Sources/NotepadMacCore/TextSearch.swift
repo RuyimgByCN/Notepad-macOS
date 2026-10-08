@@ -244,15 +244,7 @@ public enum TextSearch {
         let nsText = text as NSString
 
         if options.searchMode == .regex {
-            guard let engine = makeBoostEngine(query, options: options) else { return [] }
-            let candidates = engine.allMatches(
-                in: text,
-                dotMatchesLineSeparators: options.dotMatchesLineSeparators
-            ).map(\.range)
-            if options.wholeWord {
-                return candidates.filter { isWholeWord($0, in: nsText) }
-            }
-            return candidates
+            return prepareFindAll(query, options: options)(text)
         }
 
         let effectiveQuery = options.searchMode == .extended ? expandExtendedEscapes(query) : query
@@ -260,6 +252,7 @@ public enum TextSearch {
         var searchLocation = 0
 
         while searchLocation <= nsText.length {
+            if Task.isCancelled { break }
             let remainingLength = nsText.length - searchLocation
             guard remainingLength >= effectiveQuery.utf16.count else { break }
 
@@ -273,6 +266,27 @@ public enum TextSearch {
         }
 
         return matches
+    }
+
+    /// A file-search batch reuses one compiled regex across its files.
+    /// The returned closure is used sequentially: BoostRegexEngine owns mutable state.
+    static func prepareFindAll(_ query: String, options: Options) -> (String) -> [NSRange] {
+        guard options.searchMode == .regex else {
+            return { findAll(query, in: $0, options: options) }
+        }
+        guard !query.isEmpty, let engine = makeBoostEngine(query, options: options) else {
+            return { _ in [] }
+        }
+        return { text in
+            guard !text.isEmpty else { return [] }
+            let ranges = engine.allMatches(
+                in: text,
+                dotMatchesLineSeparators: options.dotMatchesLineSeparators
+            ).map(\.range)
+            guard options.wholeWord else { return ranges }
+            let nsText = text as NSString
+            return ranges.filter { isWholeWord($0, in: nsText) }
+        }
     }
 
     /// 1-based index of `range` within `matches`, or `nil` if absent.

@@ -97,10 +97,19 @@ int npboost_regex_group_count(const NPBoostRegexHandle *handle) {
     return static_cast<int>(handle->regex.mark_count());
 }
 
+int npboost_regex_set_text(NPBoostRegexHandle *handle, const uint32_t *text, long textLength) {
+    if (handle == nullptr || textLength < 0 || (text == nullptr && textLength > 0)) return -1;
+    handle->hasMatch = false;
+    try {
+        handle->lastText = toWide(text, textLength);
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
 int npboost_regex_search(
     NPBoostRegexHandle *handle,
-    const uint32_t *text,
-    long textLength,
     long startPos,
     long endPos,
     int matchNotDotNewline,
@@ -108,14 +117,13 @@ int npboost_regex_search(
     long *groupEnds,
     long groupCapacity,
     long *groupCount) {
-    if (handle == nullptr || (text == nullptr && textLength > 0)) return -1;
-    if (textLength < 0 || startPos < 0 || endPos < 0) return -1;
+    if (handle == nullptr || startPos < 0 || endPos < 0) return -1;
+    const long textLength = static_cast<long>(handle->lastText.size());
     if (startPos > textLength) startPos = textLength;
     if (endPos > textLength) endPos = textLength;
     if (startPos > endPos) return 0;
 
     try {
-        handle->lastText = toWide(text, textLength);
         handle->hasMatch = false;
 
         const wchar_t *base = handle->lastText.data();

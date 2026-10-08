@@ -29,7 +29,11 @@ void npboost_regex_destroy(NPBoostRegexHandle *handle);
 /// Number of capture groups in the compiled pattern (excluding group 0).
 int npboost_regex_group_count(const NPBoostRegexHandle *handle);
 
-/// Searches `text` (UTF-32 code points) inside [startPos, endPos).
+/// Copies UTF-32 text once for subsequent searches. Returns 0 on success,
+/// -1 on error. Replacing the text invalidates the retained match.
+int npboost_regex_set_text(NPBoostRegexHandle *handle, const uint32_t *text, long textLength);
+
+/// Searches the prepared text inside [startPos, endPos).
 /// `matchNotDotNewline` mirrors upstream: non-zero unless the
 /// ". matches newline" search option is enabled.
 /// Returns 1 on match, 0 on no match, -1 on error.
@@ -40,8 +44,6 @@ int npboost_regex_group_count(const NPBoostRegexHandle *handle);
 /// The match state is retained on the handle for npboost_regex_format.
 int npboost_regex_search(
     NPBoostRegexHandle *handle,
-    const uint32_t *text,
-    long textLength,
     long startPos,
     long endPos,
     int matchNotDotNewline,

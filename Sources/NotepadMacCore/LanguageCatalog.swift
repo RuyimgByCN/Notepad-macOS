@@ -143,6 +143,8 @@ public struct LanguageDefinition: Equatable, Identifiable, Sendable {
             "PureBasic"
         case "r":
             "R"
+        case "fcST", "fcst":
+            "Structured Text"
         case "rc":
             "Resource File"
         case "rebol":

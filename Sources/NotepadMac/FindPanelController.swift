@@ -103,6 +103,8 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
     private var fifOptionsTop: NSLayoutConstraint!
 
     private var currentTab: Tab = .find
+    private var fileSearchTask: Task<[FindInFilesMatch], Never>?
+    private var fileSearchID = UUID()
 
     // MARK: - Init
 
@@ -135,7 +137,19 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
     }
 
     deinit {
+        fileSearchTask?.cancel()
         NotificationCenter.default.removeObserver(self)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        cancelFileSearch()
+    }
+
+    private func cancelFileSearch() {
+        fileSearchTask?.cancel()
+        fileSearchTask = nil
+        fileSearchID = UUID()
+        findInFilesReplaceAllButton.isEnabled = true
     }
 
     @available(*, unavailable)
@@ -557,6 +571,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
     // MARK: - Find in Files Actions
 
     @objc private func findInFilesFindAll(_ sender: Any?) {
+        cancelFileSearch()
         guard !findField.stringValue.isEmpty else {
             setStatus(Localization.string(.findStatusEnterText, default: "Enter text to find."), isError: true)
             return
@@ -583,28 +598,38 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         let filters = FindInFilesSearch.parseFilters(filterField.stringValue)
         let perLine = preferencesStore.load().perLineResultInFind
         let purge = purgeBeforeSearchButton.state == .on
+        let query = findField.stringValue
+        let dotMatchesNewline = dotMatchesNewlineButton.state == .on
+        if searchMode == .regex, let problem = TextSearch.regexPatternProblem(query) {
+            setStatus(String(format: Localization.string(.findStatusInvalidRegex, default: "Invalid regex — %@"), problem), isError: true)
+            return
+        }
 
         setStatus(Localization.string(.findInFilesSearching, default: "Searching..."))
-
-        let results = FindInFilesSearch.searchInDirectory(
-            dirURL,
-            query: findField.stringValue,
-            filters: filters,
-            matchCase: matchCase,
-            wholeWord: wholeWord,
-            searchMode: searchMode,
-            skipPaths: [],
-            perLineResult: perLine
-        )
-
-        if results.isEmpty {
-            setStatus(Localization.string(.findStatusNoMatches, default: "No matches."), isError: true)
-        } else {
-            if let appDelegate = NSApp.delegate as? AppDelegate {
-                appDelegate.findInFilesResultsStore.setResults(results, purgeFirst: purge)
-                appDelegate.showFoundResultsPanel()
+        let searchID = fileSearchID
+        findInFilesReplaceAllButton.isEnabled = false
+        let task = Task.detached(priority: .userInitiated) {
+            FindInFilesSearch.searchInDirectory(
+                dirURL, query: query, filters: filters, matchCase: matchCase,
+                wholeWord: wholeWord, searchMode: searchMode,
+                perLineResult: perLine, dotMatchesLineSeparators: dotMatchesNewline
+            )
+        }
+        fileSearchTask = task
+        Task { [weak self] in
+            let results = await task.value
+            guard let self, self.fileSearchID == searchID, !task.isCancelled else { return }
+            self.fileSearchTask = nil
+            self.findInFilesReplaceAllButton.isEnabled = true
+            if results.isEmpty {
+                self.setStatus(Localization.string(.findStatusNoMatches, default: "No matches."), isError: true)
+            } else {
+                if let appDelegate = NSApp.delegate as? AppDelegate {
+                    appDelegate.findInFilesResultsStore.setResults(results, purgeFirst: purge)
+                    appDelegate.showFoundResultsPanel()
+                }
+                self.setStatus(self.localizedString(.findStatusMatchCount, default: "%d match(es).", results.count))
             }
-            setStatus(localizedString(.findStatusMatchCount, default: "%d match(es).", results.count))
         }
     }
 
