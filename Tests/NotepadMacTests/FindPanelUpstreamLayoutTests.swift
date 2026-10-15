@@ -195,3 +195,30 @@ private func searchControls<T: NSView>(_ type: T.Type, in view: NSView?) -> [T] 
     // width, not collapse to its intrinsic minimum.
     #expect((combo?.frame.width ?? 0) > 200)
 }
+
+@MainActor
+@Test func findPanelCountsAndMarksEmptyRegexMatchesWithExplanatoryTooltip() throws {
+    let (originalPanel, editor, defaults) = makePanel()
+    _ = originalPanel
+    defer { editor.editorSurface.teardown() }
+    let store = PreferencesStore(defaults: defaults)
+    store.saveFindPanelExtendedState(searchMode: 2, dotMatchesNewline: false, wrapAround: true)
+    let panel = FindPanelController(editor: editor, preferencesStore: store)
+    editor.editorSurface.text = "\ncat\n"
+    let root = panel.window?.contentView
+    let query = try #require(searchControls(NSComboBox.self, in: root).first)
+    query.stringValue = "^$"
+    let hint = Localization.string("find.status.emptyRegexMatch", default: "The regular expression matches empty strings.")
+    for action in ["countMatches:", "markAll:"] {
+        panel.perform(NSSelectorFromString(action), with: nil)
+        let status = try #require(searchControls(NSTextField.self, in: root).first { $0.toolTip == hint })
+        #expect(status.stringValue.contains("2"))
+        query.stringValue = "cat"
+        panel.perform(NSSelectorFromString(action), with: nil)
+        #expect(status.toolTip == nil)
+        query.stringValue = "^$"
+    }
+    let result = editor.performBookmarkAllMatches(query: "^$", options: .init(searchMode: .regex))
+    #expect(result.matchCount == 2)
+    #expect(result.lineCount == 2)
+}

@@ -471,7 +471,8 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         if matches.isEmpty {
             setStatus(Localization.string(.findStatusNoMatches, default: "No matches."), isError: true)
         } else {
-            setStatus(localizedString(.findStatusMatchCount, default: "%d match(es).", matches.count))
+            setStatus(localizedString(.findStatusMatchCount, default: "%d match(es).", matches.count),
+                      hasEmptyMatches: matches.contains { $0.length == 0 })
         }
     }
 
@@ -539,7 +540,8 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         if bookmarkLineButton.state == .on {
             _ = editor.performBookmarkAllMatches(query: findField.stringValue, options: options)
         }
-        setStatus(localizedString(.findStatusMarkCount, default: "%d mark(s).", matches.count))
+        setStatus(localizedString(.findStatusMarkCount, default: "%d mark(s).", matches.count),
+                  hasEmptyMatches: matches.contains { $0.length == 0 })
     }
 
     @objc private func clearAllMarks(_ sender: Any?) {
@@ -1249,7 +1251,10 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         return stack
     }
 
-    private func setStatus(_ message: String, isError: Bool = false) {
+    private func setStatus(_ message: String, isError: Bool = false, hasEmptyMatches: Bool = false) {
+        statusField.toolTip = hasEmptyMatches
+            ? Localization.string("find.status.emptyRegexMatch", default: "The regular expression matches empty strings.")
+            : nil
         statusField.stringValue = message
         statusField.textColor = isError ? .systemRed : .secondaryLabelColor
     }

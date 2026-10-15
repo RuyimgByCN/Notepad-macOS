@@ -1536,3 +1536,5 @@
 "diff.status.alreadyLast" = "已经是最后一个不等块";
 "diff.status.noMoreDiffs" = "没有更多不等块";
 "diff.status.computing" = "正在计算对比…";
+
+"find.status.emptyRegexMatch" = "此正则表达式会匹配空字符串。";

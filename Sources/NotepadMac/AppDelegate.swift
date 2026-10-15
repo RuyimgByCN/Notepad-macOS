@@ -3161,7 +3161,7 @@ private var appearanceObservation: NSKeyValueObservation?
         } else {
             // Show with index 1 (skip current), or 0 if only 2 docs
             let startIndex = min(isShift ? items.count - 1 : 1, items.count - 1)
-            tabSwitcher.show(items: items, selectedIndex: startIndex)
+            tabSwitcher.show(items: items, selectedIndex: startIndex, ownerWindow: NSApp.keyWindow)
         }
         return nil
     }

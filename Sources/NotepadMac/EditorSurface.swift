@@ -1844,7 +1844,9 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
         let currentText = text
         for range in ranges {
-            guard let sciStart = scintillaPosition(in: currentText, utf16Location: range.location),
+            // Empty regex matches count and bookmark a line, but have no span to paint.
+            guard range.length > 0,
+                  let sciStart = scintillaPosition(in: currentText, utf16Location: range.location),
                   let sciEnd = scintillaPosition(in: currentText, utf16Location: NSMaxRange(range))
             else { continue }
             bridge.setGeneralProperty(ScintillaMessage.indicatorFillRange, parameter: sciStart, value: sciEnd - sciStart)

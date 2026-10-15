@@ -179,3 +179,10 @@ import Testing
     #expect(BoostRegexTranslation.icuTemplate(fromBoostReplacement: "\\\\n") == "\\\\n")
     #expect(BoostRegexTranslation.icuTemplate(fromBoostReplacement: "$1") == "$1")
 }
+
+@Test func boostRegexEmptyMatchesCountAndBookmarkTheirOwnLines() {
+    let text = "\n猫😀\n\n"
+    let matches = TextSearch.findAll("^$", in: text, options: .init(searchMode: .regex))
+    #expect(matches == [NSRange(location: 0, length: 0), NSRange(location: 5, length: 0), NSRange(location: 6, length: 0)])
+    #expect(BookmarkSet.linesContainingSearchMatches(matches, in: text) == [1, 3, 4])
+}

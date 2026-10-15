@@ -22,6 +22,7 @@ final class TabSwitcherController: NSObject {
 
     private var items: [Item] = []
     private var selectedIndex = 0
+    private weak var ownerWindow: NSWindow?
 
     var window: NSWindow? { panel }
 
@@ -32,13 +33,31 @@ final class TabSwitcherController: NSObject {
         panel.isReleasedWhenClosed = false
         panel.isFloatingPanel = true
         panel.level = .floating
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
         panel.title = "Documents"
         panel.minSize = NSSize(width: 200, height: 100)
         configureContent()
+        NotificationCenter.default.addObserver(self, selector: #selector(applicationDidResignActive(_:)),
+                                               name: NSApplication.didResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(windowDidResignKey(_:)),
+                                               name: NSWindow.didResignKeyNotification, object: nil)
     }
 
-    func show(items: [Item], selectedIndex: Int) {
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func applicationDidResignActive(_ notification: Notification) {
+        cancel()
+    }
+
+    @objc private func windowDidResignKey(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === ownerWindow else { return }
+        cancel()
+    }
+
+    func show(items: [Item], selectedIndex: Int, ownerWindow: NSWindow?) {
+        self.ownerWindow = ownerWindow
         self.items = items
         self.selectedIndex = max(0, min(selectedIndex, items.count - 1))
         tableView.reloadData()
@@ -67,15 +86,17 @@ final class TabSwitcherController: NSObject {
     }
 
     func confirmAndHide() {
+        guard isVisible else { return }
         let idx = tableView.selectedRow
-        if idx >= 0, idx < items.count {
-            onConfirm?(items[idx])
-        }
-        panel.orderOut(nil)
+        let item = items.indices.contains(idx) ? items[idx] : nil
+        cancel()
+        if let item { onConfirm?(item) }
     }
 
     func cancel() {
         panel.orderOut(nil)
+        items = []
+        ownerWindow = nil
     }
 
     var isVisible: Bool { panel.isVisible }

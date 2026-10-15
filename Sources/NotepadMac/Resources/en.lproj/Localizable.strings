@@ -1536,3 +1536,5 @@
 "diff.status.alreadyLast" = "Already the last difference";
 "diff.status.noMoreDiffs" = "No more differences";
 "diff.status.computing" = "Computing comparison…";
+
+"find.status.emptyRegexMatch" = "The regular expression matches empty strings.";
