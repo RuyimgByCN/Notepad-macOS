@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/Users/ruyimg/Documents/Project/Notepad-macOS/.codex/hooks/block-upstream-edit.sh'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/Users/ruyimg/Documents/Project/Notepad-macOS/.codex/hooks/remind-packaging-verify.sh'"
+          }
+        ]
+      }
+    ]
+  }
+}
