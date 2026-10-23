@@ -752,33 +752,7 @@ enum AppMenu {
 
         let styles: [(SearchMarkStyle, String)] = [(.style1, "1st Style"), (.style2, "2nd Style"), (.style3, "3rd Style"), (.style4, "4th Style"), (.style5, "5th Style")]
 
-        // Style All Occurrences of Token
-        let styleAllItem = NSMenuItem(title: Localization.string(.searchStyleMenu, default: "Style All Occurrences of Token"), action: nil, keyEquivalent: "")
-        let styleAllMenu = NSMenu(title: Localization.string(.searchStyleMenu, default: "Style All Occurrences of Token"))
-        styleAllItem.submenu = styleAllMenu
-        searchMenu.addItem(styleAllItem)
-        for (style, label) in styles {
-            styleAllMenu.addItem(withTitle: label, action: #selector(EditorWindowController.markAllUsingStyle(_:)), keyEquivalent: "").representedObject = style
-        }
-
-        // Style One Token
-        let styleOneItem = NSMenuItem(title: Localization.string(.searchStyleOneToken, default: "Style One Token"), action: nil, keyEquivalent: "")
-        let styleOneMenu = NSMenu(title: Localization.string(.searchStyleOneToken, default: "Style One Token"))
-        styleOneItem.submenu = styleOneMenu
-        searchMenu.addItem(styleOneItem)
-        for (style, label) in styles {
-            styleOneMenu.addItem(withTitle: label, action: #selector(EditorWindowController.markOneUsingStyle(_:)), keyEquivalent: "").representedObject = style
-        }
-
-        // Clear Style
-        let clearStyleItem = NSMenuItem(title: Localization.string(.searchClearStyle, default: "Clear Style"), action: nil, keyEquivalent: "")
-        let clearStyleMenu = NSMenu(title: Localization.string(.searchClearStyle, default: "Clear Style"))
-        clearStyleItem.submenu = clearStyleMenu
-        searchMenu.addItem(clearStyleItem)
-        for (style, label) in styles {
-            clearStyleMenu.addItem(withTitle: label, action: #selector(EditorWindowController.unmarkAllUsingStyle(_:)), keyEquivalent: "").representedObject = style
-        }
-        clearStyleMenu.addItem(withTitle: Localization.string(.searchClearAllStyles, default: "Clear All Styles"), action: #selector(EditorWindowController.clearAllStyles(_:)), keyEquivalent: "")
+        addSearchStyleMenus(to: searchMenu, target: nil)
 
         // Jump Up (Previous)
         let jumpUpItem = NSMenuItem(title: Localization.string(.searchJumpUpStyle, default: "Jump Up"), action: nil, keyEquivalent: "")

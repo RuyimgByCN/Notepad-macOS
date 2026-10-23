@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+BUILD_DATE="$(date '+%Y-%m-%d')"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="Notepad Mac"
 EXECUTABLE_NAME="NotepadMac"
@@ -497,6 +498,8 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
     <string>$VERSION</string>
     <key>CFBundleVersion</key>
     <string>$VERSION</string>
+    <key>NotepadMacBuildDate</key>
+    <string>$BUILD_DATE</string>
     <key>NotepadMacUpdateRepository</key>
     <string>RuyimgByCN/Notepad-macOS</string>
     <key>LSMinimumSystemVersion</key>

@@ -1991,7 +1991,8 @@ private var appearanceObservation: NSKeyValueObservation?
         alert.informativeText = HelpSupport.aboutText(
             appName: "Notepad Mac",
             version: version,
-            subtitle: Localization.string(.helpAboutSubtitle, default: "Native macOS prototype")
+            subtitle: Localization.string(.helpAboutSubtitle, default: "Native macOS prototype"),
+            buildDate: Bundle.main.object(forInfoDictionaryKey: "NotepadMacBuildDate") as? String
         )
         alert.addButton(withTitle: Localization.string(.alertOK, default: "OK"))
         alert.runModal()

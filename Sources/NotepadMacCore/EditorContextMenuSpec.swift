@@ -4,7 +4,16 @@ import Foundation
 public enum EditorContextMenuSpecItem: Sendable {
     case separator
     case action(EditorContextMenuAction, displayName: String?, folderName: String?)
+    case styleCommand(EditorContextMenuStyleCommand, displayName: String?, folderName: String?)
     case pluginCommand(pluginName: String, commandName: String, displayName: String?, folderName: String?)
+}
+
+/// Search styles addressed by numeric command IDs in Notepad++ contextMenu.xml.
+public enum EditorContextMenuStyleCommand: Sendable, Equatable {
+    case markAll(SearchMarkStyle)
+    case markOne(SearchMarkStyle)
+    case clear(SearchMarkStyle)
+    case clearAll
 }
 
 /// Editor right-click context menu actions that map to Notepad++ contextMenu.xml entries.
@@ -19,6 +28,8 @@ public enum EditorContextMenuAction: String, Sendable, CaseIterable {
     case paste              = "Paste"
     case delete             = "Delete"
     case selectAll          = "Select All"
+    case beginOrEndSelect   = "Begin/End Select"
+    case beginOrEndSelectInColumnMode = "Begin/End Select in Column Mode"
     case copyAsHTML         = "Copy as HTML (HEX)"
     case copyAsRTF          = "Copy as RTF"
     case duplicateLine      = "Duplicate Current Line"
@@ -28,6 +39,9 @@ public enum EditorContextMenuAction: String, Sendable, CaseIterable {
     case lowerCase          = "lowercase"
     case properCase         = "Proper Case"
     case toggleCase         = "Toggle Case"
+    case toggleLineComment  = "Toggle Single Line Comment"
+    case blockComment       = "Block Comment"
+    case blockUncomment     = "Block Uncomment"
 
     // Search group
     case find               = "Find..."
@@ -48,6 +62,7 @@ public enum EditorContextMenuAction: String, Sendable, CaseIterable {
     case uncollapseCurrentLevel = "Uncollapse Current Level"
     case collapseAllLevels  = "Collapse All"
     case uncollapseAllLevels = "Uncollapse All"
+    case hideLines          = "Hide lines"
 
     // File group
     case openSelectedFile   = "Open File"
@@ -120,6 +135,16 @@ private final class EditorContextMenuXMLParser: NSObject, XMLParserDelegate {
             return
         }
 
+        if let idString = attrs["id"] {
+            guard let id = Int(idString) else { return }
+            if let command = styleCommand(for: id) {
+                items.append(.styleCommand(command, displayName: displayName, folderName: folder))
+            } else if let action = action(for: id) {
+                items.append(.action(action, displayName: displayName, folderName: folder))
+            }
+            return
+        }
+
         // Plugin item
         if let pluginEntry = attrs["PluginEntryName"],
            let pluginCmd = attrs["PluginCommandItemName"] {
@@ -148,6 +173,7 @@ private final class EditorContextMenuXMLParser: NSObject, XMLParserDelegate {
         if let action = EditorContextMenuAction(rawValue: name) { return action }
         switch name {
         // Alternate spellings used in older contextMenu.xml files
+        case "Select all":         return .selectAll
         case "Copy as HTML":       return .copyAsHTML
         case "Copy RTF":           return .copyAsRTF
         case "Duplicate Line":     return .duplicateLine
@@ -160,6 +186,70 @@ private final class EditorContextMenuXMLParser: NSObject, XMLParserDelegate {
         case "Set Read Only":      return .toggleReadOnly
         case "Clear Read Only":    return .clearReadOnly
         default:                   return nil
+        }
+    }
+
+    private func styleCommand(for id: Int) -> EditorContextMenuStyleCommand? {
+        switch id {
+        case 43022: return .markAll(.style1)
+        case 43024: return .markAll(.style2)
+        case 43026: return .markAll(.style3)
+        case 43028: return .markAll(.style4)
+        case 43030: return .markAll(.style5)
+        case 43062: return .markOne(.style1)
+        case 43063: return .markOne(.style2)
+        case 43064: return .markOne(.style3)
+        case 43065: return .markOne(.style4)
+        case 43066: return .markOne(.style5)
+        case 43023: return .clear(.style1)
+        case 43025: return .clear(.style2)
+        case 43027: return .clear(.style3)
+        case 43029: return .clear(.style4)
+        case 43031: return .clear(.style5)
+        case 43032: return .clearAll
+        default: return nil
+        }
+    }
+
+    private func action(for id: Int) -> EditorContextMenuAction? {
+        // IDs are defined in upstream PowerEditor/src/menuCmdID.h.
+        switch id {
+        case 42001: return .cut
+        case 42002: return .copy
+        case 42003: return .undo
+        case 42004: return .redo
+        case 42005: return .paste
+        case 42006: return .delete
+        case 42007: return .selectAll
+        case 42010: return .duplicateLine
+        case 42013: return .joinLines
+        case 42016: return .upperCase
+        case 42017: return .lowerCase
+        case 42020: return .beginOrEndSelect
+        case 42022: return .toggleLineComment
+        case 42023: return .blockComment
+        case 42028: return .toggleReadOnly
+        case 42029: return .copyFullPath
+        case 42030: return .copyFilename
+        case 42031: return .copyDirPath
+        case 42047: return .blockUncomment
+        case 42067: return .properCase
+        case 42071: return .toggleCase
+        case 42073: return .openSelectedFile
+        case 42075: return .searchOnInternet
+        case 42089: return .beginOrEndSelectInColumnMode
+        case 43001: return .find
+        case 43002: return .findNext
+        case 43003: return .replace
+        case 43004: return .goToLine
+        case 43010: return .findPrevious
+        case 43013: return .findInFiles
+        case 44010: return .foldAll
+        case 44029: return .unfoldAll
+        case 44030: return .collapseCurrentLevel
+        case 44031: return .uncollapseCurrentLevel
+        case 44042: return .hideLines
+        default: return nil
         }
     }
 }

@@ -65,6 +65,7 @@ protocol EditorSurface: AnyObject {
 
     func replaceText(withUTF8Data data: Data, contentOffset: Int)
     func setSelectedRange(_ range: NSRange)
+    func deleteSelection()
     /// Searches and selects a match without materializing the full document.
     /// Returns nil when the surface or search mode requires the host fallback.
     func findAndSelect(_ query: String, options: TextSearch.Options) -> Bool?
@@ -618,6 +619,11 @@ final class TextViewEditorSurface: EditorSurface {
     }
     func applyScintillaKeyRemaps(_ remaps: [ScintillaKeyRemap]) {}
     func setContextMenu(_ menu: NSMenu?) { textView.menu = menu }
+
+    func deleteSelection() {
+        guard selectedRange.length > 0, !isReadOnly else { return }
+        textView.delete(nil)
+    }
     func captureViewPosition() -> EditorViewPosition {
         EditorViewPosition(
             selectedRange: textView.selectedRange(),
@@ -1856,24 +1862,21 @@ final class ScintillaEditorSurface: EditorSurface {
     func indicatorRanges(_ style: SearchMarkStyle) -> [NSRange] {
         let indicator = CLong(style.rawValue)
         let currentText = text
-        let textLength = CLong(currentText.utf16.count)
+        let textLength = CLong(documentByteCount)
         var ranges: [NSRange] = []
         var pos: CLong = 0
         while pos < textLength {
-            let start = bridge.getGeneralProperty(ScintillaMessage.indicatorStart, parameter: pos) ?? pos
-            guard let end = bridge.getGeneralProperty(ScintillaMessage.indicatorEnd, parameter: pos), end > start else {
-                pos = start + 1
-                continue
-            }
-            if let utfStart = utf16Location(in: currentText, scintillaPosition: start),
+            guard let end = bridge.integerMessage(ScintillaMessage.indicatorEnd, wParam: indicator, lParam: pos),
+                  end > pos, end <= textLength
+            else { break }
+            let value = bridge.integerMessage(ScintillaMessage.indicatorValueAt, wParam: indicator, lParam: pos) ?? 0
+            if value != 0,
+               let utfStart = utf16Location(in: currentText, scintillaPosition: pos),
                let utfEnd = utf16Location(in: currentText, scintillaPosition: end)
             {
-                let indicatorValue = bridge.getGeneralProperty(ScintillaMessage.indicatorValueAt, parameter: indicator)
-                if indicatorValue != 0 {
-                    ranges.append(NSRange(location: utfStart, length: utfEnd - utfStart))
-                }
+                ranges.append(NSRange(location: utfStart, length: utfEnd - utfStart))
             }
-            pos = end + 1
+            pos = end
         }
         return ranges
     }
@@ -3054,6 +3057,11 @@ final class ScintillaEditorSurface: EditorSurface {
         scintillaView.menu = menu
     }
 
+    func deleteSelection() {
+        guard selectedRange.length > 0, !isReadOnly else { return }
+        bridge.setGeneralProperty(ScintillaMessage.clear, parameter: 0, value: 0)
+    }
+
     func captureViewPosition() -> EditorViewPosition {
         EditorViewPosition(
             selectedRange: selectedRange,
@@ -3683,6 +3691,7 @@ private enum ScintillaNotificationLayout {
 
 private enum ScintillaMessage {
     static let clearAll: Int32 = 2004
+    static let clear: Int32 = 2180
     static let getCurrentPos: Int32 = 2008
     static let gotoLine: Int32 = 2024
     static let getLineCount: Int32 = 2154

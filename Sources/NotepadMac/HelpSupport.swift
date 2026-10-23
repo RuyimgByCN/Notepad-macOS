@@ -24,8 +24,12 @@ enum HelpSupport {
         }
     }
 
-    static func aboutText(appName: String, version: String, subtitle: String) -> String {
-        "\(appName)\nVersion: \(version)\n\(subtitle)"
+    static func aboutText(appName: String, version: String, subtitle: String, buildDate: String?) -> String {
+        let buildDateLine = String(
+            format: Localization.string(.helpAboutBuildDate, default: "Build date: %@"),
+            buildDate ?? "—"
+        )
+        return "\(appName)\nVersion: \(version)\n\(buildDateLine)\n\(subtitle)"
     }
 
     static func debugInfoText(

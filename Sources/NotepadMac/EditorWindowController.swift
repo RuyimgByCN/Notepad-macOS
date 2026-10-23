@@ -2930,6 +2930,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         )
     }
 
+    @objc func delete(_ sender: Any?) {
+        editorSurface.deleteSelection()
+    }
+
     @objc func moveLineUp(_ sender: Any?) {
         applyEditCommandResult(
             TextEditCommands.moveCurrentLineOrSelectionUp(in: editorSurface.text, selectedRange: editorSurface.selectedRange)
@@ -4685,6 +4689,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return editorSurface.liveRectangularSelection != nil
         case #selector(redactSelection(_:)):
             return editorSurface.selectedRange.length > 0 && !editorSurface.isReadOnly
+        case #selector(delete(_:)):
+            return editorSurface.selectedRange.length > 0 && !editorSurface.isReadOnly
         case #selector(copyLink(_:)):
             // Enable when selection has content, OR cursor is over a URL indicator
             let sel = editorSurface.selectedRange
@@ -4931,7 +4937,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func makeEditorContextMenu() -> NSMenu {
         if let spec = editorContextMenuSpec {
-            return buildEditorContextMenuFromSpec(spec)
+            let menu = buildEditorContextMenuFromSpec(spec)
+            if menu.items.contains(where: { !$0.isSeparatorItem }) {
+                return menu
+            }
         }
         return buildEditorContextMenu()
     }
@@ -4939,12 +4948,20 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func buildEditorContextMenuFromSpec(_ spec: EditorContextMenuSpec) -> NSMenu {
         let menu = NSMenu(title: "")
         var submenus: [String: NSMenu] = [:]
+        var plugins: [PluginDescriptor]?
 
         func targetMenu(folderName: String?) -> NSMenu {
             guard let folder = folderName else { return menu }
             if let existing = submenus[folder] { return existing }
-            let sub = NSMenu(title: folder)
-            let parent = NSMenuItem(title: folder, action: nil, keyEquivalent: "")
+            let title: String
+            switch folder {
+            case "Style all occurrences of token": title = Localization.string(.searchStyleMenu, default: folder)
+            case "Style one token": title = Localization.string(.searchStyleOneToken, default: folder)
+            case "Clear style": title = Localization.string(.searchClearStyle, default: folder)
+            default: title = folder
+            }
+            let sub = NSMenu(title: title)
+            let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
             parent.submenu = sub
             menu.addItem(parent)
             submenus[folder] = sub
@@ -4966,9 +4983,24 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                     addItem(mi, folderName: folderName)
                 }
 
-            case let .pluginCommand(_, commandName, displayName, folderName):
+            case let .styleCommand(command, displayName, folderName):
+                addItem(AppMenu.searchStyleMenuItem(for: command, title: displayName, target: self), folderName: folderName)
+
+            case let .pluginCommand(pluginName, commandName, displayName, folderName):
+                if plugins == nil {
+                    plugins = PluginCatalog.scan(directories: PluginCatalog.defaultPluginDirectories())
+                        .withDisabledPlugins(preferencesStore.loadDisabledNativePluginIdentifiers()).plugins
+                }
+                guard let plugin = plugins?.first(where: {
+                    $0.kind == .nativeManifest && $0.compatibility == .nativeCompatible
+                        && ($0.displayName == pluginName || $0.identifier == pluginName)
+                }), let command = plugin.commands.first(where: {
+                    $0.title == commandName || $0.identifier == commandName
+                }) else { continue }
                 let title = displayName ?? commandName
-                let mi = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+                let mi = NSMenuItem(title: title, action: #selector(runPluginCommand(_:)), keyEquivalent: "")
+                mi.target = self
+                mi.representedObject = ["pluginIdentifier": plugin.identifier, "commandIdentifier": command.identifier]
                 addItem(mi, folderName: folderName)
             }
         }
@@ -4982,8 +5014,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .cut:                return Localization.string(.editCut,       default: "Cut")
         case .copy:               return Localization.string(.editCopy,      default: "Copy")
         case .paste:              return Localization.string(.editPaste,     default: "Paste")
-        case .delete:             return "Delete"
+        case .delete:             return Localization.string(.editDelete, default: "Delete")
         case .selectAll:          return Localization.string(.editSelectAll, default: "Select All")
+        case .beginOrEndSelect:   return Localization.string(.editBeginSelect, default: "Begin Select")
+        case .beginOrEndSelectInColumnMode: return Localization.string(.editBeginSelectColumnMode, default: "Begin Select in Column Mode")
         case .copyAsHTML:         return "Copy as HTML (HEX)"
         case .copyAsRTF:          return "Copy as RTF"
         case .duplicateLine:      return Localization.string(.editDuplicateLineOrSelection, default: "Duplicate Current Line")
@@ -4993,6 +5027,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .lowerCase:          return Localization.string(.editLowercase, default: "lowercase")
         case .properCase:         return "Proper Case"
         case .toggleCase:         return "Toggle Case"
+        case .toggleLineComment:  return Localization.string(.editLineComment, default: "Toggle Single Line Comment")
+        case .blockComment:       return Localization.string(.editBlockComment, default: "Block Comment")
+        case .blockUncomment:     return Localization.string(.editBlockUncomment, default: "Block Uncomment")
+        case .hideLines:          return Localization.string(.viewHideLines, default: "Hide Lines")
         case .find:               return Localization.string(.searchFind,      default: "Find...")
         case .findNext:           return Localization.string(.searchFindNext,   default: "Find Next")
         case .findPrevious:       return Localization.string(.searchFindPrevious, default: "Find Previous")
@@ -5035,8 +5073,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .cut:                return std(#selector(NSText.cut(_:)))
         case .copy:               return std(#selector(NSText.copy(_:)))
         case .paste:              return std(#selector(NSText.paste(_:)))
-        case .delete:             return std(#selector(NSText.delete(_:)))
+        case .delete:             return selfItem(#selector(delete(_:)))
         case .selectAll:          return std(#selector(NSText.selectAll(_:)))
+        case .beginOrEndSelect:   return selfItem(#selector(beginOrEndSelect(_:)))
+        case .beginOrEndSelectInColumnMode: return selfItem(#selector(beginOrEndSelectInColumnMode(_:)))
         case .copyAsHTML:         return selfItem(#selector(copySelectionAsHTML(_:)))
         case .copyAsRTF:          return selfItem(#selector(copySelectionAsRTF(_:)))
         case .duplicateLine:      return selfItem(#selector(duplicateLineOrSelection(_:)))
@@ -5046,6 +5086,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .lowerCase:          return selfItem(#selector(lowercaseSelection(_:)))
         case .properCase:         return selfItem(#selector(properCaseSelection(_:)))
         case .toggleCase:         return selfItem(#selector(invertSelectionCase(_:)))
+        case .toggleLineComment:  return selfItem(#selector(toggleLineComment(_:)))
+        case .blockComment:       return selfItem(#selector(streamComment(_:)))
+        case .blockUncomment:     return selfItem(#selector(streamUncomment(_:)))
+        case .hideLines:          return selfItem(#selector(hideSelectedLines(_:)))
         case .find:               return selfItem(#selector(showFindPanel(_:)))
         case .findNext:           return selfItem(#selector(findNext(_:)))
         case .findPrevious:       return selfItem(#selector(findPrevious(_:)))
@@ -5093,9 +5137,19 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         stdItem(Localization.string(.editCut,       default: "Cut"),        action: #selector(NSText.cut(_:)))
         stdItem(Localization.string(.editCopy,      default: "Copy"),       action: #selector(NSText.copy(_:)))
         stdItem(Localization.string(.editPaste,     default: "Paste"),      action: #selector(NSText.paste(_:)))
+        selfItem(Localization.string(.editDelete, default: "Delete"), action: #selector(delete(_:)))
         menu.addItem(.separator())
 
         stdItem(Localization.string(.editSelectAll, default: "Select All"), action: #selector(NSText.selectAll(_:)))
+        selfItem(Localization.string(.editBeginSelect, default: "Begin Select"), action: #selector(beginOrEndSelect(_:)))
+        selfItem(Localization.string(.editBeginSelectColumnMode, default: "Begin Select in Column Mode"), action: #selector(beginOrEndSelectInColumnMode(_:)))
+        menu.addItem(.separator())
+
+        AppMenu.addSearchStyleMenus(to: menu, target: self)
+        menu.addItem(.separator())
+
+        selfItem(Localization.string(.editUppercase, default: "UPPERCASE"), action: #selector(uppercaseSelection(_:)))
+        selfItem(Localization.string(.editLowercase, default: "lowercase"), action: #selector(lowercaseSelection(_:)))
         menu.addItem(.separator())
 
         selfItem(Localization.string(.editToggleReadOnly, default: "Read-Only on Current Document"),
@@ -5117,6 +5171,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                  action: #selector(streamComment(_:)))
         selfItem(Localization.string(.editBlockUncomment, default: "Block Uncomment"),
                  action: #selector(streamUncomment(_:)))
+        selfItem(Localization.string(.viewHideLines, default: "Hide Lines"), action: #selector(hideSelectedLines(_:)))
         menu.addItem(.separator())
 
         // Quick find

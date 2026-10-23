@@ -6,9 +6,17 @@ import Foundation
 struct HelpSupportTests {
 
     @Test func helpSupportBuildsAboutText() {
-        let text = HelpSupport.aboutText(appName: "NotepadMac", version: "1.0", subtitle: "Test")
+        let text = HelpSupport.aboutText(appName: "NotepadMac", version: "1.0", subtitle: "Test", buildDate: "2001-02-03")
         #expect(text.contains("NotepadMac"))
         #expect(text.contains("1.0"))
+        #expect(text.contains("2001-02-03"))
+        #expect(text.hasSuffix("Test"))
+    }
+
+    @Test func aboutTextWithoutBuildMetadataShowsPlaceholder() {
+        let text = HelpSupport.aboutText(appName: "NotepadMac", version: "Development", subtitle: "Test", buildDate: nil)
+        #expect(text.contains("—"))
+        #expect(text.contains("Development"))
     }
 
     @Test func helpSupportBuildsDebugInfoText() {
