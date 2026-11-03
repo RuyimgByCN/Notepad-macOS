@@ -816,6 +816,7 @@ final class ScintillaEditorSurface: EditorSurface {
     private var isRestoringConfiguration = false
     private var contextMenu: NSMenu?
     private var pendingSelectionNotification = false
+    private var scrollToSelectionOnPresentation = false
 
     var scintillaView: NSView { standaloneView ?? viewPool!.backend(for: self).view }
     var view: NSView { documentContainer ?? scintillaView }
@@ -828,18 +829,23 @@ final class ScintillaEditorSurface: EditorSurface {
     func finishEditorViewPresentation() {
         guard let backend = presentationBackend else { return }
         backend.view.layoutSubtreeIfNeeded()
-        backend.view.displayIfNeeded()
         parkedViewState.restore(using: backend.bridge)
         // A reused clip view can still have the previous document's offset even
         // when Scintilla's topLine already equals the requested line.
         if let scroll = backend.view.subviews.compactMap({ $0 as? NSScrollView }).first {
             let lineHeight = backend.bridge.getGeneralProperty(ScintillaMessage.textHeight, parameter: 0) ?? 1
+            let firstVisibleLine = backend.bridge.getGeneralProperty(ScintillaMessage.getFirstVisibleLine, parameter: 0) ?? 0
             scroll.contentView.scroll(to: NSPoint(
                 x: parkedViewState.xOffset,
-                y: parkedViewState.firstVisibleLine * Int(lineHeight)
+                y: firstVisibleLine * lineHeight
             ))
             scroll.reflectScrolledClipView(scroll.contentView)
         }
+        if scrollToSelectionOnPresentation {
+            scrollToSelectionOnPresentation = false
+            scrollToSelection()
+        }
+        backend.view.displayIfNeeded()
     }
 
     private func rememberViewConfiguration(_ key: String, _ apply: @escaping (ScintillaEditorSurface) -> Void) {
@@ -1055,7 +1061,7 @@ final class ScintillaEditorSurface: EditorSurface {
             parameter: scintillaRange.caret,
             value: scintillaRange.anchor
         )
-        bridge.setGeneralProperty(ScintillaMessage.scrollCaret, parameter: 0, value: 0)
+        scrollToSelection()
     }
 
     func findAndSelect(_ query: String, options: TextSearch.Options) -> Bool? {
@@ -1114,7 +1120,7 @@ final class ScintillaEditorSurface: EditorSurface {
                 parameter: matchEnd,
                 value: matchStart
             )
-            bridge.setGeneralProperty(ScintillaMessage.scrollCaret, parameter: 0, value: 0)
+            scrollToSelection()
             return true
         }
 
@@ -1174,7 +1180,7 @@ final class ScintillaEditorSurface: EditorSurface {
             parameter: CLong(resolvedMainSelectionIndex),
             value: 0
         )
-        bridge.setGeneralProperty(ScintillaMessage.scrollCaret, parameter: 0, value: 0)
+        scrollToSelection()
         return true
     }
 
@@ -1216,7 +1222,7 @@ final class ScintillaEditorSurface: EditorSurface {
             parameter: caretVirtualSpace,
             value: 0
         )
-        bridge.setGeneralProperty(ScintillaMessage.scrollCaret, parameter: 0, value: 0)
+        scrollToSelection()
         return true
     }
 
@@ -3257,6 +3263,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func scrollToSelection() {
+        if viewPool != nil, presentationBackend == nil { scrollToSelectionOnPresentation = true }
         bridge.setGeneralProperty(ScintillaMessage.scrollCaret, parameter: 0, value: 0)
     }
 
@@ -4046,8 +4053,10 @@ enum ScintillaMessage {
     static let positionFromLine: Int32 = 2167
     static let getColumn: Int32 = 2129
     static let getFirstVisibleLine: Int32 = 2152
-    static let setFirstVisibleLine: Int32 = 2163
+    static let setFirstVisibleLine: Int32 = 2613
     static let docLineFromVisible: Int32 = 2221
+    static let visibleFromDocLine: Int32 = 2220
+    static let scrollVertical: Int32 = 2817
     static let linesOnScreen: Int32 = 2370
     static let textWidth: Int32 = 2276
     static let getSelText: Int32 = 2161

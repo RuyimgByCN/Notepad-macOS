@@ -65,7 +65,12 @@ final class ScintillaViewPool {
 
     private func saveScratchOwner() {
         guard let owner = scratchOwner else { return }
-        owner.parkedViewState = ScintillaDocumentViewState(capturing: scratch.bridge)
+        var state = ScintillaDocumentViewState(capturing: scratch.bridge)
+        // The offscreen view has no usable wrapping or viewport geometry.
+        state.firstVisibleDocumentLine = owner.parkedViewState.firstVisibleDocumentLine
+        state.firstVisibleSubLine = owner.parkedViewState.firstVisibleSubLine
+        state.xOffset = owner.parkedViewState.xOffset
+        owner.parkedViewState = state
         _ = scratch.bridge.setDelegate(nil)
         scratchOwner = nil
     }
@@ -155,7 +160,8 @@ struct ScintillaDocumentViewState {
     var multipleSelection = 0
     var additionalSelectionTyping = 0
     var virtualSpaceOptions = 0
-    var firstVisibleLine = 0
+    var firstVisibleDocumentLine = 0
+    var firstVisibleSubLine = 0
     var xOffset = 0
     var scrollWidth = 1
     var zoom = 0
@@ -179,7 +185,9 @@ struct ScintillaDocumentViewState {
         multipleSelection = get(ScintillaMessage.getMultipleSelection)
         additionalSelectionTyping = get(ScintillaMessage.getAdditionalSelectionTyping)
         virtualSpaceOptions = get(ScintillaMessage.getVirtualSpaceOptions)
-        firstVisibleLine = get(ScintillaMessage.getFirstVisibleLine)
+        let firstVisibleLine = get(ScintillaMessage.getFirstVisibleLine)
+        firstVisibleDocumentLine = get(ScintillaMessage.docLineFromVisible, firstVisibleLine)
+        firstVisibleSubLine = firstVisibleLine - get(ScintillaMessage.visibleFromDocLine, firstVisibleDocumentLine)
         xOffset = get(ScintillaMessage.getXOffset)
         scrollWidth = get(ScintillaMessage.getScrollWidth)
         zoom = get(ScintillaMessage.getZoom)
@@ -232,7 +240,9 @@ struct ScintillaDocumentViewState {
         for line in collapsed { set(ScintillaMessage.setFoldExpanded, line, 0) }
         for range in hidden { set(ScintillaMessage.hideLines, range.lowerBound, range.upperBound) }
         set(ScintillaMessage.setOvertype, overtype)
-        set(ScintillaMessage.setFirstVisibleLine, firstVisibleLine)
+        set(ScintillaMessage.scrollVertical, firstVisibleDocumentLine, firstVisibleSubLine)
+        // Moving Cocoa's scroll bar clears Scintilla's deferred wrapping target.
+        set(ScintillaMessage.scrollVertical, firstVisibleDocumentLine, firstVisibleSubLine)
         set(ScintillaMessage.setXOffset, xOffset)
     }
 }
