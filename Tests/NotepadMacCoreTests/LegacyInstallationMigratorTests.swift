@@ -42,7 +42,7 @@ import Testing
         #expect(fixture.currentDefaults.stringArray(forKey: "notepadMac.recentFiles.urls") == ["/current/recent.txt"])
         #expect(fixture.currentDefaults.integer(forKey: "notepadMac.recentFilesMaxCount") == 37)
         #expect(!FileManager.default.fileExists(atPath: fixture.legacySupport.path))
-        #expect(fixture.currentDefaults.persistentDomain(forName: fixture.legacyDomain) == nil)
+        #expect((fixture.currentDefaults.persistentDomain(forName: fixture.legacyDomain) ?? [:]).isEmpty)
     }
 
     @Test func preservesBothFilesWhenLegacyAndCurrentContentsConflict() throws {

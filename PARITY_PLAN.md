@@ -1,8 +1,10 @@
 # Notepad++ 功能补齐计划 (native-macos)
 
 > ✅ 主计划条目已全部完成（2026-06-13）。此后按上游小版本增量补齐。
-> 当前构建基准：**v8.9.8.0**，CI `NPP_COMMIT` = `40f896e6f6c49a29b6ca3f559696dd786f40152d`
+> 当前构建基准：**v8.9.8.1**，CI `NPP_COMMIT` = `00becd603652668f28f66619b02f0b7db3341db6`
 > （见 `.github/workflows/release.yml` / `scripts/package-macos.sh`）。
+> 2026-11-03 同步上游源码及依赖：Scintilla 5.6.8、Lexilla 5.5.5、Boost 1.92.0。
+> 此次同步包含上游函数列表 XML 更新；新增 Windows UI 行为不代表已完成 macOS 功能对齐。
 
 基于 2026-06 对 `Sources/` 与上游 `PowerEditor` 菜单/功能集的差距分析。
 按"价值 / 工作量"排序,P0 最优先。每项含触改文件与验收标准。
