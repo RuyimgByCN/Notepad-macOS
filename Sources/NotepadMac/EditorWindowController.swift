@@ -25,6 +25,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     var onTabContextAction: ((EditorTabIdentity, TabContextAction) -> Void)?
     var onNewDocument: (() -> Void)?
     var onReorderTab: ((EditorTabIdentity, Int) -> Void)?
+    var onRequestPresentation: (() -> Void)?
+
+    private var documentContentView: NSView?
+    private weak var documentFirstResponder: NSResponder?
+    private var documentHadSecondPaneFocus = false
+    private var didCloseDocument = false
+    private let usesSharedWindow: Bool
 
     let editorSurface: EditorSurface
     /// Hosts the main editor surface and, when "Clone to Other View" is
@@ -379,13 +386,15 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         languageCatalog: LanguageCatalog,
         styleCatalog: StyleCatalog,
         preferencesStore: PreferencesStore = PreferencesStore(),
-        stylePreferencesStore: StylePreferencesStore = StylePreferencesStore()
+        stylePreferencesStore: StylePreferencesStore = StylePreferencesStore(),
+        usesSharedWindow: Bool = false
     ) throws {
         self.init(
             languageCatalog: languageCatalog,
             styleCatalog: styleCatalog,
             preferencesStore: preferencesStore,
-            stylePreferencesStore: stylePreferencesStore
+            stylePreferencesStore: stylePreferencesStore,
+            usesSharedWindow: usesSharedWindow
         )
         try load(fileURL)
     }
@@ -396,13 +405,15 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         languageCatalog: LanguageCatalog,
         styleCatalog: StyleCatalog,
         preferencesStore: PreferencesStore = PreferencesStore(),
-        stylePreferencesStore: StylePreferencesStore = StylePreferencesStore()
+        stylePreferencesStore: StylePreferencesStore = StylePreferencesStore(),
+        usesSharedWindow: Bool = false
     ) throws {
         self.init(
             languageCatalog: languageCatalog,
             styleCatalog: styleCatalog,
             preferencesStore: preferencesStore,
-            stylePreferencesStore: stylePreferencesStore
+            stylePreferencesStore: stylePreferencesStore,
+            usesSharedWindow: usesSharedWindow
         )
         try load(snapshot, snapshotStore: snapshotStore)
     }
@@ -412,8 +423,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         languageCatalog: LanguageCatalog = .fallback,
         styleCatalog: StyleCatalog = .empty,
         preferencesStore: PreferencesStore = PreferencesStore(),
-        stylePreferencesStore: StylePreferencesStore = StylePreferencesStore()
+        stylePreferencesStore: StylePreferencesStore = StylePreferencesStore(),
+        usesSharedWindow: Bool = false
     ) {
+        self.usesSharedWindow = usesSharedWindow
         self.languageCatalog = languageCatalog
         self.styleCatalog = styleCatalog
         let displayStrings = EditorDisplayStrings.localized()
@@ -422,7 +435,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         self.preferencesStore = preferencesStore
         self.stylePreferencesStore = stylePreferencesStore
         self.language = languageCatalog.defaultLanguage
-        self.editorSurface = EditorSurfaceFactory.make()
+        self.editorSurface = EditorSurfaceFactory.make(pooled: usesSharedWindow)
         let preferences = preferencesStore.load()
         let stylePreferences = stylePreferencesStore.load()
         self.fontSize = CGFloat(preferences.editorFontSize)
@@ -498,23 +511,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             self.lineEnding = lineEndingDefault
         }
 
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 980, height: 680),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
+        let window = usesSharedWindow ? nil : Self.makePresentationWindow()
         super.init(window: window)
 
-        window.title = displayStrings.windowTitle(displayName: self.untitledDisplayName, isDirty: false)
-        window.animationBehavior = .none
-        window.delegate = self
-        window.nextResponder = self
-        window.tabbingMode = .disallowed
-        window.setFrameAutosaveName("NotepadMacEditorWindow")
-        if window.frame == NSRect(x: 0, y: 0, width: 980, height: 680) {
-            window.center()
-        }
+        window?.delegate = self
+        window?.nextResponder = self
+        window?.title = displayStrings.windowTitle(displayName: self.untitledDisplayName, isDirty: false)
         configureContent()
         configureToolbar()
         observeEditorNotifications()
@@ -558,6 +560,15 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     func windowWillClose(_ notification: Notification) {
+        closeDocumentTab()
+    }
+
+    /// Closing a document must not close the window reused by the next tab.
+    func closeDocumentTab() {
+        guard !didCloseDocument else { return }
+        didCloseDocument = true
+        urlHighlightTimer?.cancel()
+        documentMapUpdateTimer?.invalidate()
         removeClonedView()
         // Closing a host window returns the hosted document to its own window.
         releaseHostedDocument(reactivateReleased: false)
@@ -566,6 +577,76 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         editorSurface.teardown()
         stopFileMonitoring()
         onClose?()
+    }
+
+    override func close() {
+        if usesSharedWindow {
+            closeDocumentTab()
+        } else {
+            super.close()
+        }
+    }
+
+    static func makePresentationWindow() -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 980, height: 680),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: true
+        )
+        window.isReleasedWhenClosed = false
+        window.animationBehavior = .none
+        window.tabbingMode = .disallowed
+        window.setFrameAutosaveName("NotepadMacEditorWindow")
+        if window.frame == NSRect(x: 0, y: 0, width: 980, height: 680) { window.center() }
+        return window
+    }
+
+    func detachPresentationWindow(discardWindow: Bool = false) {
+        guard let oldWindow = window else { return }
+        documentContentView = oldWindow.contentView
+        documentFirstResponder = oldWindow.firstResponder
+        if let pane = clonedSurface ?? hostedSurface {
+            documentHadSecondPaneFocus = (oldWindow.firstResponder as? NSView)?.isDescendant(of: pane.view) == true
+        } else {
+            documentHadSecondPaneFocus = false
+        }
+        (editorSurface as? ScintillaEditorSurface)?.parkEditorView()
+        (clonedSurface as? ScintillaEditorSurface)?.parkEditorView()
+        (hostedSurface as? ScintillaEditorSurface)?.parkEditorView()
+        oldWindow.makeFirstResponder(nil)
+        oldWindow.contentView = nil
+        oldWindow.delegate = nil
+        oldWindow.nextResponder = nil
+        oldWindow.windowController = nil
+        window = nil
+        if discardWindow { oldWindow.close() }
+    }
+
+    func attachPresentationWindow(_ sharedWindow: NSWindow) {
+        window = sharedWindow
+        sharedWindow.windowController = self
+        sharedWindow.delegate = self
+        sharedWindow.nextResponder = self
+        (editorSurface as? ScintillaEditorSurface)?.presentEditorView()
+        (clonedSurface as? ScintillaEditorSurface)?.presentEditorView()
+        (hostedSurface as? ScintillaEditorSurface)?.presentEditorView()
+        sharedWindow.contentView = documentContentView
+        sharedWindow.contentView?.layoutSubtreeIfNeeded()
+        preservingEditorViewPosition { applyLineWrapping() }
+        configureDragAndDrop()
+        updateTitle()
+        applyWindowPresentationState()
+        let responder = documentHadSecondPaneFocus
+            ? (clonedSurface ?? hostedSurface)?.firstResponder
+            : (usesSharedWindow ? editorSurface.firstResponder : documentFirstResponder)
+        sharedWindow.makeFirstResponder(responder ?? editorSurface.firstResponder)
+    }
+
+    func finishEditorViewPresentation() {
+        (editorSurface as? ScintillaEditorSurface)?.finishEditorViewPresentation()
+        (clonedSurface as? ScintillaEditorSurface)?.finishEditorViewPresentation()
+        (hostedSurface as? ScintillaEditorSurface)?.finishEditorViewPresentation()
     }
 
     func windowDidBecomeKey(_ notification: Notification) {
@@ -615,7 +696,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         documentMapUpdateTimer?.invalidate()
         documentMapUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self, !self.didCloseDocument else { return }
                 self.documentMapPanel.update(
                     documentName: self.displayName,
                     text: self.editorSurface.text,
@@ -682,6 +763,30 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func saveDocumentAs(completion: @escaping (Bool) -> Void) {
+        onRequestPresentation?()
+        guard let ownerWindow = window ?? hostingController?.window else {
+            completion(false)
+            return
+        }
+        let panel = makeSaveAsPanel()
+        panel.beginSheetModal(for: ownerWindow) { [weak self] response in
+            guard response == .OK, let self, let url = panel.url else {
+                completion(false)
+                return
+            }
+            completion(self.save(to: url))
+        }
+    }
+
+    /// Termination must wait for Save As instead of quitting with a sheet open.
+    func saveDocumentForTermination() -> Bool {
+        if let fileURL { return save(to: fileURL) }
+        let panel = makeSaveAsPanel()
+        guard panel.runModal() == .OK, let url = panel.url else { return false }
+        return save(to: url)
+    }
+
+    private func makeSaveAsPanel() -> NSSavePanel {
         let panel = NSSavePanel()
         // Numbered tab name (新文件1 / Untitled2) + language extension
         // (upstream Notepad++ selects the matching filter + appends extension).
@@ -694,13 +799,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if !prefs.defaultSaveDirectory.isEmpty {
             panel.directoryURL = URL(fileURLWithPath: prefs.defaultSaveDirectory)
         }
-        panel.beginSheetModal(for: window!) { [weak self] response in
-            guard response == .OK, let self, let url = panel.url else {
-                completion(false)
-                return
-            }
-            completion(self.save(to: url))
-        }
+        return panel
     }
 
     @objc func saveCopyAs(_ sender: Any?) {
@@ -1270,14 +1369,15 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func applyUrlHighlights(text: String) {
-        guard enablesClickableLinks, editorSurface.supportsUrlHighlight else { return }
+        guard !didCloseDocument, enablesClickableLinks, editorSurface.supportsUrlHighlight else { return }
         let prefs = preferencesStore.load()
         let schemes = prefs.effectiveURLSchemes
         let style = prefs.urlIndicatorStyle
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let ranges = URLScanner.findURLRanges(in: text, schemes: schemes)
             DispatchQueue.main.async { [weak self] in
-                self?.editorSurface.applyUrlHighlights(ranges: ranges, style: style)
+                guard let self, !self.didCloseDocument else { return }
+                self.editorSurface.applyUrlHighlights(ranges: ranges, style: style)
             }
         }
     }
@@ -1607,13 +1707,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             beepIfEnabled()
             return
         }
-        let clone = EditorSurfaceFactory.make()
+        let clone = EditorSurfaceFactory.make(pooled: usesSharedWindow)
         guard clone.setDocumentPointer(documentPointer) else {
             beepIfEnabled()
             return
         }
         clonedSurface = clone
         editorSplitView.addArrangedSubview(clone.view)
+        if window != nil { (clone as? ScintillaEditorSurface)?.presentEditorView() }
         configureClonedSurface(clone)
         editorSplitView.layoutSubtreeIfNeeded()
         editorSplitView.setPosition(editorSplitView.bounds.width / 2, ofDividerAt: 0)
@@ -1651,13 +1752,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
               let documentPointer = other.editorSurface.documentPointer
         else { return false }
 
-        let pane = EditorSurfaceFactory.make()
+        let pane = EditorSurfaceFactory.make(pooled: usesSharedWindow)
         guard pane.setDocumentPointer(documentPointer) else { return false }
 
         hostedSurface = pane
         hostedController = other
         other.hostingController = self
         editorSplitView.addArrangedSubview(pane.view)
+        if window != nil { (pane as? ScintillaEditorSurface)?.presentEditorView() }
         other.configureClonedSurface(pane)
         editorSplitView.layoutSubtreeIfNeeded()
         editorSplitView.setPosition(editorSplitView.bounds.width / 2, ofDividerAt: 0)
@@ -1675,6 +1777,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             window?.makeFirstResponder(editorSurface.firstResponder)
         }
         pane.detachFromSharedDocument()
+        pane.teardown()
         pane.view.removeFromSuperview()
         hostedSurface = nil
         let released = hostedController
@@ -1691,6 +1794,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             window?.makeFirstResponder(editorSurface.firstResponder)
         }
         pane.detachFromSharedDocument()
+        pane.teardown()
         pane.view.removeFromSuperview()
         hostedSurface = nil
         hostedController = nil
@@ -1708,6 +1812,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             window?.makeFirstResponder(editorSurface.firstResponder)
         }
         clone.detachFromSharedDocument()
+        clone.teardown()
         clone.view.removeFromSuperview()
         clonedSurface = nil
     }
@@ -3411,6 +3516,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func processPluginEditScript(url: URL) {
         defer { try? FileManager.default.removeItem(at: url) }
+        guard !didCloseDocument else { return }
         guard let data = try? Data(contentsOf: url), !data.isEmpty else { return }
         let script: PluginEditScript
         do {
@@ -4832,12 +4938,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func configureContent() {
-        guard let window else { return }
         let preferences = preferencesStore.load()
 
-        let rootView = NSView()
+        let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 980, height: 680))
         rootView.translatesAutoresizingMaskIntoConstraints = false
-        window.contentView = rootView
+        documentContentView = rootView
+        window?.contentView = rootView
 
         // Transparent drag overlay on top of everything to catch file drops reliably
         let dragOverlay = DragOverlayView()
@@ -4913,7 +5019,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         applyLineWrapping()
         applyAdvancedViewOptions()
         applyWindowPresentationState()
-        window.makeFirstResponder(editorSurface.firstResponder)
+        window?.makeFirstResponder(editorSurface.firstResponder)
         editorSurface.setContextMenu(makeEditorContextMenu())
     }
 
@@ -6286,6 +6392,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func completeFileChangeAlert(status: FileChangeStatus, response: NSApplication.ModalResponse) {
         defer { isPresentingFileChangeAlert = false }
+        guard !didCloseDocument else { return }
 
         switch status {
         case .unchanged:

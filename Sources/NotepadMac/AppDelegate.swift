@@ -18,6 +18,7 @@ private struct ThemeResourceLoadResult: Sendable {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windows: [EditorWindowController] = []
+    private let editorWindowPresenter = EditorWindowPresenter()
     /// True once termination has begun. Set in `applicationShouldTerminate`
     /// after the terminal session snapshot is taken, so teardown-driven
     /// `saveSession()` calls (each document window closing during quit) don't
@@ -329,6 +330,7 @@ private var appearanceObservation: NSKeyValueObservation?
 
         // Ask user to save each dirty document
         for controller in dirtyWindows {
+            activate(controller)
             let title = controller.tabItem.title
             let alert = NSAlert()
             alert.messageText = String(
@@ -343,7 +345,7 @@ private var appearanceObservation: NSKeyValueObservation?
             switch alert.runModal() {
             case .alertFirstButtonReturn:
                 // Save
-                controller.saveDocument(nil)
+                guard controller.saveDocumentForTermination() else { return .terminateCancel }
             case .alertSecondButtonReturn:
                 // Don't Save — continue
                 break
@@ -471,7 +473,8 @@ private var appearanceObservation: NSKeyValueObservation?
             languageCatalog: languageCatalog,
             styleCatalog: styleCatalog,
             preferencesStore: preferencesStore,
-            stylePreferencesStore: stylePreferencesStore
+            stylePreferencesStore: stylePreferencesStore,
+            usesSharedWindow: true
         )
         let prefs = preferencesStore.load()
         if !prefs.defaultNewDocumentLanguageName.isEmpty {
@@ -530,7 +533,7 @@ private var appearanceObservation: NSKeyValueObservation?
 
     @objc func saveAllDocuments(_ sender: Any?) {
         let prefs = preferencesStore.load()
-        let dirtyCount = windows.filter { $0.window?.isDocumentEdited == true }.count
+        let dirtyCount = windows.filter(\.hasUnsavedChanges).count
         if prefs.saveAllConfirm && dirtyCount > 0 {
             let alert = NSAlert()
             alert.messageText = String(
@@ -545,7 +548,24 @@ private var appearanceObservation: NSKeyValueObservation?
             alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
             guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
-        windows.forEach { $0.saveDocument(sender) }
+        saveDocumentsInOrder(windows.filter(\.hasUnsavedChanges), returningTo: activeEditorController())
+    }
+
+    private func saveDocumentsInOrder(
+        _ documents: [EditorWindowController], returningTo original: EditorWindowController?
+    ) {
+        guard let document = documents.first else {
+            if let original, windows.contains(where: { $0 === original }) { activate(original) }
+            return
+        }
+        document.saveDocument { [weak self] saved in
+            guard saved else { return }
+            // Save panels share the presentation window; wait for the previous
+            // sheet to finish dismissing before presenting the next document.
+            DispatchQueue.main.async {
+                self?.saveDocumentsInOrder(Array(documents.dropFirst()), returningTo: original)
+            }
+        }
     }
 
     @objc func closeAllDocuments(_ sender: Any?) {
@@ -1116,7 +1136,8 @@ private var appearanceObservation: NSKeyValueObservation?
                 languageCatalog: languageCatalog,
                 styleCatalog: styleCatalog,
                 preferencesStore: preferencesStore,
-                stylePreferencesStore: stylePreferencesStore
+                stylePreferencesStore: stylePreferencesStore,
+                usesSharedWindow: true
             )
             show(controller, persistSession: persistSession)
             if persistSession {
@@ -1138,7 +1159,8 @@ private var appearanceObservation: NSKeyValueObservation?
                 languageCatalog: languageCatalog,
                 styleCatalog: styleCatalog,
                 preferencesStore: preferencesStore,
-                stylePreferencesStore: stylePreferencesStore
+                stylePreferencesStore: stylePreferencesStore,
+                usesSharedWindow: true
             )
             show(controller, persistSession: persistSession)
             return controller
@@ -1282,7 +1304,7 @@ private var appearanceObservation: NSKeyValueObservation?
         case .activate:
             if let first = controllers.first { activate(first) }
         case .save:
-            controllers.forEach { $0.saveDocument(nil) }
+            saveDocumentsInOrder(controllers, returningTo: activeEditorController())
         case .close:
             // Closing a specific document from the windows dialog targets
             // individual tabs, not the whole app.
@@ -1582,8 +1604,7 @@ private var appearanceObservation: NSKeyValueObservation?
 
     func replaceInAllOpenDocuments(query: String, replacement: String, options: TextSearch.Options) -> Int {
         var totalCount = 0
-        for window in NSApp.windows {
-            guard let controller = window.windowController as? EditorWindowController else { continue }
+        for controller in windows {
             totalCount += controller.performReplaceAll(query: query, replacement: replacement, options: options)
         }
         return totalCount
@@ -2187,6 +2208,10 @@ private var appearanceObservation: NSKeyValueObservation?
     }
 
     private func show(_ controller: EditorWindowController, persistSession: Bool) {
+        controller.onRequestPresentation = { [weak self, weak controller] in
+            guard let controller else { return }
+            self?.activate(controller)
+        }
         controller.onClose = { [weak self, weak controller] in
             guard let self, let controller else { return }
             let wasVisible = controller.window?.isVisible == true
@@ -2197,7 +2222,7 @@ private var appearanceObservation: NSKeyValueObservation?
             self.rememberClosedDocument(controller)
             self.consumeCloseCompletions(for: controller)
             // If this tab's window was the visible one, show the next tab or open a new document.
-            if wasVisible {
+            if wasVisible && !self.applicationIsTerminating {
                 let activeId = self.tabState.activeIdentity
                 let next = self.windows.first { $0.tabIdentity == activeId } ?? self.windows.first
                 if let next {
@@ -2206,14 +2231,15 @@ private var appearanceObservation: NSKeyValueObservation?
                     // Last tab closed
                     if self.preferencesStore.load().tabbarExitOnLastTab {
                         NSApp.terminate(nil)
-                    } else if controller.isClosingSingleTab {
-                        // Tab bar close button → create new untitled document (classic Notepad++ behavior)
+                    } else {
+                        // Keep the shared window usable after closing its last document.
                         self.newDocument(nil)
                     }
                     // Note: red X / ⌘W / toolbar close no longer reach here —
                     // windowShouldClose intercepts them and terminates the app.
                 }
             }
+            self.editorWindowPresenter.remove(controller)
             controller.isClosingSingleTab = false
         }
         controller.onContentChange = { [weak self] in
@@ -2264,17 +2290,11 @@ private var appearanceObservation: NSKeyValueObservation?
             self.reorderWindow(target, to: targetIndex)
         }
 
-        // Align new window to the current visible editor window
-        if let currentFrame = activeEditorWindow()?.frame,
-           let newWindow = controller.window {
-            newWindow.setFrame(currentFrame, display: false)
-        }
-
         controller.applyTabContextMenuSpec(tabContextMenuSpec)
         controller.applyEditorContextMenuSpec(editorContextMenuSpec)
         windows.append(controller)
-        rebuildTabState(activeIdentity: controller.tabIdentity)
-        // Switch to the new tab; activate() handles showing/hiding windows atomically.
+        rebuildTabState()
+        // Switch the shared presentation window to this document.
         activate(controller)
 
         if persistSession {
@@ -2337,24 +2357,10 @@ private var appearanceObservation: NSKeyValueObservation?
             host.focusHostedPane()
             return
         }
-        guard let newWindow = controller.window else { return }
-        let alreadyVisible = newWindow === NSApp.keyWindow
-        guard !alreadyVisible else { return }
-
-        // Align to the currently visible editor window's frame.
-        let sourceFrame = windows.first(where: { $0.window?.isVisible == true })?.window?.frame
-            ?? NSApp.keyWindow?.frame
-        if let sourceFrame { newWindow.setFrame(sourceFrame, display: false) }
-
+        editorWindowPresenter.present(controller)
+        guard editorWindowPresenter.activeController === controller else { return }
         trackMRU(controller)
         rebuildTabState(activeIdentity: controller.tabIdentity)
-
-        // Show new window and hide all others atomically to avoid any flash.
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0
-            newWindow.makeKeyAndOrderFront(nil)
-            windows.forEach { if $0 !== controller { $0.window?.orderOut(nil) } }
-        }
     }
 
     private func activateTab(identity: EditorTabIdentity) {
@@ -2381,7 +2387,7 @@ private var appearanceObservation: NSKeyValueObservation?
         alert.addButton(withTitle: Localization.string(.alertDontSave, default: "Don't Save"))
         alert.addButton(withTitle: Localization.string(.alertCancel, default: "Cancel"))
 
-        guard let window = controller.window else { return }
+        guard let window = controller.window ?? controller.hostingController?.window else { return }
         alert.beginSheetModal(for: window) { [weak self, weak controller] response in
             guard let self, let controller else { return }
             switch Self.tabCloseDecision(for: response) {
@@ -2410,7 +2416,7 @@ private var appearanceObservation: NSKeyValueObservation?
     private func closeTabForcibly(_ controller: EditorWindowController) {
         guard windows.contains(where: { $0 === controller }) else { return }
         controller.isClosingSingleTab = true
-        controller.window?.performClose(nil)
+        controller.closeDocumentTab()
     }
 
     private func handleTabContextAction(identity: EditorTabIdentity, action: TabContextAction) {
@@ -2793,7 +2799,7 @@ private var appearanceObservation: NSKeyValueObservation?
     }
 
     func allEditorControllers() -> [EditorWindowController] {
-        windows.filter { $0.window?.isVisible == true }
+        windows
     }
 
     /// Returns the file paths of all open documents that have unsaved changes.
@@ -3314,16 +3320,13 @@ private var appearanceObservation: NSKeyValueObservation?
 
         if let activeSnapshotID = session.activeSnapshotID,
            let activeController = restoredSnapshotControllers.first(where: { $0.sessionSnapshotID == activeSnapshotID }) {
-            activeController.showWindow(nil)
-            activeController.window?.makeKeyAndOrderFront(nil)
+            activate(activeController)
         } else if let activeSnapshotID = session.activeSnapshotID,
                   let activeController = fallbackSnapshotControllers.first(where: { $0.snapshotID == activeSnapshotID })?.controller {
-            activeController.showWindow(nil)
-            activeController.window?.makeKeyAndOrderFront(nil)
+            activate(activeController)
         } else if let activeFile = session.activeFile,
            let activeController = restoredControllers.first(where: { $0.sessionFileURL == activeFile }) {
-            activeController.showWindow(nil)
-            activeController.window?.makeKeyAndOrderFront(nil)
+            activate(activeController)
         }
 
         saveSession()

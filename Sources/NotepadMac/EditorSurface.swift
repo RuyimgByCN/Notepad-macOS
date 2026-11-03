@@ -294,13 +294,19 @@ protocol EditorSurface: AnyObject {
 
 @MainActor
 enum EditorSurfaceFactory {
-    static func make() -> EditorSurface {
-        return ScintillaEditorSurface.load() ?? TextViewEditorSurface()
+    static func make(pooled: Bool = false) -> EditorSurface {
+        return ScintillaEditorSurface.load(pooled: pooled) ?? TextViewEditorSurface()
     }
 
     static func makeDiff() -> EditorSurface {
         ScintillaEditorSurface.load() ?? TextViewEditorSurface()
     }
+}
+
+@MainActor
+private final class DocumentTextView: NSTextView {
+    private let documentUndoManager = UndoManager()
+    override var undoManager: UndoManager? { documentUndoManager }
 }
 
 @MainActor
@@ -365,10 +371,7 @@ final class TextViewEditorSurface: EditorSurface {
     init() {
         let standardScrollView = NSTextView.scrollableTextView()
         self.scrollView = standardScrollView
-        self.textView = standardScrollView.documentView as? NSTextView ?? NSTextView()
-        if standardScrollView.documentView == nil {
-            standardScrollView.documentView = textView
-        }
+        self.textView = DocumentTextView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
@@ -802,11 +805,68 @@ final class TextViewEditorSurface: EditorSurface {
 final class ScintillaEditorSurface: EditorSurface {
     private static let frameworkRelativePath = ".build/scintilla-derived/Build/Products/Release/Scintilla.framework"
 
-    let scintillaView: NSView
+    private let standaloneView: NSView?
+    private let documentContainer: NSView?
+    let viewPool: ScintillaViewPool?
+    var pooledDocument: Int = 0
+    var presentationBackend: ScintillaViewBackend?
+    var parkedViewState = ScintillaDocumentViewState()
+    var didReleasePooledDocument = false
+    private var viewConfiguration: [(String, (ScintillaEditorSurface) -> Void)] = []
+    private var isRestoringConfiguration = false
+    private var contextMenu: NSMenu?
+    private var pendingSelectionNotification = false
 
-    var view: NSView { scintillaView }
-    var notificationObject: AnyObject { scintillaView }
-    var firstResponder: NSResponder { scintillaView }
+    var scintillaView: NSView { standaloneView ?? viewPool!.backend(for: self).view }
+    var view: NSView { documentContainer ?? scintillaView }
+    var notificationObject: AnyObject { view }
+    var firstResponder: NSResponder { presentationBackend?.view ?? view }
+
+    func presentEditorView() { viewPool?.present(self) }
+    func parkEditorView() { viewPool?.park(self) }
+
+    func finishEditorViewPresentation() {
+        guard let backend = presentationBackend else { return }
+        backend.view.layoutSubtreeIfNeeded()
+        backend.view.displayIfNeeded()
+        parkedViewState.restore(using: backend.bridge)
+        // A reused clip view can still have the previous document's offset even
+        // when Scintilla's topLine already equals the requested line.
+        if let scroll = backend.view.subviews.compactMap({ $0 as? NSScrollView }).first {
+            let lineHeight = backend.bridge.getGeneralProperty(ScintillaMessage.textHeight, parameter: 0) ?? 1
+            scroll.contentView.scroll(to: NSPoint(
+                x: parkedViewState.xOffset,
+                y: parkedViewState.firstVisibleLine * Int(lineHeight)
+            ))
+            scroll.reflectScrolledClipView(scroll.contentView)
+        }
+    }
+
+    private func rememberViewConfiguration(_ key: String, _ apply: @escaping (ScintillaEditorSurface) -> Void) {
+        guard viewPool != nil, !didReleasePooledDocument, !isRestoringConfiguration else { return }
+        viewConfiguration.removeAll { $0.0 == key }
+        viewConfiguration.append((key, apply))
+    }
+
+    func rememberIndicatorAppearance(_ message: Int32, parameter: Int, value: Int) {
+        switch message {
+        case ScintillaMessage.indicSetStyle, ScintillaMessage.indicSetFore,
+             ScintillaMessage.indicSetAlpha, ScintillaMessage.indicSetOutlineAlpha,
+             ScintillaMessage.indicSetUnder:
+            rememberViewConfiguration("indicator:\(message):\(parameter)") { surface in
+                surface.bridge.setGeneralProperty(message, parameter: parameter, value: value)
+            }
+        default: break
+        }
+    }
+
+    func restorePooledViewConfiguration() {
+        isRestoringConfiguration = true
+        defer { isRestoringConfiguration = false }
+        configureMargins()
+        for (_, apply) in viewConfiguration { apply(self) }
+        scintillaView.menu = contextMenu
+    }
     var displayName: String { "Scintilla" }
     var supportsFolding: Bool { true }
     var supportsAdvancedViewOptions: Bool { true }
@@ -1160,27 +1220,44 @@ final class ScintillaEditorSurface: EditorSurface {
         return true
     }
 
-    private let bridge: ScintillaDynamicBridge
+    private let standaloneBridge: ScintillaDynamicBridge?
+    private var bridge: ScintillaDynamicBridge {
+        standaloneBridge ?? viewPool!.backend(for: self).bridge
+    }
     private var marginClickHandler: ((EditorMarginClick) -> Void)?
     private var didConfigureNotificationDelegate = false
 
     private init(scintillaView: NSView) {
-        self.scintillaView = scintillaView
-        self.bridge = ScintillaDynamicBridge(target: scintillaView)
-        self.scintillaView.translatesAutoresizingMaskIntoConstraints = false
-        self.scintillaView.autoresizingMask = [.width, .height]
+        self.standaloneView = scintillaView
+        self.standaloneBridge = ScintillaDynamicBridge(target: scintillaView)
+        self.documentContainer = nil
+        self.viewPool = nil
+        scintillaView.translatesAutoresizingMaskIntoConstraints = false
+        scintillaView.autoresizingMask = [.width, .height]
+        configureMargins()
+        configureNotificationDelegateIfAvailable()
+    }
+
+    private init(pool: ScintillaViewPool) {
+        self.standaloneView = nil
+        self.standaloneBridge = nil
+        self.documentContainer = NSView()
+        self.viewPool = pool
+        self.pooledDocument = pool.createDocument()
         configureMargins()
         configureNotificationDelegateIfAvailable()
     }
 
     deinit {
         MainActor.assumeIsolated {
-            _ = bridge.setDelegate(nil)
+            if let viewPool { viewPool.release(self) }
+            else { _ = standaloneBridge?.setDelegate(nil) }
         }
     }
 
     func teardown() {
-        _ = bridge.setDelegate(nil)
+        if let viewPool { viewPool.release(self) }
+        else { _ = standaloneBridge?.setDelegate(nil) }
     }
 
     func shouldHandleTextChangeNotification(_ notification: Notification) -> Bool {
@@ -1195,7 +1272,7 @@ final class ScintillaEditorSurface: EditorSurface {
         }
     }
 
-    static func load() -> ScintillaEditorSurface? {
+    static func load(pooled: Bool = false) -> ScintillaEditorSurface? {
         dbgWrite("[load] starting ScintillaEditorSurface.load()")
         for frameworkURL in frameworkCandidates() {
             dbgWrite("[load] trying \(frameworkURL.path) exists=\(FileManager.default.fileExists(atPath: frameworkURL.path))")
@@ -1209,6 +1286,11 @@ final class ScintillaEditorSurface: EditorSurface {
 
             for className in ["ScintillaView", "Scintilla.ScintillaView"] {
                 guard let viewClass = NSClassFromString(className) as? NSView.Type else { continue }
+                if pooled {
+                    let pool = ScintillaViewPool.shared ?? ScintillaViewPool(makeView: { viewClass.init(frame: .zero) })
+                    ScintillaViewPool.shared = pool
+                    return ScintillaEditorSurface(pool: pool)
+                }
                 return ScintillaEditorSurface(scintillaView: viewClass.init(frame: .zero))
             }
         }
@@ -1217,6 +1299,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     var documentPointer: Int? {
+        if viewPool != nil { return didReleasePooledDocument ? nil : pooledDocument }
         guard let pointer = bridge.getGeneralProperty(ScintillaMessage.getDocPointer, parameter: 0),
               pointer != 0
         else { return nil }
@@ -1225,6 +1308,7 @@ final class ScintillaEditorSurface: EditorSurface {
 
     @discardableResult
     func setDocumentPointer(_ pointer: Int) -> Bool {
+        if let viewPool { return viewPool.changeDocument(for: self, to: pointer) }
         // SCI_SETDOCPOINTER releases the view's current document and takes a
         // reference on the supplied one (lParam carries the pointer).
         bridge.setGeneralProperty(ScintillaMessage.setDocPointer, parameter: 0, value: CLong(pointer))
@@ -1232,22 +1316,31 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func detachFromSharedDocument() {
+        if let viewPool {
+            let empty = viewPool.createDocument()
+            _ = viewPool.changeDocument(for: self, to: empty)
+            viewPool.releaseDocument(empty)
+            return
+        }
         // SCI_SETDOCPOINTER with NULL creates a fresh empty document and
         // releases the reference on the previously attached document.
         bridge.setGeneralProperty(ScintillaMessage.setDocPointer, parameter: 0, value: 0)
     }
 
     func applyFont(size: CGFloat) {
+        rememberViewConfiguration("applyFont(size)") { $0.applyFont(size: size) }
         bridge.setFont(name: "Menlo", size: Int32(size.rounded()), bold: false, italic: false)
     }
 
     func applyFont(name: String, size: CGFloat, bold: Bool) {
+        rememberViewConfiguration("applyFont(name,size,bold)") { $0.applyFont(name: name, size: size, bold: bold) }
         let fontName = name.trimmingCharacters(in: .whitespaces)
         let resolvedName = fontName.isEmpty ? "Menlo" : fontName
         bridge.setFont(name: resolvedName as NSString, size: Int32(size.rounded()), bold: bold, italic: false)
     }
 
     func applyLineWrapping(_ wraps: Bool, width: CGFloat) {
+        rememberViewConfiguration("applyLineWrapping(_ wraps,width)") { $0.applyLineWrapping(wraps, width: width) }
         bridge.setGeneralProperty(
             ScintillaMessage.setWrapMode,
             parameter: wraps ? ScintillaWrapMode.word : ScintillaWrapMode.none,
@@ -1256,24 +1349,29 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyWordWrapMode(_ mode: Int) {
+        rememberViewConfiguration("applyWordWrapMode(_ mode)") { $0.applyWordWrapMode(mode) }
         let clamped = CLong(max(0, min(3, mode)))
         bridge.setGeneralProperty(ScintillaMessage.setWrapMode, parameter: clamped, value: 0)
     }
 
     func applyCaretWidth(_ width: Int) {
+        rememberViewConfiguration("applyCaretWidth(_ width)") { $0.applyCaretWidth(width) }
         bridge.setGeneralProperty(ScintillaMessage.setCaretWidth, parameter: CLong(max(1, min(3, width))), value: 0)
     }
 
     func applyVirtualSpace(_ enabled: Bool) {
+        rememberViewConfiguration("applyVirtualSpace(_ enabled)") { $0.applyVirtualSpace(enabled) }
         // SCVS_NONE=0, SCVS_RECTANGULARSELECTION=1, SCVS_USERACCESSIBLE=2, SCVS_NOWRAPLINESTART=4
         bridge.setGeneralProperty(ScintillaMessage.setVirtualSpaceOptions, parameter: enabled ? 3 : 0, value: 0)
     }
 
     func applyBackspaceUnindents(_ enabled: Bool) {
+        rememberViewConfiguration("applyBackspaceUnindents(_ enabled)") { $0.applyBackspaceUnindents(enabled) }
         bridge.setGeneralProperty(ScintillaMessage.setBackSpaceUnIndents, parameter: enabled ? 1 : 0, value: 0)
     }
 
     func applyScrollBeyondLastLine(_ enabled: Bool) {
+        rememberViewConfiguration("applyScrollBeyondLastLine(_ enabled)") { $0.applyScrollBeyondLastLine(enabled) }
         // SCI_SETENDATLASTLINE: 1 = end at last line (default), 0 = can scroll past
         bridge.setGeneralProperty(ScintillaMessage.setEndAtLastLine, parameter: enabled ? 0 : 1, value: 0)
         // Scintilla defaults scrollWidth to 2000px, so a brand-new/empty document
@@ -1285,18 +1383,22 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applySelectedTextDragDrop(_ enabled: Bool) {
+        rememberViewConfiguration("applySelectedTextDragDrop(_ enabled)") { $0.applySelectedTextDragDrop(enabled) }
         bridge.setGeneralProperty(ScintillaMessage.setDragDropEnabled, parameter: enabled ? 1 : 0, value: 0)
     }
 
     func applyPasteConvertEndings(_ enabled: Bool) {
+        rememberViewConfiguration("applyPasteConvertEndings(_ enabled)") { $0.applyPasteConvertEndings(enabled) }
         bridge.setGeneralProperty(ScintillaMessage.setPasteConvertEndings, parameter: enabled ? 1 : 0, value: 0)
     }
 
     func applyCaretStickyMode(_ mode: Int) {
+        rememberViewConfiguration("applyCaretStickyMode(_ mode)") { $0.applyCaretStickyMode(mode) }
         bridge.setGeneralProperty(ScintillaMessage.setCaretStickyMode, parameter: CLong(max(0, min(2, mode))), value: 0)
     }
 
     func applyLineNumberDynamicWidth(_ enabled: Bool) {
+        rememberViewConfiguration("applyLineNumberDynamicWidth(_ enabled)") { $0.applyLineNumberDynamicWidth(enabled) }
         // When dynamic width is off, restore a fixed 40px line number margin width.
         // When enabled, set to 0 so the existing applyEditorSurface logic sizes it.
         let marginWidth = enabled ? 0 : 40
@@ -1304,11 +1406,13 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyBookmarkMarginVisible(_ visible: Bool) {
+        rememberViewConfiguration("applyBookmarkMarginVisible(_ visible)") { $0.applyBookmarkMarginVisible(visible) }
         let width: CLong = visible ? 16 : 0
         bridge.setGeneralProperty(ScintillaMessage.setMarginWidth, parameter: ScintillaMargin.bookmark, value: width)
     }
 
     func applyColumnSelectionToMultiEditing(_ enabled: Bool) {
+        rememberViewConfiguration("applyColumnSelectionToMultiEditing(_ enabled)") { $0.applyColumnSelectionToMultiEditing(enabled) }
         // SCVS_RECTANGULARSELECTION (bit 0) enables rectangular/column selection
         let current = bridge.getGeneralProperty(ScintillaMessage.getVirtualSpaceOptions, parameter: 0) ?? 0
         let newValue: CLong = enabled ? (current | 1) : (current & ~1)
@@ -1316,14 +1420,17 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyCaretNoBlink(_ noBlink: Bool) {
+        rememberViewConfiguration("applyCaretNoBlink(_ noBlink)") { $0.applyCaretNoBlink(noBlink) }
         bridge.setGeneralProperty(ScintillaMessage.setCaretPeriod, parameter: noBlink ? 0 : 500, value: 0)
     }
 
     func applyCaretPeriod(_ periodMs: Int) {
+        rememberViewConfiguration("applyCaretPeriod(_ periodMs)") { $0.applyCaretPeriod(periodMs) }
         bridge.setGeneralProperty(ScintillaMessage.setCaretPeriod, parameter: CLong(periodMs), value: 0)
     }
 
     func applyAdditionalEdgeColumns(_ columns: [Int]) {
+        rememberViewConfiguration("applyAdditionalEdgeColumns(_ columns)") { $0.applyAdditionalEdgeColumns(columns) }
         bridge.setGeneralProperty(ScintillaMessage.multiEdgeClearAll, parameter: 0, value: 0)
         for col in columns where col > 0 {
             bridge.setGeneralProperty(ScintillaMessage.multiEdgeAddLine, parameter: CLong(col), value: 0)
@@ -1331,18 +1438,22 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyCurrentLineFrameWidth(_ width: Int) {
+        rememberViewConfiguration("applyCurrentLineFrameWidth(_ width)") { $0.applyCurrentLineFrameWidth(width) }
         bridge.setGeneralProperty(ScintillaMessage.setCaretLineFrame, parameter: CLong(max(0, min(4, width))), value: 0)
     }
 
     func applyLineWrapIndent(_ mode: Int) {
+        rememberViewConfiguration("applyLineWrapIndent(_ mode)") { $0.applyLineWrapIndent(mode) }
         bridge.setGeneralProperty(ScintillaMessage.setWrapIndentMode, parameter: CLong(max(0, min(3, mode))), value: 0)
     }
 
     func applyCodeFolding(_ enabled: Bool) {
+        rememberViewConfiguration("applyCodeFolding(_ enabled)") { $0.applyCodeFolding(enabled) }
         bridge.setGeneralProperty(ScintillaMessage.setMarginWidth, parameter: ScintillaMargin.fold, value: enabled ? 16 : 0)
     }
 
     func applyFoldMarginStyle(_ style: Int) {
+        rememberViewConfiguration("applyFoldMarginStyle(_ style)") { $0.applyFoldMarginStyle(style) }
         let define = ScintillaMessage.markerDefine
         for marker in ScintillaFoldMarginMarkerStyle.symbols(forRawValue: style) {
             bridge.setGeneralProperty(define, parameter: marker.markerNumber, value: marker.symbol)
@@ -1365,11 +1476,13 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyAutoCompleteChooseSingle(_ on: Bool) {
+        rememberViewConfiguration("applyAutoCompleteChooseSingle(_ on)") { $0.applyAutoCompleteChooseSingle(on) }
         // SCI_AUTOCSETCHOOSESINGLE = 2113: auto-accept if only one item in list
         bridge.setGeneralProperty(2113, parameter: on ? 1 : 0, value: 0)
     }
 
     func applyAutoCompleteTABFillup(_ on: Bool) {
+        rememberViewConfiguration("applyAutoCompleteTABFillup(_ on)") { $0.applyAutoCompleteTABFillup(on) }
         // SCI_AUTOCSETFILLUPS = 2112: characters that immediately commit the selection
         let fillups = on ? "\t" : ""
         fillups.withCString { ptr in
@@ -1378,18 +1491,22 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyAutoCompleteEnterCommit(_ on: Bool) {
+        rememberViewConfiguration("applyAutoCompleteEnterCommit(_ on)") { $0.applyAutoCompleteEnterCommit(on) }
         // Enter-commit is handled at key-intercept layer; stored in EditorWindowController
     }
 
     func applyAutoCompleteBrief(_ on: Bool) {
+        rememberViewConfiguration("applyAutoCompleteBrief(_ on)") { $0.applyAutoCompleteBrief(on) }
         // Brief mode (hide function prototypes) is filtered at list-generation time
     }
 
     func applyAutoCompleteIgnoreCase(_ ignore: Bool) {
+        rememberViewConfiguration("applyAutoCompleteIgnoreCase(_ ignore)") { $0.applyAutoCompleteIgnoreCase(ignore) }
         bridge.setGeneralProperty(ScintillaMessage.setAutoCIgnoreCase, parameter: ignore ? 1 : 0, value: 0)
     }
 
     func applyShowWhitespace(_ visible: Bool) {
+        rememberViewConfiguration("applyShowWhitespace(_ visible)") { $0.applyShowWhitespace(visible) }
         bridge.setGeneralProperty(
             ScintillaMessage.setViewWhitespace,
             parameter: visible ? ScintillaWhitespaceMode.visibleAlways : ScintillaWhitespaceMode.invisible,
@@ -1398,6 +1515,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyShowWhitespace(mode: Int) {
+        rememberViewConfiguration("applyShowWhitespace(mode)") { $0.applyShowWhitespace(mode: mode) }
         // SCWS_INVISIBLE=0, SCWS_VISIBLEALWAYS=1, SCWS_VISIBLEAFTERINDENT=2, SCWS_VISIBLEONLYININDENT=3
         bridge.setGeneralProperty(
             ScintillaMessage.setViewWhitespace,
@@ -1411,6 +1529,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyShowEOL(_ visible: Bool) {
+        rememberViewConfiguration("applyShowEOL(_ visible)") { $0.applyShowEOL(visible) }
         bridge.setGeneralProperty(
             ScintillaMessage.setViewEOL,
             parameter: visible ? 1 : 0,
@@ -1419,6 +1538,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyIndentGuides(_ visible: Bool) {
+        rememberViewConfiguration("applyIndentGuides(_ visible)") { $0.applyIndentGuides(visible) }
         bridge.setGeneralProperty(
             ScintillaMessage.setIndentationGuides,
             parameter: visible ? ScintillaIndentGuideMode.lookForward : ScintillaIndentGuideMode.none,
@@ -1427,6 +1547,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyIndentGuides(mode: Int) {
+        rememberViewConfiguration("applyIndentGuides(mode)") { $0.applyIndentGuides(mode: mode) }
         let clamped = CLong(max(0, min(3, mode)))
         bridge.setGeneralProperty(
             ScintillaMessage.setIndentationGuides,
@@ -1436,6 +1557,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyCurrentLineHighlight(_ visible: Bool) {
+        rememberViewConfiguration("applyCurrentLineHighlight(_ visible)") { $0.applyCurrentLineHighlight(visible) }
         bridge.setGeneralProperty(
             ScintillaMessage.setCaretLineVisible,
             parameter: visible ? 1 : 0,
@@ -1454,6 +1576,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyWrapSymbol(_ visible: Bool) {
+        rememberViewConfiguration("applyWrapSymbol(_ visible)") { $0.applyWrapSymbol(visible) }
         bridge.setGeneralProperty(
             ScintillaMessage.setWrapVisualFlags,
             parameter: visible ? ScintillaWrapVisualFlag.end : ScintillaWrapVisualFlag.none,
@@ -1478,6 +1601,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyTabSize(_ size: Int, insertSpaces: Bool) {
+        rememberViewConfiguration("applyTabSize(_ size,insertSpaces)") { $0.applyTabSize(size, insertSpaces: insertSpaces) }
         bridge.setGeneralProperty(ScintillaMessage.setTabWidth, parameter: CLong(size), value: 0)
         bridge.setGeneralProperty(ScintillaMessage.setUseTabs, parameter: insertSpaces ? 0 : 1, value: 0)
     }
@@ -1503,6 +1627,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyLineNumberMargin(_ visible: Bool) {
+        rememberViewConfiguration("applyLineNumberMargin(_ visible)") { $0.applyLineNumberMargin(visible) }
         bridge.setGeneralProperty(
             ScintillaMessage.setMarginWidth,
             parameter: ScintillaMargin.lineNumber,
@@ -1511,10 +1636,12 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyFoldCompact(_ compact: Bool) {
+        rememberViewConfiguration("applyFoldCompact(_ compact)") { $0.applyFoldCompact(compact) }
         foldCompactMode = compact
     }
 
     func applyEdgeLine(_ visible: Bool, column: Int) {
+        rememberViewConfiguration("applyEdgeLine(_ visible,column)") { $0.applyEdgeLine(visible, column: column) }
         bridge.setGeneralProperty(
             ScintillaMessage.setEdgeMode,
             parameter: visible ? ScintillaEdgeMode.line : ScintillaEdgeMode.none,
@@ -1542,6 +1669,12 @@ final class ScintillaEditorSurface: EditorSurface {
         stylePreferences: StylePreferences,
         highlighter: SyntaxHighlighter
     ) {
+        rememberViewConfiguration("highlight") { surface in
+            surface.bridge.setFont(name: "Menlo", size: 13, bold: false, italic: false)
+            surface.bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
+            surface.applyStyles(language: language, styleCatalog: styleCatalog, stylePreferences: stylePreferences)
+            surface.applyGlobalStyles(styleCatalog: styleCatalog, stylePreferences: stylePreferences)
+        }
         bridge.setFont(name: "Menlo", size: 13, bold: false, italic: false)
         bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
 
@@ -1588,6 +1721,9 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func clearLexer() {
+        rememberViewConfiguration("highlight") { surface in
+            surface.bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
+        }
         bridge.setReferenceProperty(ScintillaMessage.setILexer, parameter: 0, value: nil)
         bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
     }
@@ -1634,6 +1770,16 @@ final class ScintillaEditorSurface: EditorSurface {
         switch code {
         case ScintillaNotificationCode.modified:
             postTextDidChangeIfNeeded(from: rawNotification)
+        case ScintillaNotificationCode.updateUI:
+            if viewPool != nil, presentationBackend != nil, !isRestoringConfiguration, !pendingSelectionNotification {
+                pendingSelectionNotification = true
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.pendingSelectionNotification = false
+                    guard !self.didReleasePooledDocument, self.presentationBackend != nil else { return }
+                    NotificationCenter.default.post(name: Notification.Name("SCIUpdateUI"), object: self.view)
+                }
+            }
         case ScintillaNotificationCode.charAdded:
             handleCharAdded(from: rawNotification)
         case ScintillaNotificationCode.marginClick:
@@ -1822,6 +1968,7 @@ final class ScintillaEditorSurface: EditorSurface {
     // MARK: - Search indicator operations
 
     func initSearchIndicators() {
+        rememberViewConfiguration("initSearchIndicators()") { $0.initSearchIndicators() }
         for style in SearchMarkStyle.allCases {
             let indicator = CLong(style.rawValue)
             bridge.setGeneralProperty(ScintillaMessage.indicSetStyle, parameter: indicator, value: ScintillaIndicatorStyle.roundBox)
@@ -2390,6 +2537,7 @@ final class ScintillaEditorSurface: EditorSurface {
     var supportsNpcDisplay: Bool { true }
 
     func applyNpcDisplay(_ show: Bool) {
+        rememberViewConfiguration("applyNpcDisplay(_ show)") { $0.applyNpcDisplay(show) }
         let npcEntries: [(encodedCharacter: String, representation: String)] = [
             ("\u{00A0}", "NBSP"), ("\u{00AD}", "SHY"), ("\u{061C}", "ALM"),
             ("\u{070F}", "SAM"), ("\u{1680}", "OSPM"), ("\u{180E}", "MVS"),
@@ -2413,6 +2561,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyControlCharactersAndUnicodeEOLDisplay(_ show: Bool) {
+        rememberViewConfiguration("applyControlCharactersAndUnicodeEOLDisplay(_ show)") { $0.applyControlCharactersAndUnicodeEOLDisplay(show) }
         let controlEntries: [(encodedCharacter: String, representation: String)] = [
             ("\u{0000}", "NUL"), ("\u{0001}", "SOH"), ("\u{0002}", "STX"),
             ("\u{0003}", "ETX"), ("\u{0004}", "EOT"), ("\u{0005}", "ENQ"),
@@ -2636,10 +2785,12 @@ final class ScintillaEditorSurface: EditorSurface {
     private var autoIndentModeValue = 1
 
     func applyAutoIndent(_ enabled: Bool) {
+        rememberViewConfiguration("applyAutoIndent(_ enabled)") { $0.applyAutoIndent(enabled) }
         autoIndentEnabled = enabled
     }
 
     func applyAutoIndentMode(_ mode: Int) {
+        rememberViewConfiguration("applyAutoIndentMode(_ mode)") { $0.applyAutoIndentMode(mode) }
         autoIndentModeValue = max(0, min(2, mode))
     }
 
@@ -2877,21 +3028,25 @@ final class ScintillaEditorSurface: EditorSurface {
     // MARK: - Line padding
 
     func applyLinePadding(_ pixels: Int) {
+        rememberViewConfiguration("applyLinePadding(_ pixels)") { $0.applyLinePadding(pixels) }
         let clamped = CLong(max(0, min(5, pixels)))
         bridge.setGeneralProperty(ScintillaMessage.setExtraAscent, parameter: clamped, value: 0)
         bridge.setGeneralProperty(ScintillaMessage.setExtraDescent, parameter: clamped, value: 0)
     }
 
     func applyBidirectional(_ mode: Int) {
+        rememberViewConfiguration("applyBidirectional(_ mode)") { $0.applyBidirectional(mode) }
         bridge.setGeneralProperty(ScintillaMessage.setBidirectional, parameter: CLong(mode), value: 0)
     }
 
     func applySmoothFont(_ on: Bool) {
+        rememberViewConfiguration("applySmoothFont(_ on)") { $0.applySmoothFont(on) }
         // SCI_SETFONTQUALITY: 0=default, 1=non-antialiased, 2=antialiased, 3=LCD optimized
         bridge.setGeneralProperty(ScintillaMessage.setFontQuality, parameter: on ? 2 : 0, value: 0)
     }
 
     func applyMultiEditEnabled(_ on: Bool) {
+        rememberViewConfiguration("applyMultiEditEnabled(_ on)") { $0.applyMultiEditEnabled(on) }
         bridge.setGeneralProperty(ScintillaMessage.setMultipleSelection, parameter: on ? 1 : 0, value: 0)
         // Live multi-caret editing: typing applies to every active selection,
         // and an Alt(Option)+drag selection switches to rectangular mode,
@@ -2901,54 +3056,65 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyMultiPasteMode(_ mode: Int) {
+        rememberViewConfiguration("applyMultiPasteMode(_ mode)") { $0.applyMultiPasteMode(mode) }
         // SC_MULTIPASTE_ONCE=0 (paste into main selection only)
         // SC_MULTIPASTE_EACH=1 (paste into each selection)
         bridge.setGeneralProperty(ScintillaMessage.setMultiPaste, parameter: CLong(max(0, min(1, mode))), value: 0)
     }
 
     func applyAdditionalSelAlpha(_ alpha: Int) {
+        rememberViewConfiguration("applyAdditionalSelAlpha(_ alpha)") { $0.applyAdditionalSelAlpha(alpha) }
         // SCI_SETADDITIONALSELALPHA: 0-255 alpha, 256=opaque (no alpha)
         bridge.setGeneralProperty(ScintillaMessage.setAdditionalSelAlpha, parameter: CLong(max(0, min(256, alpha))), value: 0)
     }
 
     func applyAdditionalCaretsBlink(_ on: Bool) {
+        rememberViewConfiguration("applyAdditionalCaretsBlink(_ on)") { $0.applyAdditionalCaretsBlink(on) }
         bridge.setGeneralProperty(ScintillaMessage.setAdditionalCaretsBlink, parameter: on ? 1 : 0, value: 0)
     }
 
     func applyAdditionalCaretsVisible(_ on: Bool) {
+        rememberViewConfiguration("applyAdditionalCaretsVisible(_ on)") { $0.applyAdditionalCaretsVisible(on) }
         bridge.setGeneralProperty(ScintillaMessage.setAdditionalCaretsVisible, parameter: on ? 1 : 0, value: 0)
     }
 
     func applyCaretLineVisibleAlways(_ on: Bool) {
+        rememberViewConfiguration("applyCaretLineVisibleAlways(_ on)") { $0.applyCaretLineVisibleAlways(on) }
         bridge.setGeneralProperty(ScintillaMessage.setCaretLineVisibleAlways, parameter: on ? 1 : 0, value: 0)
     }
 
     func applyWhitespaceSize(_ size: Int) {
+        rememberViewConfiguration("applyWhitespaceSize(_ size)") { $0.applyWhitespaceSize(size) }
         // SCI_SETWHITESPACESIZE: dot size in pixels (1-5)
         bridge.setGeneralProperty(ScintillaMessage.setWhitespaceSize, parameter: CLong(max(1, min(5, size))), value: 0)
     }
 
     func applySelectionAlpha(_ alpha: Int) {
+        rememberViewConfiguration("applySelectionAlpha(_ alpha)") { $0.applySelectionAlpha(alpha) }
         // SCI_SETSELALPHA: 0-255 transparent, 256=opaque
         bridge.setGeneralProperty(ScintillaMessage.setSelAlpha, parameter: CLong(max(0, min(256, alpha))), value: 0)
     }
 
     func applyControlCharDisplay(_ mode: Int) {
+        rememberViewConfiguration("applyControlCharDisplay(_ mode)") { $0.applyControlCharDisplay(mode) }
         // SCI_SETCONTROLCHARSYMBOL: 0=show as glyph, 1-6=use defined symbol
         bridge.setGeneralProperty(ScintillaMessage.setControlCharSymbol, parameter: CLong(max(0, min(6, mode))), value: 0)
     }
 
     func applyScintillaRenderingTechnology(_ tech: Int) {
+        rememberViewConfiguration("applyScintillaRenderingTechnology(_ tech)") { $0.applyScintillaRenderingTechnology(tech) }
         // SCI_SETTECHNOLOGY: 0=SC_TECHNOLOGY_DEFAULT, 1=SC_TECHNOLOGY_DIRECTWRITE
         bridge.setGeneralProperty(ScintillaMessage.setTechnology, parameter: CLong(max(0, min(1, tech))), value: 0)
     }
 
     func applyRightClickKeepSelection(_ keep: Bool) {
+        rememberViewConfiguration("applyRightClickKeepSelection(_ keep)") { $0.applyRightClickKeepSelection(keep) }
         // SCI_SETMOUSESELECTIONRECTANGULARSWITCH: when true, right-click doesn't move caret
         // Not directly supported by Scintilla; handled at EditorWindowController level
     }
 
     func applyDisableAdvancedScrolling(_ disabled: Bool) {
+        rememberViewConfiguration("applyDisableAdvancedScrolling(_ disabled)") { $0.applyDisableAdvancedScrolling(disabled) }
         // SCI_SETLAYOUTCACHE: 0=SC_CACHE_NONE (no layout cache, simpler scrolling),
         // 1=SC_CACHE_DOCUMENT (cache whole document layout, smoother scrolling).
         // "Disable advanced scrolling" = use SC_CACHE_NONE when true.
@@ -2956,16 +3122,19 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyEdgeMode(_ mode: Int) {
+        rememberViewConfiguration("applyEdgeMode(_ mode)") { $0.applyEdgeMode(mode) }
         // SCI_SETEDGEMODE: 0=EDGE_NONE, 1=EDGE_LINE, 2=EDGE_BACKGROUND
         bridge.setGeneralProperty(ScintillaMessage.setEdgeMode, parameter: CLong(max(0, min(3, mode))), value: 0)
     }
 
     func applyFoldFlags(_ flags: Int) {
+        rememberViewConfiguration("applyFoldFlags(_ flags)") { $0.applyFoldFlags(flags) }
         // SCI_SETFOLDFLAGS: bitmask for fold visualization
         bridge.setGeneralProperty(ScintillaMessage.setFoldFlags, parameter: CLong(max(0, min(30, flags))), value: 0)
     }
 
     func applyCopyLineWithoutSelection(_ enabled: Bool) {
+        rememberViewConfiguration("applyCopyLineWithoutSelection(_ enabled)") { $0.applyCopyLineWithoutSelection(enabled) }
         bridge.setGeneralProperty(ScintillaMessage.setCopyAllowsLineSelection, parameter: enabled ? 1 : 0, value: 0)
     }
 
@@ -3044,6 +3213,7 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func applyScintillaKeyRemaps(_ remaps: [ScintillaKeyRemap]) {
+        rememberViewConfiguration("applyScintillaKeyRemaps(_ remaps)") { $0.applyScintillaKeyRemaps(remaps) }
         for remap in remaps {
             if remap.key == 0 {
                 bridge.setGeneralProperty(ScintillaMessage.clearCmdKey, parameter: remap.keyDefinition, value: 0)
@@ -3054,7 +3224,8 @@ final class ScintillaEditorSurface: EditorSurface {
     }
 
     func setContextMenu(_ menu: NSMenu?) {
-        scintillaView.menu = menu
+        contextMenu = menu
+        if viewPool == nil || presentationBackend != nil { scintillaView.menu = menu }
     }
 
     func deleteSelection() {
@@ -3111,14 +3282,33 @@ final class ScintillaEditorSurface: EditorSurface {
         // after callers reset their dirty state (e.g. file load), and the
         // observer would wrongly mark freshly loaded documents as modified.
         let programmatic = isProgrammaticTextSet
-        let view = scintillaView
-        DispatchQueue.main.async {
+        let view = view
+        viewPool?.invalidateDocumentCopies(of: self, programmatic: programmatic)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.didReleasePooledDocument else { return }
             NotificationCenter.default.post(
                 name: NSText.didChangeNotification,
                 object: view,
                 userInfo: [EditorSurfaceNotificationKey.programmaticTextChange: programmatic]
             )
         }
+    }
+
+    func invalidatePooledDocumentCopy(programmatic: Bool) {
+        cachedDocumentText = nil
+        appliedSmartHighlight = nil
+        guard !didReleasePooledDocument else { return }
+        let object = view
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.didReleasePooledDocument else { return }
+            NotificationCenter.default.post(name: NSText.didChangeNotification, object: object,
+                userInfo: [EditorSurfaceNotificationKey.programmaticTextChange: programmatic])
+        }
+    }
+
+    func clearPooledDocumentCaches() {
+        cachedDocumentText = nil
+        appliedSmartHighlight = nil
     }
 
     private func handleMarginClick(from rawNotification: UnsafeMutableRawPointer) {
@@ -3543,8 +3733,9 @@ private final class LexillaDynamicLibrary {
 }
 
 @MainActor
-private final class ScintillaDynamicBridge {
+final class ScintillaDynamicBridge {
     private unowned let target: NSView
+    var onPropertySet: ((Int32, Int, Int) -> Void)?
 
     init(target: NSView) {
         self.target = target
@@ -3569,6 +3760,7 @@ private final class ScintillaDynamicBridge {
     }
 
     func setGeneralProperty(_ property: Int32, parameter: CLong, value: CLong) {
+        onPropertySet?(property, parameter, value)
         let selector = NSSelectorFromString("setGeneralProperty:parameter:value:")
         guard target.responds(to: selector), let method = target.method(for: selector) else { return }
         typealias Function = @convention(c) (AnyObject, Selector, Int32, CLong, CLong) -> Void
@@ -3689,7 +3881,28 @@ private enum ScintillaNotificationLayout {
     }
 }
 
-private enum ScintillaMessage {
+enum ScintillaMessage {
+    static let getScrollWidth: Int32 = 2275
+    static let getZoom: Int32 = 2374
+    static let setZoom: Int32 = 2373
+    static let createDocument: Int32 = 2375
+    static let getSelectionNCaret: Int32 = 2577
+    static let getSelectionNAnchor: Int32 = 2579
+    static let getSelectionNCaretVirtualSpace: Int32 = 2581
+    static let getSelectionNAnchorVirtualSpace: Int32 = 2583
+    static let setSelectionNCaretVirtualSpace: Int32 = 2580
+    static let setSelectionNAnchorVirtualSpace: Int32 = 2582
+    static let getMainSelection: Int32 = 2575
+    static let getSelectionMode: Int32 = 2423
+    static let setSelectionMode: Int32 = 2422
+    static let getAllLinesVisible: Int32 = 2236
+    static let getXOffset: Int32 = 2398
+    static let setXOffset: Int32 = 2397
+    static let setOvertype: Int32 = 2186
+    static let getMultipleSelection: Int32 = 2564
+    static let getAdditionalSelectionTyping: Int32 = 2566
+    static let textHeight: Int32 = 2279
+
     static let clearAll: Int32 = 2004
     static let clear: Int32 = 2180
     static let getCurrentPos: Int32 = 2008
@@ -3723,7 +3936,7 @@ private enum ScintillaMessage {
     static let setIndentationGuides: Int32 = 2132
     static let setCaretLineBackAlpha: Int32 = 2470
     static let setCaretLineVisibleAlways: Int32 = 2655
-    static let getOvertype: Int32 = 2115
+    static let getOvertype: Int32 = 2187
     static let lineFromPosition: Int32 = 2166
     static let scrollCaret: Int32 = 2169
     static let scrollRange: Int32 = 2569  // SCI_SCROLLRANGE (wParam=secondary, lParam=primary)
