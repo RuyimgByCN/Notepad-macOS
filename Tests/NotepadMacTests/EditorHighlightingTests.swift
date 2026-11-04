@@ -172,6 +172,61 @@ import Testing
 }
 
 @MainActor
+@Test(arguments: [false, true], [false, true])
+func scintillaUDLRestylingPreservesViewport(wrapsLines: Bool, pooled: Bool) async throws {
+    let suite = "EditorHighlightingTests.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let preferences = PreferencesStore(defaults: defaults)
+    preferences.save(AppPreferences().withWrapsLines(wrapsLines))
+    let baseCatalog = try LanguageCatalog.load(from: upstreamLanguageModelURL())
+    let userLanguage = try #require(UserDefinedLanguage(
+        name: "viewport", extensions: ["viewport"], keywords: ["example"]
+    ))
+    let controller = EditorWindowController(
+        languageCatalog: baseCatalog.appendingUserDefinedLanguages([userLanguage]),
+        styleCatalog: try StyleCatalog.load(from: upstreamStyleModelURL()),
+        preferencesStore: preferences,
+        usesSharedWindow: pooled
+    )
+    let presenter = EditorWindowPresenter()
+    defer {
+        presenter.remove(controller)
+        controller.closeDocumentTab()
+        presenter.window?.close()
+    }
+    let line = String(repeating: "中文 🚀 example ", count: 12) + "\n"
+    controller.editorSurface.text = String(repeating: line, count: 300)
+    controller.setLanguage(named: userLanguage.name)
+    presenter.present(controller)
+    let surface = try #require(controller.editorSurface as? ScintillaEditorSurface)
+    let bridge = ScintillaDynamicBridge(target: surface.scintillaView)
+    let selection = NSRange(location: line.utf16.count * 105 + 5, length: 3)
+    surface.setSelectedRange(selection)
+    for _ in 0..<2 {
+        bridge.setGeneralProperty(ScintillaMessage.scrollVertical, parameter: 100, value: wrapsLines ? 1 : 0)
+        bridge.setGeneralProperty(ScintillaMessage.setXOffset, parameter: wrapsLines ? 0 : 120, value: 0)
+        try await Task.sleep(for: .milliseconds(30))
+    }
+    let expected = ScintillaDocumentViewState(capturing: bridge)
+    #expect(expected.firstVisibleDocumentLine == 100)
+    #expect(expected.firstVisibleSubLine == (wrapsLines ? 1 : 0))
+    #expect(expected.xOffset == (wrapsLines ? 0 : 120))
+
+    for color in ["AA5500", "2255AA", "AA5500"] {
+        controller.applyLanguageCatalog(baseCatalog.appendingUserDefinedLanguages([
+            userLanguage.updatingKeywordForeground(color)
+        ]))
+        try await Task.sleep(for: .milliseconds(30))
+        let actual = ScintillaDocumentViewState(capturing: bridge)
+        #expect(actual.firstVisibleDocumentLine == expected.firstVisibleDocumentLine)
+        #expect(actual.firstVisibleSubLine == expected.firstVisibleSubLine)
+        #expect(actual.xOffset == expected.xOffset)
+        #expect(surface.selectedRange == selection)
+    }
+}
+
+@MainActor
 @Test func scintillaRawNativeTextChangeNotificationIsIgnored() throws {
     let controller = EditorWindowController(
         languageCatalog: try LanguageCatalog.load(from: upstreamLanguageModelURL()),

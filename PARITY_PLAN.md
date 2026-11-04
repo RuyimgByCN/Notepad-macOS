@@ -1,10 +1,14 @@
 # Notepad++ 功能补齐计划 (native-macos)
 
 > ✅ 主计划条目已全部完成（2026-06-13）。此后按上游小版本增量补齐。
-> 当前构建基准：**v8.9.8.1**，CI `NPP_COMMIT` = `00becd603652668f28f66619b02f0b7db3341db6`
+> 当前构建基准：**v8.9.8.1**，CI `NPP_COMMIT` = `96a516e9fe038c12037cb6b38c61398f9688b4ce`
 > （见 `.github/workflows/release.yml` / `scripts/package-macos.sh`）。
 > 2026-11-03 同步上游源码及依赖：Scintilla 5.6.8、Lexilla 5.5.5、Boost 1.92.0。
 > 此次同步包含上游函数列表 XML 更新；新增 Windows UI 行为不代表已完成 macOS 功能对齐。
+> 2026-11-04 增量同步 Scintilla 5.6.9（XPM 图标颜色回归修复），并移植上游 UDL
+> 重新着色的视口保持逻辑；同时保留自动换行子行及水平滚动位置。
+> 本次验证：Scintilla / Lexilla 通用构建、`swift build`、全量 930 项测试通过；
+> 新增 UDL 回归覆盖独立 / 共享视图及自动换行开关，修复前可复现跳动。
 
 基于 2026-06 对 `Sources/` 与上游 `PowerEditor` 菜单/功能集的差距分析。
 按"价值 / 工作量"排序,P0 最优先。每项含触改文件与验收标准。

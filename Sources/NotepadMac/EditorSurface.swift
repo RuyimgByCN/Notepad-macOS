@@ -1675,6 +1675,17 @@ final class ScintillaEditorSurface: EditorSurface {
         stylePreferences: StylePreferences,
         highlighter: SyntaxHighlighter
     ) {
+        // Clearing styles resets wrapped line heights; retain the document anchor.
+        let firstVisibleLine = bridge.getGeneralProperty(ScintillaMessage.getFirstVisibleLine, parameter: 0) ?? 0
+        let documentLine = bridge.getGeneralProperty(ScintillaMessage.docLineFromVisible, parameter: firstVisibleLine) ?? 0
+        let subLine = firstVisibleLine - (bridge.getGeneralProperty(ScintillaMessage.visibleFromDocLine, parameter: documentLine) ?? 0)
+        let xOffset = bridge.getGeneralProperty(ScintillaMessage.getXOffset, parameter: 0) ?? 0
+        defer {
+            bridge.setGeneralProperty(ScintillaMessage.scrollVertical, parameter: documentLine, value: subLine)
+            // Cocoa's scroll bar update clears the deferred wrapping target.
+            bridge.setGeneralProperty(ScintillaMessage.scrollVertical, parameter: documentLine, value: subLine)
+            bridge.setGeneralProperty(ScintillaMessage.setXOffset, parameter: xOffset, value: 0)
+        }
         rememberViewConfiguration("highlight") { surface in
             surface.bridge.setFont(name: "Menlo", size: 13, bold: false, italic: false)
             surface.bridge.setGeneralProperty(ScintillaMessage.styleClearAll, parameter: 0, value: 0)
