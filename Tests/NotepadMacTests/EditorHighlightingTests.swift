@@ -383,3 +383,101 @@ private func postSCIUpdateUI(on controller: EditorWindowController) {
     postSCIUpdateUI(on: controller)
     #expect(controller.editorSurface.hasSmartHighlightApplied == false)
 }
+
+@MainActor
+@Test func trimTrailingWhitespaceKeepsViewportAwayFromCaret() throws {
+    let controller = EditorWindowController()
+    defer { controller.editorSurface.teardown() }
+    let surface = try #require(controller.editorSurface as? ScintillaEditorSurface)
+    surface.text = String(repeating: "text  \n", count: 200)
+    surface.restoreViewPosition(EditorViewPosition(
+        selectedRange: NSRange(location: 0, length: 0),
+        firstVisibleLine: 70
+    ))
+    let before = surface.captureViewPosition()
+    try #require(before.firstVisibleLine > 0)
+
+    controller.trimTrailingWhitespace(nil)
+
+    #expect(surface.text == String(repeating: "text\n", count: 200))
+    #expect(surface.captureViewPosition().firstVisibleLine == before.firstVisibleLine)
+    #expect(surface.selectedRange.location == 0)
+}
+
+@MainActor
+@Test func searchResultColumnsLandOnDistinctUTF16PositionsAndStayOnTheLine() {
+    let controller = EditorWindowController()
+    defer { controller.editorSurface.teardown() }
+    controller.editorSurface.text = "header\r\n🚀 hit, hit\r\nnext"
+    controller.goToLine(2, column: 4)
+    #expect(controller.editorSurface.selectedRange.location == "header\r\n🚀 ".utf16.count)
+    controller.goToLine(2, column: 9)
+    #expect(controller.editorSurface.selectedRange.location == "header\r\n🚀 hit, ".utf16.count)
+    controller.goToLine(2, column: 1_000)
+    #expect(controller.editorSurface.selectedRange.location == "header\r\n🚀 hit, hit".utf16.count)
+    controller.goToLine(2, column: 2)
+    #expect(controller.editorSurface.selectedRange.location == "header\r\n".utf16.count)
+    controller.goToLine(10, column: Int.max)
+    #expect(controller.editorSurface.selectedRange.location == controller.editorSurface.text.utf16.count)
+}
+
+@MainActor
+@Test func findPreviewHighlightsVisibleRegexMatchesAndClearsWithoutTouchingManualMarks() throws {
+    let controller = EditorWindowController()
+    defer { controller.editorSurface.teardown() }
+    let surface = try #require(controller.editorSurface as? ScintillaEditorSurface)
+    let bridge = ScintillaDynamicBridge(target: surface.scintillaView)
+    surface.text = "🚀 hit42 Hit93\n" + String(repeating: "hit12\n", count: 200)
+    let offset = "🚀 ".utf8.count
+    let end = surface.documentByteCount - "hit12\n".utf8.count
+    surface.markAllWithIndicator(.style1, ranges: [NSRange(location: 3, length: 5)])
+    surface.updateFindPreview(#"hit\d+"#, options: .init(matchCase: true, searchMode: .regex))
+
+    func preview(at byte: Int) -> Int {
+        bridge.integerMessage(ScintillaMessage.indicatorValueAt, wParam: ScintillaEditorSurface.findPreviewIndicator, lParam: byte) ?? 0
+    }
+    #expect(preview(at: offset) != 0)
+    #expect(preview(at: offset + 6) == 0)
+    #expect(preview(at: end) == 0)
+    surface.clearFindPreview()
+    #expect(preview(at: offset) == 0)
+    #expect(surface.indicatorRanges(.style1) == [NSRange(location: 3, length: 5)])
+}
+
+@MainActor
+@Test func multiPasteRealizesEachVirtualCaretBeforeInsertingText() throws {
+    let controller = EditorWindowController()
+    defer { controller.editorSurface.teardown() }
+    let surface = try #require(controller.editorSurface as? ScintillaEditorSurface)
+    let bridge = ScintillaDynamicBridge(target: surface.scintillaView)
+    surface.text = "a\nb"
+    surface.applyVirtualSpace(true)
+    surface.applyMultiEditEnabled(true)
+    surface.applyMultiPasteMode(1)
+    bridge.setGeneralProperty(ScintillaMessage.setSelection, parameter: 1, value: 1)
+    bridge.setGeneralProperty(ScintillaMessage.addSelection, parameter: 3, value: 3)
+    for (selection, spaces) in [(0, 2), (1, 4)] {
+        bridge.setGeneralProperty(ScintillaMessage.setSelectionNCaretVirtualSpace, parameter: selection, value: spaces)
+        bridge.setGeneralProperty(ScintillaMessage.setSelectionNAnchorVirtualSpace, parameter: selection, value: spaces)
+    }
+
+    // Scintilla's native Cocoa paste reads the general pasteboard.
+    let clipboard = NSPasteboard.general
+    let savedItems = try (clipboard.pasteboardItems ?? []).map { item in
+        let copy = NSPasteboardItem()
+        for type in item.types {
+            let data = try #require(item.data(forType: type))
+            copy.setData(data, forType: type)
+        }
+        return copy
+    }
+    clipboard.clearContents()
+    defer {
+        clipboard.clearContents()
+        if !savedItems.isEmpty { clipboard.writeObjects(savedItems) }
+    }
+    try #require(clipboard.setString("X", forType: .string))
+    bridge.setGeneralProperty(ScintillaMessage.paste, parameter: 0, value: 0)
+
+    #expect(surface.text == "a  X\nb    X")
+}

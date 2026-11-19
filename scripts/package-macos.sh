@@ -6,11 +6,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="Notepad Mac"
 EXECUTABLE_NAME="NotepadMac"
 BUNDLE_ID="org.notepad.macnative"
-# ⚠️ 版本号必须跟随上游 Notepad++ 的 VERSION_PRODUCT_VALUE（resource.h），禁止随意追加小版本号。
-#    上游版本号决定了 lexer 映射、功能对齐和发行说明的基准。
-#    CI 发布时通过 MACOS_APP_VERSION 环境变量注入；此处的默认值仅用于本地打包。
-#    变更此值前请确认 upstream/notepad-plus-plus/PowerEditor/src/resource.h 中的版本号已同步。
-VERSION="${MACOS_APP_VERSION:-8.9.8.1}"
+# CI supplies the release version. Local builds use the checked-out upstream version.
+VERSION="${MACOS_APP_VERSION:-$(sed -nE 's/^#define[[:space:]]+VERSION_PRODUCT_VALUE[[:space:]]+L"([0-9.]+).*/\1/p' \
+    "$ROOT_DIR/upstream/notepad-plus-plus/PowerEditor/src/resource.h")}"
+if [[ -z "$VERSION" ]]; then
+    echo "ERROR: Could not read the Notepad++ version from resource.h." >&2
+    exit 1
+fi
 DIST_DIR="$ROOT_DIR/dist"
 APP_PATH="$DIST_DIR/$APP_NAME.app"
 DMG_PATH="$DIST_DIR/$APP_NAME.dmg"
@@ -20,7 +22,7 @@ ICON_NAME="NotepadMac.icns"
 SCINTILLA_DERIVED_DATA="${MACOS_SCINTILLA_DERIVED_DATA:-$ROOT_DIR/.build/scintilla-derived}"
 SCINTILLA_CONFIGURATION="${MACOS_SCINTILLA_CONFIGURATION:-Release}"
 SCINTILLA_FRAMEWORK="$SCINTILLA_DERIVED_DATA/Build/Products/$SCINTILLA_CONFIGURATION/Scintilla.framework"
-LEXILLA_DYLIB="$UPSTREAM_DIR/lexilla/bin/liblexilla.dylib"
+LEXILLA_DYLIB="$ROOT_DIR/.build/lexilla/bin/liblexilla.dylib"
 ARM64_TRIPLE="${MACOS_ARM64_TRIPLE:-arm64-apple-macosx13.0}"
 X86_64_TRIPLE="${MACOS_X86_64_TRIPLE:-x86_64-apple-macosx13.0}"
 UNIVERSAL_BIN_DIR="$ROOT_DIR/.build/universal-release"
@@ -411,19 +413,7 @@ create_arch_specific_packages() {
 echo "Building $EXECUTABLE_NAME release binary..."
 build_scintilla_framework
 
-# Use the tracked macOS-compatible LexUser.cxx as the single source of truth.
-# Copying it on every build is idempotent and also repairs stale generated copies.
-LEX_USER="$ROOT_DIR/upstream/notepad-plus-plus/lexilla/lexers/LexUser.cxx"
-cp "$ROOT_DIR/patches/lexilla/LexUser.cxx" "$LEX_USER"
-
 build_lexilla_dylib
-
-# Build liblexilla.a static library from the .o files already compiled by build_lexilla_dylib.
-# swift build links against this static lib at build time; liblexilla.dylib is used at runtime.
-LEXILLA_SRC="$ROOT_DIR/upstream/notepad-plus-plus/lexilla/src"
-LEXILLA_STATIC="$ROOT_DIR/upstream/notepad-plus-plus/lexilla/bin/liblexilla.a"
-echo "Creating liblexilla.a static library..."
-libtool -static -o "$LEXILLA_STATIC" "$LEXILLA_SRC"/*.o
 
 if ! build_main_one_step_universal && ! build_main_lipo_universal; then
     echo "WARNING: Falling back to native Swift release build; main executable will not be universal." >&2

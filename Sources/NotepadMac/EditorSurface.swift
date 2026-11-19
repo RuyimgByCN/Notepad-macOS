@@ -45,6 +45,7 @@ struct EditorMarginClick {
 struct EditorViewPosition {
     var selectedRange: NSRange
     var firstVisibleLine: Int
+    var scrollOrigin: NSPoint? = nil
 }
 
 @MainActor
@@ -220,7 +221,7 @@ protocol EditorSurface: AnyObject {
     func applyBraceHighlight(sciPos1: Int, sciPos2: Int)
     func applyBraceBadLight(sciPos: Int)
     func clearBraceHighlight()
-    func updateBraceHighlightAtUtf16Location(_ location: Int)
+    func updateBraceHighlightAtSelection()
 
     // MARK: - Scroll
     func captureViewPosition() -> EditorViewPosition
@@ -594,7 +595,7 @@ final class TextViewEditorSurface: EditorSurface {
     func applyBraceHighlight(sciPos1: Int, sciPos2: Int) {}
     func applyBraceBadLight(sciPos: Int) {}
     func clearBraceHighlight() {}
-    func updateBraceHighlightAtUtf16Location(_ location: Int) {}
+    func updateBraceHighlightAtSelection() {}
 
     func applyLinePadding(_ pixels: Int) {}
     func applyBidirectional(_ mode: Int) {}
@@ -630,13 +631,19 @@ final class TextViewEditorSurface: EditorSurface {
     func captureViewPosition() -> EditorViewPosition {
         EditorViewPosition(
             selectedRange: textView.selectedRange(),
-            firstVisibleLine: 0
+            firstVisibleLine: 0,
+            scrollOrigin: scrollView.contentView.bounds.origin
         )
     }
 
     func restoreViewPosition(_ position: EditorViewPosition) {
         textView.setSelectedRange(position.selectedRange)
-        textView.scrollRangeToVisible(position.selectedRange)
+        if let origin = position.scrollOrigin {
+            scrollView.contentView.scroll(to: origin)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        } else {
+            textView.scrollRangeToVisible(position.selectedRange)
+        }
     }
 
     func scrollToSelection() {
@@ -927,12 +934,23 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.selectedRange()
     }
 
-    var selectedLineCount: Int? {
+    var selectedByteRange: NSRange {
         let start = bridge.getGeneralProperty(ScintillaMessage.getSelectionStart, parameter: 0) ?? 0
         let end = bridge.getGeneralProperty(ScintillaMessage.getSelectionEnd, parameter: 0) ?? start
-        guard end > start,
-              let startLine = bridge.getGeneralProperty(ScintillaMessage.lineFromPosition, parameter: start),
-              let endLine = bridge.getGeneralProperty(ScintillaMessage.lineFromPosition, parameter: end)
+        return NSRange(location: start, length: end - start)
+    }
+
+    var selectedUTF16Length: Int {
+        let bytes = selectedByteRange
+        guard bytes.length > 0 else { return 0 }
+        return bridge.integerMessage(ScintillaMessage.countCodeUnits, wParam: bytes.location, lParam: bytes.upperBound) ?? 0
+    }
+
+    var selectedLineCount: Int? {
+        let bytes = selectedByteRange
+        guard bytes.length > 0,
+              let startLine = bridge.getGeneralProperty(ScintillaMessage.lineFromPosition, parameter: bytes.location),
+              let endLine = bridge.getGeneralProperty(ScintillaMessage.lineFromPosition, parameter: bytes.upperBound)
         else { return nil }
         return Int(endLine - startLine) + 1
     }
@@ -2478,6 +2496,30 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.gotoLine, parameter: zeroBased, value: 0)
     }
 
+    func goToLine(_ line: Int, utf16Column: Int) {
+        let lineIndex = max(1, line) - 1
+        let start = bridge.getGeneralProperty(ScintillaMessage.positionFromLine, parameter: lineIndex) ?? -1
+        var position = start >= 0 ? start : documentByteCount
+        if utf16Column > 1, start >= 0,
+           let end = bridge.getGeneralProperty(ScintillaMessage.getLineEndPosition, parameter: lineIndex), end > start,
+           let address = bridge.integerMessage(ScintillaMessage.getRangePointer, wParam: start, lParam: end - start),
+           let bytes = UnsafePointer<UInt8>(bitPattern: address) {
+            // Walk UTF-8 scalars only as far as the requested UTF-16 column.
+            var remaining = utf16Column - 1
+            while position < end, remaining > 0 {
+                let units = bytes[position - start] >= 0xF0 ? 2 : 1
+                guard remaining >= units else { break }
+                remaining -= units
+                position += 1
+                while position < end, bytes[position - start] & 0xC0 == 0x80 {
+                    position += 1
+                }
+            }
+        }
+        bridge.setGeneralProperty(ScintillaMessage.setSelection, parameter: position, value: position)
+        scrollToSelection()
+    }
+
     func nextChangedLine(from line: Int) -> Int? {
         let zeroBased = CLong(max(0, line - 1))
         let mask = ScintillaHistoryMarker.allMask
@@ -2733,6 +2775,68 @@ final class ScintillaEditorSurface: EditorSurface {
         appliedSmartHighlight = nil
         let indicator = Self.smartHighlightIndicator
         bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
+        bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(documentByteCount))
+    }
+
+    // Find dialog preview is separate from persistent marks and smart highlighting.
+    static let findPreviewIndicator: CLong = 13
+    private var findPreviewColor: CLong = 0xFF8000
+    private var findPreview: (query: String, options: TextSearch.Options, bytes: Range<CLong>)?
+
+    func updateFindPreview(_ query: String, options: TextSearch.Options) {
+        guard !query.isEmpty else { clearFindPreview(); return }
+        let firstVisible = bridge.getGeneralProperty(ScintillaMessage.getFirstVisibleLine, parameter: 0) ?? 0
+        let page = bridge.getGeneralProperty(ScintillaMessage.linesOnScreen, parameter: 0) ?? 0
+        let firstLine = bridge.getGeneralProperty(ScintillaMessage.docLineFromVisible, parameter: firstVisible) ?? 0
+        let lastLine = bridge.getGeneralProperty(ScintillaMessage.docLineFromVisible, parameter: firstVisible + 2 * page) ?? firstLine
+        let start = bridge.getGeneralProperty(ScintillaMessage.positionFromLine, parameter: firstLine) ?? 0
+        let nextLine = bridge.getGeneralProperty(ScintillaMessage.positionFromLine, parameter: lastLine + 1) ?? -1
+        let end = nextLine >= 0 ? nextLine : CLong(documentByteCount)
+        guard start >= 0, end > start else { clearFindPreview(); return }
+        let bytes = start..<end
+        if let findPreview, findPreview.query == query, findPreview.options == options, findPreview.bytes == bytes {
+            return
+        }
+        clearFindPreview()
+
+        guard let address = bridge.message(
+            ScintillaMessage.getRangePointer, wParam: start,
+            lParam: UnsafeRawPointer(bitPattern: bytes.count)
+        ), let pointer = UnsafePointer<UInt8>(bitPattern: address) else { return }
+        let text = String(decoding: UnsafeBufferPointer(start: pointer, count: bytes.count), as: UTF8.self)
+        findPreview = (query, options, bytes)
+
+        let indicator = Self.findPreviewIndicator
+        bridge.setGeneralProperty(ScintillaMessage.indicSetStyle, parameter: indicator, value: ScintillaIndicatorStyle.roundBox)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetFore, parameter: indicator, value: findPreviewColor)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetAlpha, parameter: indicator, value: 85)
+        bridge.setGeneralProperty(ScintillaMessage.indicSetUnder, parameter: indicator, value: 1)
+        bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: indicator, value: 0)
+        var utf16Position = 0
+        var bytePosition = start
+        var index = text.utf16.startIndex
+        for match in TextSearch.findAll(query, in: text, options: options) where match.length > 0 {
+            // Matches are ordered. Advance once through the viewport instead of
+            // converting every range from the start of the same string.
+            let utf16 = text.utf16
+            let matchStart = utf16.index(index, offsetBy: match.location - utf16Position)
+            let matchEnd = utf16.index(matchStart, offsetBy: match.length)
+            guard let byteIndex = index.samePosition(in: text.utf8),
+                  let byteStart = matchStart.samePosition(in: text.utf8),
+                  let byteEnd = matchEnd.samePosition(in: text.utf8) else { continue }
+            bytePosition += text.utf8.distance(from: byteIndex, to: byteStart)
+            let length = text.utf8.distance(from: byteStart, to: byteEnd)
+            bridge.setGeneralProperty(ScintillaMessage.indicatorFillRange, parameter: bytePosition, value: length)
+            bytePosition += length
+            utf16Position = match.upperBound
+            index = matchEnd
+        }
+    }
+
+    func clearFindPreview() {
+        guard findPreview != nil else { return }
+        findPreview = nil
+        bridge.setGeneralProperty(ScintillaMessage.setIndicatorCurrent, parameter: Self.findPreviewIndicator, value: 0)
         bridge.setGeneralProperty(ScintillaMessage.indicatorClearRange, parameter: 0, value: CLong(documentByteCount))
     }
 
@@ -3015,20 +3119,8 @@ final class ScintillaEditorSurface: EditorSurface {
         bridge.setGeneralProperty(ScintillaMessage.braceHighlight, parameter: CLong(bitPattern: UInt(bitPattern: -1)), value: CLong(bitPattern: UInt(bitPattern: -1)))
     }
 
-    func updateBraceHighlightAtUtf16Location(_ location: Int) {
-        // Fast path: callers almost always pass the selection start, whose
-        // byte position Scintilla can report directly — avoids an O(document)
-        // UTF-16 → UTF-8 conversion on every caret move.
-        let sciPos: CLong
-        if location == bridge.selectedRange().location,
-           let selectionStart = bridge.getGeneralProperty(ScintillaMessage.getSelectionStart, parameter: 0) {
-            sciPos = selectionStart
-        } else if let converted = scintillaPosition(in: text, utf16Location: location) {
-            sciPos = converted
-        } else {
-            clearBraceHighlight()
-            return
-        }
+    func updateBraceHighlightAtSelection() {
+        let sciPos = selectedByteRange.location
 
         // Try at current position and one before
         for tryPos in [sciPos, sciPos - 1] {
@@ -3656,6 +3748,16 @@ final class ScintillaEditorSurface: EditorSurface {
             let style = stylePreferences.resolvedStyle(for: key, base: baseStyle)
             applyStyle(style)
         }
+        let previewStyle = styleCatalog.globalStyle(named: "Find matches highlight all")
+            ?? styleCatalog.globalStyle(named: "Incremental highlight all")
+        let previewKey = StyleOverrideKey(languageName: "global", styleID: 28)
+        findPreviewColor = previewStyle.flatMap {
+            stylePreferences.resolvedStyle(for: previewKey, base: $0).background.map { CLong($0.scintillaColor) }
+        } ?? 0xFF8000
+        if findPreview != nil {
+            bridge.setGeneralProperty(ScintillaMessage.indicSetFore,
+                                      parameter: Self.findPreviewIndicator, value: findPreviewColor)
+        }
         // Apply Default Style (STYLE_DEFAULT = 32) colors to the autocomplete list.
         // This Scintilla build exposes no SCI_AUTOCSETFORE/BACK — those legacy
         // IDs (2237/2238) are actually SCI_FOLDLINE/SCI_FOLDCHILDREN, so using
@@ -4056,6 +4158,7 @@ enum ScintillaMessage {
     static let setTargetStart: Int32 = 2190
     static let setTargetEnd: Int32 = 2192
     static let searchInTarget: Int32 = 2197
+    static let countCodeUnits: Int32 = 2715
     static let positionRelativeCodeUnits: Int32 = 2716
     static let getTargetStart: Int32 = 2191
     static let getTargetEnd: Int32 = 2193
@@ -4071,7 +4174,9 @@ enum ScintillaMessage {
     static let linesOnScreen: Int32 = 2370
     static let textWidth: Int32 = 2276
     static let getSelText: Int32 = 2161
+    static let paste: Int32 = 2179
     static let getTextRange: Int32 = 2162
+    static let getRangePointer: Int32 = 2643
     static let annotationClearAll: Int32 = 2547
     static let setUndoCollection: Int32 = 2012
     static let setSavePoint: Int32 = 2014

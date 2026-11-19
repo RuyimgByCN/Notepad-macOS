@@ -340,6 +340,7 @@
 "find.label.direction" = "Direction";
 "find.matchCase" = "Match case";
 "find.wholeWord" = "Whole Word";
+"find.highlightMatches" = "Highlight all matches";
 "find.wrapAround" = "Wrap around";
 "find.inSelection" = "In selection";
 "find.direction.down" = "Down";

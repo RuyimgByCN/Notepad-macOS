@@ -50,7 +50,7 @@ let package = Package(
                 .process("Resources")
             ],
             linkerSettings: [
-                .unsafeFlags(["-Xlinker", "-force_load", "-Xlinker", "upstream/notepad-plus-plus/lexilla/bin/liblexilla.a"])
+                .unsafeFlags(["-Xlinker", "-force_load", "-Xlinker", ".build/lexilla/bin/liblexilla.a"])
             ]
         ),
         .testTarget(

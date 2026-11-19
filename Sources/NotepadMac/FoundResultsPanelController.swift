@@ -11,16 +11,36 @@ private final class FoundResultsPanel: NSPanel {
 
 @MainActor
 final class FoundResultsPanelController: NSWindowController, NSOutlineViewDataSource, NSOutlineViewDelegate {
-    private enum RowItem {
-        case file(FindInFilesResultsStore.FileGroup)
-        case match(FindInFilesMatch)
+    // NSOutlineView hashes its items. Reference identity avoids bridging and
+    // comparing the contents of entire groups and distinguishes duplicate hits.
+    private final class FileRow: NSObject {
+        let filePath: String
+        var matches: [MatchRow] = []
+
+        init(filePath: String) {
+            self.filePath = filePath
+        }
+    }
+
+    private final class MatchRow: NSObject {
+        let index: Int
+        let match: FindInFilesMatch
+        weak var file: FileRow?
+
+        init(index: Int, match: FindInFilesMatch, file: FileRow) {
+            self.index = index
+            self.match = match
+            self.file = file
+        }
     }
 
     private let store: FindInFilesResultsStore
     private let scrollView = NSScrollView()
     private let outlineView = CopyableOutlineView()
     private let statusField = NSTextField(labelWithString: "")
-    private var fileGroups: [FindInFilesResultsStore.FileGroup] = []
+    private var fileRows: [FileRow] = []
+    private var matchRows: [MatchRow] = []
+    private var isReloading = false
 
     var onNavigateToMatch: ((FindInFilesMatch) -> Void)?
     var onFindInSearchResults: (() -> Void)?
@@ -65,13 +85,30 @@ final class FoundResultsPanelController: NSWindowController, NSOutlineViewDataSo
     }
 
     func reload() {
-        fileGroups = store.groupedByFile()
+        isReloading = true
+        defer { isReloading = false }
+
+        fileRows.removeAll()
+        var filesByPath: [String: FileRow] = [:]
+        matchRows = store.matches.enumerated().map { index, match in
+            let file: FileRow
+            if let existing = filesByPath[match.filePath] {
+                file = existing
+            } else {
+                file = FileRow(filePath: match.filePath)
+                filesByPath[match.filePath] = file
+                fileRows.append(file)
+            }
+            let row = MatchRow(index: index, match: match, file: file)
+            file.matches.append(row)
+            return row
+        }
         outlineView.reloadData()
-        for group in fileGroups {
-            outlineView.expandItem(group)
+        for file in fileRows {
+            outlineView.expandItem(file)
         }
         updateStatus()
-        highlightSelectedMatch()
+        revealSelectedMatch()
     }
 
     @objc private func localizationDidChange(_ notification: Notification) {
@@ -150,54 +187,32 @@ final class FoundResultsPanelController: NSWindowController, NSOutlineViewDataSo
             statusField.stringValue = String(
                 format: Localization.string(.foundResultsSummary, default: "%1$d result(s) in %2$d file(s)"),
                 store.matches.count,
-                fileGroups.count
+                fileRows.count
             )
         }
     }
 
-    private func highlightSelectedMatch() {
-        guard let selected = store.selectedMatch else { return }
-
-        for group in fileGroups {
-            if let childIndex = group.matches.firstIndex(of: selected) {
-                outlineView.expandItem(group)
-                outlineView.selectRowIndexes(IndexSet(integer: outlineView.row(forItem: group.matches[childIndex])), byExtendingSelection: false)
-                outlineView.scrollRowToVisible(outlineView.selectedRow)
-                return
-            }
+    func revealSelectedMatch() {
+        guard matchRows.indices.contains(store.selectedIndex) else { return }
+        let item = matchRows[store.selectedIndex]
+        if let file = item.file, !outlineView.isItemExpanded(file) {
+            outlineView.expandItem(file)
         }
-    }
-
-    private func rowItem(at row: Int) -> RowItem? {
-        var currentRow = 0
-        for group in fileGroups {
-            if currentRow == row {
-                return .file(group)
-            }
-            currentRow += 1
-            for match in group.matches {
-                if currentRow == row {
-                    return .match(match)
-                }
-                currentRow += 1
-            }
+        let row = outlineView.row(forItem: item)
+        guard row >= 0 else { return }
+        let selection = IndexSet(integer: row)
+        if outlineView.selectedRowIndexes != selection {
+            outlineView.selectRowIndexes(selection, byExtendingSelection: false)
         }
-        return nil
+        outlineView.scrollRowToVisible(row)
     }
 
     @objc private func resultDoubleClicked(_ sender: Any?) {
         let row = outlineView.clickedRow
-        guard row >= 0, let item = rowItem(at: row) else { return }
-        switch item {
-        case .file:
-            break
-        case .match(let match):
-            if let index = store.flatIndex(of: match) {
-                store.select(index: index)
-            }
-            onNavigateToMatch?(match)
-            highlightSelectedMatch()
-        }
+        guard row >= 0, let item = outlineView.item(atRow: row) as? MatchRow else { return }
+        store.select(index: item.index)
+        revealSelectedMatch()
+        onNavigateToMatch?(item.match)
     }
 
     @objc private func openAllResultFiles(_ sender: Any?) {
@@ -244,14 +259,15 @@ final class FoundResultsPanelController: NSWindowController, NSOutlineViewDataSo
             lines = store.matches.map { "\($0.filePath):\($0.line):\($0.column): \($0.lineText)" }
         } else {
             for row in selection {
-                guard let item = rowItem(at: row) else { continue }
-                switch item {
-                case .file(let group):
-                    lines.append(group.filePath)
-                    lines.append(contentsOf: group.matches.map {
-                        "\($0.filePath):\($0.line):\($0.column): \($0.lineText)"
+                let item = outlineView.item(atRow: row)
+                if let file = item as? FileRow {
+                    lines.append(file.filePath)
+                    lines.append(contentsOf: file.matches.map { row in
+                        let match = row.match
+                        return "\(match.filePath):\(match.line):\(match.column): \(match.lineText)"
                     })
-                case .match(let match):
+                } else if let row = item as? MatchRow {
+                    let match = row.match
                     lines.append("\(match.filePath):\(match.line):\(match.column): \(match.lineText)")
                 }
             }
@@ -273,14 +289,11 @@ final class FoundResultsPanelController: NSWindowController, NSOutlineViewDataSo
 
     @objc private func deleteSelected(_ sender: Any?) {
         let row = outlineView.selectedRow
-        guard row >= 0, let item = rowItem(at: row) else { return }
-        switch item {
-        case .file(let group):
-            store.removeFile(group.filePath)
-        case .match(let match):
-            if let index = store.flatIndex(of: match) {
-                store.remove(at: index)
-            }
+        guard row >= 0, let item = outlineView.item(atRow: row) else { return }
+        if let file = item as? FileRow {
+            store.removeFile(file.filePath)
+        } else if let match = item as? MatchRow {
+            store.remove(at: match.index)
         }
         reload()
     }
@@ -294,24 +307,21 @@ final class FoundResultsPanelController: NSWindowController, NSOutlineViewDataSo
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
         if item == nil {
-            return fileGroups.count
+            return fileRows.count
         }
-        if let group = item as? FindInFilesResultsStore.FileGroup {
-            return group.matches.count
-        }
-        return 0
+        return (item as? FileRow)?.matches.count ?? 0
     }
 
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-        item is FindInFilesResultsStore.FileGroup
+        item is FileRow
     }
 
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
         if item == nil {
-            return fileGroups[index]
+            return fileRows[index]
         }
-        if let group = item as? FindInFilesResultsStore.FileGroup {
-            return group.matches[index]
+        if let file = item as? FileRow {
+            return file.matches[index]
         }
         fatalError("Unexpected outline item")
     }
@@ -337,12 +347,13 @@ final class FoundResultsPanelController: NSWindowController, NSOutlineViewDataSo
             return newCell
         }()
 
-        if let group = item as? FindInFilesResultsStore.FileGroup {
-            let name = (group.filePath as NSString).lastPathComponent
+        if let file = item as? FileRow {
+            let name = (file.filePath as NSString).lastPathComponent
             cell.textField?.font = .boldSystemFont(ofSize: 11)
-            cell.textField?.stringValue = "\(name)  (\(group.matches.count))"
-            cell.toolTip = group.filePath
-        } else if let match = item as? FindInFilesMatch {
+            cell.textField?.stringValue = "\(name)  (\(file.matches.count))"
+            cell.toolTip = file.filePath
+        } else if let row = item as? MatchRow {
+            let match = row.match
             cell.textField?.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
             cell.textField?.stringValue = "  \(match.line):\(match.column): \(match.lineText)"
             cell.toolTip = match.filePath
@@ -352,9 +363,7 @@ final class FoundResultsPanelController: NSWindowController, NSOutlineViewDataSo
 
     func outlineViewSelectionDidChange(_ notification: Notification) {
         let row = outlineView.selectedRow
-        guard row >= 0, let item = rowItem(at: row) else { return }
-        if case .match(let match) = item, let index = store.flatIndex(of: match) {
-            store.select(index: index)
-        }
+        guard !isReloading, row >= 0, let match = outlineView.item(atRow: row) as? MatchRow else { return }
+        store.select(index: match.index)
     }
 }

@@ -59,7 +59,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let scintillaKeyMapStore = ScintillaKeyMapStore()
     private var editorContextMenuSpec: EditorContextMenuSpec?
     private let macroStore = MacroStore()
-    private lazy var findPanel = FindPanelController(editor: self, preferencesStore: preferencesStore)
+    private var openedFindPanel: FindPanelController?
+    private var findPanel: FindPanelController {
+        if let openedFindPanel { return openedFindPanel }
+        let panel = FindPanelController(editor: self, preferencesStore: preferencesStore)
+        openedFindPanel = panel
+        return panel
+    }
     private lazy var autoCompletionPanel = AutoCompletionPanelController()
     private lazy var callTipPanel = CallTipPanelController()
     private lazy var functionListPanel = FunctionListPanelController()
@@ -567,6 +573,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func closeDocumentTab() {
         guard !didCloseDocument else { return }
         didCloseDocument = true
+        openedFindPanel?.close()
         urlHighlightTimer?.cancel()
         documentMapUpdateTimer?.invalidate()
         removeClonedView()
@@ -718,8 +725,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var lastObservedSelection: NSRange?
     private var lastObservedByteCount = -1
 
+    private var editorSelectionState: NSRange {
+        (editorSurface as? ScintillaEditorSurface)?.selectedByteRange ?? editorSurface.selectedRange
+    }
+
     @objc private func editorSelectionDidChange(_ notification: Notification) {
-        let selection = editorSurface.selectedRange
+        let selection = editorSelectionState
         let byteCount = editorSurface.documentByteCount
         if selection == lastObservedSelection, byteCount == lastObservedByteCount {
             // Scroll-only update: caret didn't move. Smart highlight is the
@@ -1282,7 +1293,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func updateBraceHighlight() {
         if isLargeFile && preferencesStore.load().largeFileSuppressBraceMatch { return }
-        editorSurface.updateBraceHighlightAtUtf16Location(editorSurface.selectedRange.location)
+        editorSurface.updateBraceHighlightAtSelection()
     }
 
     // Tag matching scans character-by-character from the cursor's tag to its
@@ -1531,18 +1542,18 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return
         }
         if isLargeFile && preferencesStore.load().largeFileSuppressSmartHighlight { return }
-        let nsText = editorSurface.text as NSString
-        let selection = editorSurface.selectedRange
 
         // Upstream SmartHighlighter (SmartHighlighter::highlightView) only marks
         // occurrences when there is an actual selection (SCI_GETSELECTIONEMPTY
         // != 1); with an empty caret it clears and returns. Mirror that: a bare
         // caret move must NOT highlight the word under the caret — only a
         // selection (typically produced by double-clicking a word) does.
-        guard selection.length > 0 else {
+        guard editorSelectionState.length > 0 else {
             editorSurface.clearSmartHighlight()
             return
         }
+        let selection = editorSurface.selectedRange
+        let nsText = editorSurface.text as NSString
         guard NSMaxRange(selection) <= nsText.length else {
             editorSurface.clearSmartHighlight()
             return
@@ -3584,7 +3595,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             TextEditCommands.trimLeadingWhitespace(
                 in: editorSurface.text,
                 selectedRange: editorSurface.selectedRange
-            )
+            ),
+            preserveViewport: true
         )
     }
 
@@ -3593,13 +3605,15 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             TextEditCommands.trimLeadingAndTrailingWhitespace(
                 in: editorSurface.text,
                 selectedRange: editorSurface.selectedRange
-            )
+            ),
+            preserveViewport: true
         )
     }
 
     @objc func trimAll(_ sender: Any?) {
         applyEditCommandResult(
-            TextEditCommands.trimAll(in: editorSurface.text, selectedRange: editorSurface.selectedRange)
+            TextEditCommands.trimAll(in: editorSurface.text, selectedRange: editorSurface.selectedRange),
+            preserveViewport: true
         )
     }
 
@@ -3635,7 +3649,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     @objc func trimTrailingWhitespace(_ sender: Any?) {
         applyEditCommandResult(
-            TextEditCommands.trimTrailingWhitespace(in: editorSurface.text, selectedRange: editorSurface.selectedRange)
+            TextEditCommands.trimTrailingWhitespace(in: editorSurface.text, selectedRange: editorSurface.selectedRange),
+            preserveViewport: true
         )
     }
 
@@ -5337,7 +5352,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         let fileURL = URL(fileURLWithPath: filePath)
         let appDelegate = NSApp.delegate as? AppDelegate
-        appDelegate?.openFileAtLine(fileURL: fileURL, line: line)
+        appDelegate?.openFileAtLine(fileURL: fileURL, line: line, column: userInfo["column"] as? Int)
     }
 
     private func observeEditorSurfaceInteractions() {
@@ -5465,7 +5480,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
-    private var isLargeFile = false
+    private(set) var isLargeFile = false
 
     private func load(_ url: URL) throws {
         let preferences = preferencesStore.load()
@@ -5557,8 +5572,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 selectedRange: editorSurface.selectedRange
             )
             if result.text != current {
+                var position = editorSurface.captureViewPosition()
+                position.selectedRange = result.selectedRange
                 editorSurface.text = result.text
-                editorSurface.setSelectedRange(result.selectedRange)
+                editorSurface.restoreViewPosition(position)
             }
         }
         do {
@@ -5678,11 +5695,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
-    private func applyEditCommandResult(_ result: TextEditCommandResult) {
+    private func applyEditCommandResult(_ result: TextEditCommandResult, preserveViewport: Bool = false) {
         guard result.text != editorSurface.text || result.selectedRange != editorSurface.selectedRange else {
             return
         }
+        var position = preserveViewport ? editorSurface.captureViewPosition() : nil
+        position?.selectedRange = result.selectedRange
         applyEditedText(result.text, selectedRange: result.selectedRange)
+        if let position { editorSurface.restoreViewPosition(position) }
     }
 
     private func replaceSelection(with insertedText: String) {
@@ -5917,11 +5937,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 statusCharacterCount()
             ),
         ]
-        let selection = editorSurface.selectedRange
-        let selLen = selection.length
+        let selLen = (editorSurface as? ScintillaEditorSurface)?.selectedUTF16Length ?? editorSurface.selectedRange.length
         if selLen > 0 {
             let selLines = editorSurface.selectedLineCount ?? (editorSurface.text as NSString)
-                .substring(with: selection)
+                .substring(with: editorSurface.selectedRange)
                 .components(separatedBy: "\n")
                 .count
             if selLines > 1 {
@@ -6040,16 +6059,23 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
         max(1, editorSurface.lineCount)
     }
 
-    func goToLine(_ line: Int) {
-        editorSurface.setSelectedRange(selectionRange(forLine: line))
-        updateStatus()
-    }
-
-    func goToLine(_ line: Int, column: Int?) {
+    func goToLine(_ line: Int, column: Int? = nil) {
+        let surface = hostingController?.hostedSurface ?? editorSurface
+        if let scintilla = surface as? ScintillaEditorSurface {
+            scintilla.goToLine(line, utf16Column: column ?? 1)
+            updateStatus()
+            return
+        }
         var range = selectionRange(forLine: line)
         if let col = column, col > 1 {
-            let offset = min(col - 1, (editorSurface.text as NSString).length - range.location)
-            range = NSRange(location: range.location + max(0, offset), length: 0)
+            let text = editorSurface.text as NSString
+            var contentEnd = range.location
+            text.getLineStart(nil, end: nil, contentsEnd: &contentEnd, for: range)
+            var location = range.location + min(col - 1, contentEnd - range.location)
+            if location < contentEnd, (0xDC00...0xDFFF).contains(text.character(at: location)) {
+                location -= 1
+            }
+            range = NSRange(location: location, length: 0)
         }
         editorSurface.setSelectedRange(range)
         updateStatus()
@@ -6128,7 +6154,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return nsText.length
         }
         let nextLineStart = selectionRange(forLine: line + 1)
-        return max(0, nextLineStart.location - 1)
+        let last = max(0, nextLineStart.location - 1)
+        if last > 0, nsText.character(at: last) == 10, nsText.character(at: last - 1) == 13 {
+            return last - 1
+        }
+        return last
     }
 
     private func selectionRange(forLine requestedLine: Int) -> NSRange {
@@ -6140,26 +6170,17 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         var line = 1
         var location = 0
-        var previousWasCarriageReturn = false
         while location < nsText.length {
-            let range = nsText.rangeOfComposedCharacterSequence(at: location)
-            let fragment = nsText.substring(with: range)
-            defer { location = range.upperBound }
-
-            guard fragment.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" }) else {
-                previousWasCarriageReturn = false
-                continue
+            let character = nsText.character(at: location)
+            location += 1
+            if character == 13, location < nsText.length, nsText.character(at: location) == 10 {
+                location += 1
             }
-
-            if fragment == "\n", previousWasCarriageReturn {
-                previousWasCarriageReturn = false
-                continue
-            }
-
-            line += 1
-            previousWasCarriageReturn = fragment == "\r"
-            if line == targetLine {
-                return NSRange(location: range.upperBound, length: 0)
+            if character == 10 || character == 13 {
+                line += 1
+                if line == targetLine {
+                    return NSRange(location: location, length: 0)
+                }
             }
         }
 

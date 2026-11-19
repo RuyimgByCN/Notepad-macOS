@@ -76,6 +76,8 @@ function-list XML、主题 XML、chameleon 图标）均为上游项目的 GPL-3.
 ## 构建与测试
 
 ```bash
+scripts/build-scintilla-framework.sh
+scripts/build-lexilla-dylib.sh
 swift test
 swift build
 ```
@@ -160,14 +162,14 @@ scripts/package-macos.sh
 
 已完成构建并打包：
 
-- `../notepad-plus-plus/scintilla/cocoa/Scintilla/Scintilla.xcodeproj`
+- `upstream/notepad-plus-plus/scintilla/cocoa/Scintilla/Scintilla.xcodeproj`
   - 使用 `scripts/build-scintilla-framework.sh` 构建
   - 输出：`.build/scintilla-derived/Build/Products/Release/Scintilla.framework`
   - 打包至 `Contents/Frameworks/Scintilla.framework`
   - 运行时由原生编辑器界面加载；加载失败时应用回退至 `NSTextView`
-- `../notepad-plus-plus/lexilla`
+- `upstream/notepad-plus-plus/lexilla`
   - 使用 `scripts/build-lexilla-dylib.sh` 构建
-  - 输出：`../notepad-plus-plus/lexilla/bin/liblexilla.dylib`
+  - 输出：`.build/lexilla/bin/liblexilla.dylib`
   - 打包至 `Contents/Frameworks/liblexilla.dylib`
   - 构建请求具有架构感知能力，并针对生成的 dylib 进行验证
   - 打包安装名称重写为 `@rpath/liblexilla.dylib`

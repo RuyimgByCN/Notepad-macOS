@@ -1424,6 +1424,7 @@ public struct FindDialogState: Equatable, Sendable {
     public var markBookmarkLine: Bool
     public var markPurgeForEachSearch: Bool
     public var collapsed: Bool
+    public var highlightMatches: Bool
 
     public init(
         backwardDirection: Bool = false,
@@ -1432,7 +1433,8 @@ public struct FindDialogState: Equatable, Sendable {
         transparencyOpacity: Double = 0.75,
         markBookmarkLine: Bool = false,
         markPurgeForEachSearch: Bool = false,
-        collapsed: Bool = false
+        collapsed: Bool = false,
+        highlightMatches: Bool = false
     ) {
         self.backwardDirection = backwardDirection
         self.transparencyEnabled = transparencyEnabled
@@ -1441,6 +1443,7 @@ public struct FindDialogState: Equatable, Sendable {
         self.markBookmarkLine = markBookmarkLine
         self.markPurgeForEachSearch = markPurgeForEachSearch
         self.collapsed = collapsed
+        self.highlightMatches = highlightMatches
     }
 }
 
@@ -1558,6 +1561,7 @@ public final class PreferencesStore {
         static let findTransparencyOpacity = "notepadMac.find.transparencyOpacity"
         static let findMarkBookmarkLine = "notepadMac.find.markBookmarkLine"
         static let findMarkPurgeForEachSearch = "notepadMac.find.markPurgeForEachSearch"
+        static let findHighlightMatches = "notepadMac.find.highlightMatches"
         static let findDialogCollapsed = "notepadMac.find.dialogCollapsed"
         static let findDotMatchesNewline = "notepadMac.find.dotMatchesNewline"
         static let findWrapAround = "notepadMac.find.wrapAround"
@@ -2038,7 +2042,8 @@ public final class PreferencesStore {
             transparencyOpacity: defaults.object(forKey: Key.findTransparencyOpacity) as? Double ?? 0.75,
             markBookmarkLine: defaults.bool(forKey: Key.findMarkBookmarkLine),
             markPurgeForEachSearch: defaults.bool(forKey: Key.findMarkPurgeForEachSearch),
-            collapsed: defaults.bool(forKey: Key.findDialogCollapsed)
+            collapsed: defaults.bool(forKey: Key.findDialogCollapsed),
+            highlightMatches: defaults.bool(forKey: Key.findHighlightMatches)
         )
     }
 
@@ -2050,6 +2055,7 @@ public final class PreferencesStore {
         defaults.set(state.markBookmarkLine, forKey: Key.findMarkBookmarkLine)
         defaults.set(state.markPurgeForEachSearch, forKey: Key.findMarkPurgeForEachSearch)
         defaults.set(state.collapsed, forKey: Key.findDialogCollapsed)
+        defaults.set(state.highlightMatches, forKey: Key.findHighlightMatches)
         defaults.synchronize()
     }
 

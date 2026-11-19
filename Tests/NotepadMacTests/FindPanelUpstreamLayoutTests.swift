@@ -110,6 +110,33 @@ private func searchControls<T: NSView>(_ type: T.Type, in view: NSView?) -> [T] 
 }
 
 @MainActor
+@Test func findPanelSearchesCurrentBufferSnapshotAndUsesLatestRequest() async throws {
+    let (panel, editor, _) = makePanel()
+    defer {
+        panel.window?.close()
+        editor.editorSurface.teardown()
+    }
+    editor.editorSurface.text = "old request\r\n🚀 current current"
+    let root = panel.window?.contentView
+    let query = try #require(searchControls(NSComboBox.self, in: root).first)
+    let action = NSSelectorFromString("findAllInCurrentDocument:")
+    let searching = Localization.string(.findInFilesSearching, default: "Searching...")
+
+    query.stringValue = "old request"
+    panel.perform(action, with: nil)
+    let status = try #require(searchControls(NSTextField.self, in: root).first { $0.stringValue == searching })
+
+    query.stringValue = "current"
+    panel.perform(action, with: nil)
+    #expect(status.stringValue == searching)
+    editor.editorSurface.text = "edited after the search started"
+
+    for _ in 0..<200 where status.stringValue == searching { try await Task.sleep(for: .milliseconds(5)) }
+    let summary = Localization.string(.findStatusMatchCount, default: "%d match(es).")
+    #expect(status.stringValue == String(format: summary, locale: Locale.current, 2))
+}
+
+@MainActor
 @Test func findPanelRunsFileSearchAsynchronouslyAndCancelsOnClose() async throws {
     let (panel, editor, _) = makePanel()
     defer { editor.editorSurface.teardown() }
@@ -221,4 +248,45 @@ private func searchControls<T: NSView>(_ type: T.Type, in view: NSView?) -> [T] 
     let result = editor.performBookmarkAllMatches(query: "^$", options: .init(searchMode: .regex))
     #expect(result.matchCount == 2)
     #expect(result.lineCount == 2)
+}
+
+@MainActor
+@Test func findPanelUpdatesLiveHighlightsAndClearsThemWhenClosed() async throws {
+    let (panel, editor, defaults) = makePanel()
+    defer {
+        panel.close()
+        editor.editorSurface.teardown()
+    }
+    let surface = try #require(editor.editorSurface as? ScintillaEditorSurface)
+    let bridge = ScintillaDynamicBridge(target: surface.scintillaView)
+    surface.text = "first second"
+    let store = PreferencesStore(defaults: defaults)
+    var state = store.loadFindDialogState()
+    state.highlightMatches = true
+    store.saveFindDialogState(state)
+    panel.show(tab: .find)
+    let fields = searchControls(NSComboBox.self, in: panel.window?.contentView)
+    let field = try #require(fields.first)
+
+    func isHighlighted(_ byte: Int) -> Bool {
+        (bridge.integerMessage(
+            ScintillaMessage.indicatorValueAt,
+            wParam: ScintillaEditorSurface.findPreviewIndicator,
+            lParam: byte
+        ) ?? 0) != 0
+    }
+    func typeQuery(_ query: String, expectedByte: Int) async throws {
+        field.stringValue = query
+        NotificationCenter.default.post(name: NSControl.textDidChangeNotification, object: field)
+        for _ in 0..<100 where !isHighlighted(expectedByte) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(isHighlighted(expectedByte))
+    }
+
+    try await typeQuery("first", expectedByte: 0)
+    try await typeQuery("second", expectedByte: 6)
+    #expect(!isHighlighted(0))
+    panel.close()
+    #expect(!isHighlighted(6))
 }

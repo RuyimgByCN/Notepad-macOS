@@ -114,8 +114,7 @@ private var appearanceObservation: NSKeyValueObservation?
     private lazy var foundResultsPanel: FoundResultsPanelController = {
         let panel = FoundResultsPanelController(store: findInFilesResultsStore)
         panel.onNavigateToMatch = { [weak self] match in
-            self?.openFileAtLine(fileURL: URL(fileURLWithPath: match.filePath), line: match.line)
-            self?.foundResultsPanel.reload()
+            self?.openFileAtLine(fileURL: URL(fileURLWithPath: match.filePath), line: match.line, column: match.column)
         }
         panel.onFindInSearchResults = { [weak self] in
             self?.showFindInFinderPanel(nil)
@@ -911,11 +910,16 @@ private var appearanceObservation: NSKeyValueObservation?
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    func openFileAtLine(fileURL: URL, line: Int) {
-        openFile(fileURL)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let controller = self?.activeEditorController() else { return }
-            controller.goToLine(line)
+    func openFileAtLine(fileURL: URL, line: Int, column: Int? = nil) {
+        if let controller = existingController(for: fileURL) {
+            if editorWindowPresenter.activeController === controller {
+                editorWindowPresenter.present(controller)
+            } else {
+                activate(controller)
+            }
+            controller.goToLine(line, column: column)
+        } else {
+            openFile(fileURL, persistSession: true)?.goToLine(line, column: column)
         }
     }
 
@@ -989,8 +993,8 @@ private var appearanceObservation: NSKeyValueObservation?
             ? findInFilesResultsStore.selectNext()
             : findInFilesResultsStore.selectPrevious()
         guard let match else { return false }
-        openFileAtLine(fileURL: URL(fileURLWithPath: match.filePath), line: match.line)
-        foundResultsPanel.reload()
+        foundResultsPanel.revealSelectedMatch()
+        openFileAtLine(fileURL: URL(fileURLWithPath: match.filePath), line: match.line, column: match.column)
         return true
     }
 
@@ -1585,21 +1589,6 @@ private var appearanceObservation: NSKeyValueObservation?
     func publishFoundResults(_ matches: [FindInFilesMatch], purgeFirst: Bool = true) {
         findInFilesResultsStore.setResults(matches, purgeFirst: purgeFirst)
         showFoundResultsPanel()
-    }
-
-    /// Locates every match of `query` across all open documents.
-    func findAllInOpenDocuments(query: String, options: TextSearch.Options) -> [FindInFilesMatch] {
-        var results: [FindInFilesMatch] = []
-        for controller in orderedWindows() {
-            let path = controller.sessionFileURL?.path ?? controller.windowListSortName
-            results.append(contentsOf: DocumentMatchLocator.matches(
-                query: query,
-                in: controller.editorSurface.text,
-                filePath: path,
-                options: options
-            ))
-        }
-        return results
     }
 
     func replaceInAllOpenDocuments(query: String, replacement: String, options: TextSearch.Options) -> Int {
@@ -2539,7 +2528,7 @@ private var appearanceObservation: NSKeyValueObservation?
         )
     }
 
-    private func orderedWindows() -> [EditorWindowController] {
+    func orderedWindows() -> [EditorWindowController] {
         switch windowSortMode {
         case .none:
             return windows

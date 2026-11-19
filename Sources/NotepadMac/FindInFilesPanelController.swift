@@ -454,6 +454,7 @@ final class FindInFilesPanelController: NSWindowController, NSWindowDelegate {
 
         searchTask = task
         let currentSearchID = searchID
+        let resultsSearchID = resultsStore.beginSearch()
         replaceAllButton.isEnabled = false
         Task { [weak self] in
             let foundResults = await task.value
@@ -463,8 +464,10 @@ final class FindInFilesPanelController: NSWindowController, NSWindowDelegate {
             self.results = foundResults
             self.resultsTable.reloadData()
             self.fitResultsColumnToContent()
-            self.resultsStore.setResults(foundResults, purgeFirst: purge)
-            self.onResultsUpdated?()
+            if self.resultsStore.isCurrentSearch(resultsSearchID) {
+                self.resultsStore.setResults(foundResults, purgeFirst: purge)
+                self.onResultsUpdated?()
+            }
 
             if foundResults.isEmpty {
                 self.statusField.stringValue = Localization.string(.findInFilesNoResults, default: "No results found")
@@ -569,7 +572,8 @@ final class FindInFilesPanelController: NSWindowController, NSWindowDelegate {
             object: nil,
             userInfo: [
                 "filePath": result.filePath,
-                "line": result.line
+                "line": result.line,
+                "column": result.column
             ]
         )
     }

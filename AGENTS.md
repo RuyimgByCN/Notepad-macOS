@@ -18,9 +18,10 @@ Lexilla(语法高亮)与 Boost regex,并复用上游 Notepad++ 的部分源码�
 
 - `upstream/notepad-plus-plus/` **被 `.gitignore` 忽略**,CI 时按 `release.yml`
   内硬编码的 pinned commit(`NPP_COMMIT`)重新 clone。
-- 因此**手动编辑该目录的改动不会进版本控制,等同于丢失**。如需修改上游行为:
-  - Lexilla 相关 → 编辑 `patches/lexilla/LexUser.cxx`(构建/CI 时复制进 upstream 树)
-  - 其他 → 在 `Sources/` 下的 Swift 代码里实现/覆盖
+- 将 `upstream/notepad-plus-plus/` 视为只读依赖。本项目的适配放在受 Git
+  跟踪的 `Sources/` 或 `patches/` 下。
+- Lexilla 和 Scintilla 的构建脚本从上游当前提交提取源码到 `.build/`，
+  并在构建副本上应用 `patches/lexilla/` 和 `patches/scintilla/` 中的适配。
 - 本地保留 `upstream/` 副本仅供开发与构建参考,不要提交其内容。
 - `upstream/notepad--/`、`upstream/NotepadNext/` 是另外两个上游参考,仅占位/参考用。
 

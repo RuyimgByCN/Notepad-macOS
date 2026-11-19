@@ -85,6 +85,8 @@ by the Notepad++ trademark holders.
 ## Build and Test
 
 ```bash
+scripts/build-scintilla-framework.sh
+scripts/build-lexilla-dylib.sh
 swift test
 swift build
 ```
@@ -185,15 +187,15 @@ Already wired into the native app:
 
 Also built and packaged:
 
-- `../notepad-plus-plus/scintilla/cocoa/Scintilla/Scintilla.xcodeproj`
+- `upstream/notepad-plus-plus/scintilla/cocoa/Scintilla/Scintilla.xcodeproj`
   - build with `scripts/build-scintilla-framework.sh`
   - output: `.build/scintilla-derived/Build/Products/Release/Scintilla.framework`
   - packaged into `Contents/Frameworks/Scintilla.framework`
   - loaded at runtime by the native editor surface; if loading fails, the app
     falls back to `NSTextView`
-- `../notepad-plus-plus/lexilla`
+- `upstream/notepad-plus-plus/lexilla`
   - build with `scripts/build-lexilla-dylib.sh`
-  - output: `../notepad-plus-plus/lexilla/bin/liblexilla.dylib`
+  - output: `.build/lexilla/bin/liblexilla.dylib`
   - packaged into `Contents/Frameworks/liblexilla.dylib`
   - build requests are arch-aware and validated against the produced dylib
   - packaged install name is rewritten to `@rpath/liblexilla.dylib`

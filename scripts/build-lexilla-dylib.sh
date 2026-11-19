@@ -2,9 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT_ROOT="$(cd "$ROOT_DIR/.." && pwd)"
-LEXILLA_SRC="$ROOT_DIR/upstream/notepad-plus-plus/lexilla/src"
-LEXILLA_DYLIB="$ROOT_DIR/upstream/notepad-plus-plus/lexilla/bin/liblexilla.dylib"
+UPSTREAM_DIR="$ROOT_DIR/upstream/notepad-plus-plus"
+LEXILLA_BIN="$ROOT_DIR/.build/lexilla/bin"
 DEFAULT_JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 if (( DEFAULT_JOBS > 4 )); then
     DEFAULT_JOBS=4
@@ -145,7 +144,13 @@ else
     echo "Building Lexilla with requested archs: $REQUESTED_ARCHS"
 fi
 
-make -C "$LEXILLA_SRC" "BASE_FLAGS=$BASE_FLAGS_VALUE" "LDFLAGS=$LDFLAGS_VALUE" clean
+mkdir -p "$LEXILLA_BIN"
+SOURCE_DIR="$(mktemp -d "$ROOT_DIR/.build/lexilla-source.XXXXXXXX")"
+trap 'rm -rf "$SOURCE_DIR"' EXIT
+git -C "$UPSTREAM_DIR" archive HEAD lexilla scintilla/include | tar -x -C "$SOURCE_DIR"
+cp "$ROOT_DIR/patches/lexilla/LexUser.cxx" "$SOURCE_DIR/lexilla/lexers/LexUser.cxx"
+LEXILLA_SRC="$SOURCE_DIR/lexilla/src"
+LEXILLA_DYLIB="$SOURCE_DIR/lexilla/bin/liblexilla.dylib"
 make -C "$LEXILLA_SRC" -j"$JOBS" "BASE_FLAGS=$BASE_FLAGS_VALUE" "LDFLAGS=$LDFLAGS_VALUE" all
 
 ACTUAL_ARCHS="$(archs_for_binary "$LEXILLA_DYLIB" 2>/dev/null || echo "missing")"
@@ -158,6 +163,9 @@ for required_arch in $REQUESTED_ARCHS; do
     fi
 done
 
+cp "$LEXILLA_DYLIB" "$LEXILLA_BIN/liblexilla.dylib"
+cp "$SOURCE_DIR/lexilla/bin/liblexilla.a" "$LEXILLA_BIN/liblexilla.a"
+
 echo "Built Lexilla dylib:"
-echo "  $LEXILLA_DYLIB"
+echo "  $LEXILLA_BIN/liblexilla.dylib"
 echo "  Architectures: $ACTUAL_ARCHS"

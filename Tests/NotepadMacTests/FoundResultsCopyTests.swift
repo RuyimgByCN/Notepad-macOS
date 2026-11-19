@@ -37,6 +37,38 @@ import Testing
 }
 
 @MainActor
+@Test func foundResultsSelectionTracksDuplicateHitsAndCollapsedFiles() throws {
+    let duplicate = FindInFilesMatch(filePath: "/tmp/a.txt", line: 2, column: 4, lineText: "same hit")
+    let other = FindInFilesMatch(filePath: "/tmp/b.txt", line: 3, column: 1, lineText: "other hit")
+    let store = FindInFilesResultsStore()
+    store.setResults([duplicate, other, duplicate], purgeFirst: true)
+    let panel = FoundResultsPanelController(store: store)
+    panel.reload()
+
+    let scroll = try #require(panel.window?.contentView?.subviews.compactMap { $0 as? NSScrollView }.first)
+    let outline = try #require(scroll.documentView as? NSOutlineView)
+    let firstFile = try #require(outline.item(atRow: 0))
+    let secondFile = try #require(outline.item(atRow: 3))
+    outline.selectRowIndexes(IndexSet(integer: 2), byExtendingSelection: false)
+    #expect(store.selectedIndex == 2)
+
+    outline.collapseItem(firstFile)
+    outline.selectRowIndexes(IndexSet(integer: 2), byExtendingSelection: false)
+    #expect(store.selectedIndex == 1)
+
+    outline.collapseItem(secondFile)
+    store.select(index: 2)
+    panel.revealSelectedMatch()
+    #expect(outline.isItemExpanded(firstFile))
+    #expect(!outline.isItemExpanded(secondFile))
+    #expect(outline.selectedRow == 2)
+    #expect(store.selectedIndex == 2)
+
+    panel.perform(NSSelectorFromString("deleteSelected:"), with: nil)
+    #expect(store.matches == [duplicate, other])
+}
+
+@MainActor
 @Test func foundResultsOutlineViewRespondsToCopyOnlyWhenHooked() {
     let outline = CopyableOutlineView()
     #expect(outline.responds(to: #selector(CopyableOutlineView.copy(_:))) == false)

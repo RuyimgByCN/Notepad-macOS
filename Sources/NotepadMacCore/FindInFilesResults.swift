@@ -18,8 +18,18 @@ public struct FindInFilesMatch: Equatable, Sendable, Codable {
 public final class FindInFilesResultsStore {
     public private(set) var matches: [FindInFilesMatch] = []
     public private(set) var selectedIndex: Int = -1
+    private var latestSearchID = UUID()
 
     public init() {}
+
+    public func beginSearch() -> UUID {
+        latestSearchID = UUID()
+        return latestSearchID
+    }
+
+    public func isCurrentSearch(_ id: UUID) -> Bool {
+        id == latestSearchID
+    }
 
     public var hasResults: Bool {
         !matches.isEmpty
@@ -42,6 +52,7 @@ public final class FindInFilesResultsStore {
     public func clear() {
         matches = []
         selectedIndex = -1
+        latestSearchID = UUID()
     }
 
     public func select(index: Int) {
@@ -145,13 +156,14 @@ public enum DocumentMatchLocator {
         options: TextSearch.Options
     ) -> [FindInFilesMatch] {
         let ranges = TextSearch.findAll(query, in: text, options: options)
-        guard !ranges.isEmpty else { return [] }
+        guard !Task.isCancelled, !ranges.isEmpty else { return [] }
 
         // Single pass: record the start offset of every line.
         let nsText = text as NSString
         var lineStarts: [Int] = [0]
         var index = 0
         while index < nsText.length {
+            if Task.isCancelled { return [] }
             let lineRange = nsText.lineRange(for: NSRange(location: index, length: 0))
             index = NSMaxRange(lineRange)
             if index < nsText.length { lineStarts.append(index) }
@@ -168,18 +180,22 @@ public enum DocumentMatchLocator {
             return low
         }
 
-        return ranges.map { range in
+        var matches: [FindInFilesMatch] = []
+        matches.reserveCapacity(ranges.count)
+        for range in ranges {
+            if Task.isCancelled { return [] }
             let line = lineIndex(for: range.location)
             let lineStart = lineStarts[line]
             let lineRange = nsText.lineRange(for: NSRange(location: lineStart, length: 0))
             let lineText = nsText.substring(with: lineRange)
                 .trimmingCharacters(in: .newlines)
-            return FindInFilesMatch(
+            matches.append(FindInFilesMatch(
                 filePath: filePath,
                 line: line + 1,
                 column: range.location - lineStart + 1,
                 lineText: lineText
-            )
+            ))
         }
+        return matches
     }
 }

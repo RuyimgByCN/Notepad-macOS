@@ -340,6 +340,7 @@
 "find.label.direction" = "方向";
 "find.matchCase" = "匹配大小写";
 "find.wholeWord" = "匹配整个单词";
+"find.highlightMatches" = "高亮所有匹配项";
 "find.wrapAround" = "循环查找";
 "find.inSelection" = "选取范围内";
 "find.direction.down" = "向下";

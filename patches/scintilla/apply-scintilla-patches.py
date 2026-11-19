@@ -234,7 +234,9 @@ def apply_clickable_viewport_width_patch(filepath):
 
 
 if __name__ == '__main__':
-    scintilla_view = sys.argv[1] if len(sys.argv) > 1 else 'upstream/notepad-plus-plus/scintilla/cocoa/ScintillaView.mm'
+    if len(sys.argv) not in (2, 3):
+        sys.exit("Usage: apply-scintilla-patches.py <build-copy/ScintillaView.mm> [build-copy/Editor.cxx]")
+    scintilla_view = sys.argv[1]
     editor_source = (
         sys.argv[2]
         if len(sys.argv) > 2

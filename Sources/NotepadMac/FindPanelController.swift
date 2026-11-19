@@ -10,6 +10,8 @@ import NotepadMacCore
 final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabViewDelegate {
     private weak var editor: EditorWindowController?
     private let preferencesStore: PreferencesStore
+    private var previewTask: Task<Void, Never>?
+    private let highlightMatchesButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
 
     enum Tab: Int {
         case find = 0
@@ -103,8 +105,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
     private var fifOptionsTop: NSLayoutConstraint!
 
     private var currentTab: Tab = .find
-    private var fileSearchTask: Task<[FindInFilesMatch], Never>?
-    private var fileSearchID = UUID()
+    private var resultsSearchTask: Task<[FindInFilesMatch], Never>?
 
     // MARK: - Init
 
@@ -128,6 +129,10 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         configureContent()
         refreshLocalizedStrings()
         loadPreferences()
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(previewQueryChanged), name: NSControl.textDidChangeNotification, object: findField)
+        center.addObserver(self, selector: #selector(previewDocumentChanged), name: NSText.didChangeNotification, object: editor.editorSurface.notificationObject)
+        center.addObserver(self, selector: #selector(previewViewportChanged), name: Notification.Name("SCIUpdateUI"), object: editor.editorSurface.notificationObject)
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(localizationDidChange(_:)),
@@ -137,18 +142,75 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
     }
 
     deinit {
-        fileSearchTask?.cancel()
+        resultsSearchTask?.cancel()
+        previewTask?.cancel()
         NotificationCenter.default.removeObserver(self)
     }
 
     func windowWillClose(_ notification: Notification) {
-        cancelFileSearch()
+        cancelResultsSearch()
+        clearFindPreview()
     }
 
-    private func cancelFileSearch() {
-        fileSearchTask?.cancel()
-        fileSearchTask = nil
-        fileSearchID = UUID()
+    func clearFindPreview() {
+        previewTask?.cancel()
+        previewTask = nil
+        (editor?.editorSurface as? ScintillaEditorSurface)?.clearFindPreview()
+    }
+
+    @objc private func previewQueryChanged() {
+        scheduleFindPreview()
+    }
+
+    @objc private func previewDocumentChanged() {
+        clearFindPreview()
+        scheduleFindPreview()
+    }
+
+    @objc private func previewViewportChanged() {
+        if previewTask == nil { refreshFindPreview() }
+    }
+
+    @objc private func previewOptionChanged(_ sender: Any?) {
+        if sender as? NSButton === highlightMatchesButton { saveFindDialogState() }
+        scheduleFindPreview()
+    }
+
+    private func scheduleFindPreview() {
+        previewTask?.cancel()
+        guard highlightMatchesButton.state == .on, window?.isVisible == true,
+              currentTab == .find || currentTab == .replace else {
+            clearFindPreview()
+            return
+        }
+        previewTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled, let self else { return }
+            self.previewTask = nil
+            self.refreshFindPreview()
+        }
+    }
+
+    private func refreshFindPreview() {
+        guard let editor, let surface = editor.editorSurface as? ScintillaEditorSurface else { return }
+        guard highlightMatchesButton.state == .on, window?.isVisible == true,
+              currentTab == .find || currentTab == .replace,
+              !editor.isLargeFile || !preferencesStore.load().largeFileSuppressSmartHighlight else {
+            surface.clearFindPreview()
+            return
+        }
+        let options = TextSearch.Options(
+            matchCase: matchCaseButton.state == .on,
+            wholeWord: wholeWordButton.state == .on,
+            searchMode: currentSearchMode(),
+            dotMatchesLineSeparators: dotMatchesNewlineButton.state == .on
+        )
+        surface.updateFindPreview(findField.stringValue, options: options)
+    }
+
+    private func cancelResultsSearch() {
+        resultsSearchTask?.cancel()
+        resultsSearchTask = nil
         findInFilesReplaceAllButton.isEnabled = true
     }
 
@@ -216,6 +278,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         if tab != .replace {
             findField.selectText(nil)
         }
+        scheduleFindPreview()
     }
 
     func findNextFromMenu() {
@@ -273,6 +336,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         moveSharedContainer(into: tabViewItem)
         applyTabVisibility()
         refreshWindowTitle()
+        scheduleFindPreview()
     }
 
     private func moveSharedContainer(into tabViewItem: NSTabViewItem) {
@@ -314,6 +378,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         // Options visibility (optionsStack auto-collapses hidden items)
         rowBackward.isHidden = isFindInFiles
         wrapAroundButton.isHidden = isFindInFiles
+        highlightMatchesButton.isHidden = !(isFind || isReplace) || !(editor?.editorSurface is ScintillaEditorSurface)
         inSelectionButton.isHidden = isFindInFiles || isMark
         bookmarkLineButton.isHidden = !isMark
         purgeButton.isHidden = !isMark
@@ -477,46 +542,38 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
     }
 
     @objc private func findAllInCurrentDocument(_ sender: Any?) {
-        guard !findField.stringValue.isEmpty else {
-            setStatus(Localization.string(.findStatusEnterText, default: "Enter text to find."), isError: true)
-            return
-        }
-        saveSearchPreferences()
-        addToFindHistory(findField.stringValue)
         guard let editor else { return }
-        let path = editor.sessionFileURL?.path ?? editor.windowListSortName
-        let matches = DocumentMatchLocator.matches(
-            query: findField.stringValue,
-            in: editor.editorSurface.text,
-            filePath: path,
-            options: makeOptions(direction: nil)
-        )
-        guard !matches.isEmpty else {
-            setStatus(Localization.string(.findStatusNoMatches, default: "No matches."), isError: true)
-            return
-        }
-        (NSApp.delegate as? AppDelegate)?.publishFoundResults(matches)
-        setStatus(localizedString(.findStatusMatchCount, default: "%d match(es).", matches.count))
+        findAll(in: [editor])
     }
 
     @objc private func findAllInOpenDocuments(_ sender: Any?) {
-        guard !findField.stringValue.isEmpty else {
+        guard let appDelegate = NSApp.delegate as? AppDelegate else { return }
+        findAll(in: appDelegate.orderedWindows())
+    }
+
+    private func findAll(in editors: [EditorWindowController]) {
+        cancelResultsSearch()
+        let query = findField.stringValue
+        guard !query.isEmpty else {
             setStatus(Localization.string(.findStatusEnterText, default: "Enter text to find."), isError: true)
             return
         }
         saveSearchPreferences()
-        addToFindHistory(findField.stringValue)
-        guard let appDelegate = NSApp.delegate as? AppDelegate else { return }
-        let matches = appDelegate.findAllInOpenDocuments(
-            query: findField.stringValue,
-            options: makeOptions(direction: nil)
-        )
-        guard !matches.isEmpty else {
-            setStatus(Localization.string(.findStatusNoMatches, default: "No matches."), isError: true)
-            return
+        addToFindHistory(query)
+        let options = makeOptions(direction: nil)
+        let documents = editors.map { editor in
+            (text: editor.editorSurface.text, path: editor.sessionFileURL?.path ?? editor.windowListSortName)
         }
-        appDelegate.publishFoundResults(matches)
-        setStatus(localizedString(.findStatusMatchCount, default: "%d match(es).", matches.count))
+        startResultsSearch(purgeFirst: true) {
+            var results: [FindInFilesMatch] = []
+            for document in documents {
+                if Task.isCancelled { break }
+                results.append(contentsOf: DocumentMatchLocator.matches(
+                    query: query, in: document.text, filePath: document.path, options: options
+                ))
+            }
+            return results
+        }
     }
 
     @objc private func markAll(_ sender: Any?) {
@@ -573,7 +630,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
     // MARK: - Find in Files Actions
 
     @objc private func findInFilesFindAll(_ sender: Any?) {
-        cancelFileSearch()
+        cancelResultsSearch()
         guard !findField.stringValue.isEmpty else {
             setStatus(Localization.string(.findStatusEnterText, default: "Enter text to find."), isError: true)
             return
@@ -607,28 +664,36 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
             return
         }
 
-        setStatus(Localization.string(.findInFilesSearching, default: "Searching..."))
-        let searchID = fileSearchID
-        findInFilesReplaceAllButton.isEnabled = false
-        let task = Task.detached(priority: .userInitiated) {
+        startResultsSearch(purgeFirst: purge, isFileSearch: true) {
             FindInFilesSearch.searchInDirectory(
                 dirURL, query: query, filters: filters, matchCase: matchCase,
                 wholeWord: wholeWord, searchMode: searchMode,
                 perLineResult: perLine, dotMatchesLineSeparators: dotMatchesNewline
             )
         }
-        fileSearchTask = task
-        Task { [weak self] in
+    }
+
+    private func startResultsSearch(
+        purgeFirst: Bool,
+        isFileSearch: Bool = false,
+        search: @Sendable @escaping () -> [FindInFilesMatch]
+    ) {
+        let appDelegate = NSApp.delegate as? AppDelegate
+        let searchID = appDelegate?.findInFilesResultsStore.beginSearch()
+        setStatus(Localization.string(.findInFilesSearching, default: "Searching..."))
+        findInFilesReplaceAllButton.isEnabled = !isFileSearch
+        let task = Task.detached(priority: .userInitiated, operation: search)
+        resultsSearchTask = task
+        Task { [weak self, weak appDelegate] in
             let results = await task.value
-            guard let self, self.fileSearchID == searchID, !task.isCancelled else { return }
-            self.fileSearchTask = nil
+            guard let self, !task.isCancelled else { return }
+            self.resultsSearchTask = nil
             self.findInFilesReplaceAllButton.isEnabled = true
             if results.isEmpty {
                 self.setStatus(Localization.string(.findStatusNoMatches, default: "No matches."), isError: true)
             } else {
-                if let appDelegate = NSApp.delegate as? AppDelegate {
-                    appDelegate.findInFilesResultsStore.setResults(results, purgeFirst: purge)
-                    appDelegate.showFoundResultsPanel()
+                if let appDelegate, let searchID, appDelegate.findInFilesResultsStore.isCurrentSearch(searchID) {
+                    appDelegate.publishFoundResults(results, purgeFirst: purgeFirst)
                 }
                 self.setStatus(self.localizedString(.findStatusMatchCount, default: "%d match(es).", results.count))
             }
@@ -744,6 +809,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         if clicked != modeRegexButton { modeRegexButton.state = .off }
         clicked.state = .on
         dotMatchesNewlineButton.isEnabled = modeRegexButton.state == .on
+        scheduleFindPreview()
     }
 
     @objc private func transparencySettingChanged(_ sender: Any?) {
@@ -858,6 +924,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         wrapAroundButton.state = extended.wrapAround ? .on : .off
 
         let dialogState = preferencesStore.loadFindDialogState()
+        highlightMatchesButton.state = dialogState.highlightMatches ? .on : .off
         backwardButton.state = dialogState.backwardDirection ? .on : .off
         transparencyCheckbox.state = dialogState.transparencyEnabled ? .on : .off
         transparencyOnFocusRadio.state = dialogState.transparencyOnLosingFocusOnly ? .on : .off
@@ -893,7 +960,8 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
             transparencyOpacity: transparencySlider.doubleValue,
             markBookmarkLine: bookmarkLineButton.state == .on,
             markPurgeForEachSearch: purgeButton.state == .on,
-            collapsed: isCollapsed
+            collapsed: isCollapsed,
+            highlightMatches: highlightMatchesButton.state == .on
         ))
     }
 
@@ -1023,6 +1091,11 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         optionsStack.addArrangedSubview(rowWholeWord)
         optionsStack.addArrangedSubview(matchCaseButton)
         optionsStack.addArrangedSubview(wrapAroundButton)
+        optionsStack.addArrangedSubview(highlightMatchesButton)
+        for control in [highlightMatchesButton, wholeWordButton, matchCaseButton, dotMatchesNewlineButton] {
+            control.target = self
+            control.action = #selector(previewOptionChanged(_:))
+        }
 
         // Search mode group
         searchModeBox.titlePosition = .atTop
@@ -1297,6 +1370,7 @@ final class FindPanelController: NSWindowController, NSWindowDelegate, NSTabView
         replaceAllButton.title = Localization.string(.findReplaceAllButton, default: "Replace All")
         replaceAllInAllButton.title = Localization.string(
             .findReplaceAllInAllDocsButton, default: "Replace All in All Opened Documents")
+        highlightMatchesButton.title = Localization.string("find.highlightMatches", default: "Highlight all matches")
         markAllButton.title = Localization.string(.findMarkAllButton, default: "Mark All")
         clearMarksButton.title = Localization.string(.findClearMarksButton, default: "Clear all marks")
         copyMarkedTextButton.title = Localization.string(.findCopyMarkedTextButton, default: "Copy Marked Text")
