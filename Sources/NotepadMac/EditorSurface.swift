@@ -828,7 +828,11 @@ final class ScintillaEditorSurface: EditorSurface {
     var scintillaView: NSView { standaloneView ?? viewPool!.backend(for: self).view }
     var view: NSView { documentContainer ?? scintillaView }
     var notificationObject: AnyObject { view }
-    var firstResponder: NSResponder { presentationBackend?.view ?? view }
+    var firstResponder: NSResponder {
+        // A parked tab must not bind to the scratch view just to resolve focus.
+        if let documentContainer, presentationBackend == nil { return documentContainer }
+        return scintillaContentView() ?? scintillaView
+    }
 
     func presentEditorView() { viewPool?.present(self) }
     func parkEditorView() { viewPool?.park(self) }

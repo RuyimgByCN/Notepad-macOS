@@ -45,6 +45,26 @@ import Testing
 }
 
 @MainActor
+@Test func sharedEditorHasPasteResponderAfterReactivation() throws {
+    let presenter = EditorWindowPresenter()
+    let other = EditorWindowController(usesSharedWindow: true)
+    let controller = EditorWindowController(usesSharedWindow: true)
+    let surface = try #require(controller.editorSurface as? ScintillaEditorSurface)
+    presenter.present(other)
+    presenter.present(controller)
+    let window = try #require(controller.window)
+    defer { presenter.remove(controller); window.close() }
+
+    let notifications = NotificationCenter.default
+    notifications.post(name: NSApplication.didResignActiveNotification, object: NSApp)
+    notifications.post(name: NSApplication.didBecomeActiveNotification, object: NSApp)
+
+    let responder = try #require(window.firstResponder as? NSView)
+    #expect(responder.isDescendant(of: surface.view))
+    #expect(responder.responds(to: #selector(NSText.paste(_:))))
+}
+
+@MainActor
 @Test func closingBackgroundTabDoesNotCloseSharedWindow() throws {
     let presenter = EditorWindowPresenter()
     let first = EditorWindowController(usesSharedWindow: true)
